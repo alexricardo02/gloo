@@ -18,11 +18,13 @@ export async function registerUser(formData: FormData, locale: string) {
 
   const birthDate = new Date(birthDateRaw);
 
-  // Age validation
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDifference = today.getMonth() - birthDate.getMonth();
 
+  // A simple year subtraction gives the wrong age for birthdays that haven't
+  // occurred yet this year (e.g., today is March, birthday is December → off by 1).
+  // monthDifference corrects this before the age gate is applied.
   if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
@@ -36,7 +38,6 @@ export async function registerUser(formData: FormData, locale: string) {
     return { error: "usernameSpaceError" };
   }
 
-  // Requires: Min 8 chars, 1 uppercase, 1 number, 1 special character
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
   if (!passwordRegex.test(password)) {
     return { error: "passwordWeakError" };
@@ -56,10 +57,8 @@ export async function registerUser(formData: FormData, locale: string) {
       }
     }
 
-    // Encrypt password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // generate a secure random token for verification
     const verificationToken = crypto.randomUUID();
 
 
@@ -70,12 +69,13 @@ export async function registerUser(formData: FormData, locale: string) {
         name,
         password: hashedPassword,
         birthDate,
-        isVerified: false, // Account remains locked until verified
+        // Account stays locked until the user confirms their email.
+        // This prevents access with typo'd or stolen email addresse
+        isVerified: false, 
         verificationToken,
       },
     });
 
-    // In production, an email service provider like Resend/SendGrid triggers here
     console.log(`[EMAIL SIMULATION] Verification link sent to ${email}: http://localhost:3000/${locale}/verify?token=${verificationToken}`);
 
     return { success: true, needsVerification: true };
@@ -140,6 +140,9 @@ export async function logOutAction(locale: string) {
   
   const guestId = crypto.randomUUID();
   
+  // After logout the user lands on the discovery feed, which requires a valid
+  // session to render. Setting guest cookies prevents a redirect loop by
+  // providing a browsing session without account privileges.
   cookieStore.set("gloo_is_guest", "true", {
     path: "/",
     maxAge: 60 * 60 * 24,
@@ -161,17 +164,16 @@ export async function logOutAction(locale: string) {
 
 
 export async function checkUsernameAvailability(username: string) {
-  // Return false instantly if the string is too short to avoid unnecessary DB calls
   if (!username || username.length < 3 || /\s/.test(username)) return { available: false };
   
   try {
-    // Optimize the query by only selecting the ID (faster than fetching the whole row)
+    // Selecting only the ID avoids loading the full user row from the DB.
+    // At scale, this matters because username checks fire on every keystroke.
     const user = await prisma.user.findUnique({
       where: { username },
       select: { id: true },
     });
     
-    // If 'user' is null, the username is available
     return { available: !user };
   } catch (error) {
     console.error("Error checking username:", error);
@@ -189,7 +191,6 @@ export async function updateProfileImage(formData: FormData) {
   if (!file || file.size === 0) return { error: "No image provided" };
 
   try {
-    // Convert file to Base64 string for database storage
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}-${Date.now()}.${fileExt}`;
     const filePath = `profiles/${fileName}`;
@@ -212,7 +213,6 @@ export async function updateProfileImage(formData: FormData) {
 
     const publicUrl = publicUrlData.publicUrl;
 
-    // Update user record in the database
     await prisma.user.update({
       where: { id: userId },
       data: { image: publicUrl },
@@ -234,7 +234,6 @@ export async function deleteAccountAction(locale: string) {
   }
 
   try {
-    // Fetch user and group data to delete media from Supabase
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -248,15 +247,16 @@ export async function deleteAccountAction(locale: string) {
       return { error: "User not found" };
     }
 
-    // Delete user account first (Cascade deletion handles Group, Chats, Messages, GameScores, etc.)
+    // DB record is deleted first because Prisma's cascade handles all relational
+    // cleanup (Group, Chats, Messages, GameScores) atomically. Supabase storage
+    // has no foreign key constraints, so file deletion order doesn't affect
+    // data integrity — only UX speed.
     await prisma.user.delete({
       where: { id: userId }
     });
 
-    // Delete auth cookies
     cookieStore.delete("gloo_user_id");
 
-    // Set guest cookies
     const guestId = crypto.randomUUID();
     cookieStore.set("gloo_is_guest", "true", {
       path: "/",
@@ -274,13 +274,14 @@ export async function deleteAccountAction(locale: string) {
       sameSite: "lax",
     });
 
-    // Delete Supabase files in the background (non-blocking)
-    // We don't await this so deletion completes faster for the user
+    // Supabase file deletion is intentionally fire-and-forget (not awaited).
+    // The DB record is already gone at this point, so the redirect should not
+    // be held back by storage cleanup — a slow CDN response would degrade UX
+    // with zero user-facing benefit.
     (async () => {
       try {
         const filesToDelete: string[] = [];
 
-        // Collect profile image
         if (user.image && user.image.includes('supabase')) {
           const imageFileName = user.image.split('/').pop();
           if (imageFileName) {
@@ -288,7 +289,6 @@ export async function deleteAccountAction(locale: string) {
           }
         }
 
-        // Collect group photos
         if (user.group?.photos && user.group.photos.length > 0) {
           user.group.photos.forEach(url => {
             if (url.includes('supabase')) {
@@ -300,7 +300,6 @@ export async function deleteAccountAction(locale: string) {
           });
         }
 
-        // Delete all files in parallel
         if (filesToDelete.length > 0) {
           await supabase.storage
             .from('gloo-images')
@@ -308,7 +307,6 @@ export async function deleteAccountAction(locale: string) {
         }
       } catch (error) {
         console.error("Error deleting Supabase files in background:", error);
-        // Silent fail - user deletion already completed successfully
       }
     })();
 
@@ -320,15 +318,11 @@ export async function deleteAccountAction(locale: string) {
   redirect(`/${locale}/search-groups`);
 }
 
-/**
- * Initiates password reset process.
- * Generates a secure token and stores it with expiration time.
- * Returns same message regardless of email existence (prevents user enumeration).
- */
+
 export async function requestPasswordReset(email: string, locale: string) {
-  const passwordRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Simple email validation
+  const passwordRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
   if (!passwordRegex.test(email)) {
-    return { success: true }; // Always return success to prevent enumeration
+    return { success: true };
   }
 
   try {
@@ -337,18 +331,17 @@ export async function requestPasswordReset(email: string, locale: string) {
       select: { id: true }
     });
 
-    // Always return success even if user doesn't exist (privacy)
+    // Returning success even when the email is not registered prevents user
+    // enumeration — an attacker can't use the response to check which emails
+    // exist in the system.
     if (!user) {
       return { success: true };
     }
 
-    // Generate a secure random token (64 characters)
     const resetToken = crypto.randomUUID() + "-" + crypto.randomUUID();
     
-    // Token expires in 1 hour
     const expiryTime = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Store token in database
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -366,14 +359,10 @@ export async function requestPasswordReset(email: string, locale: string) {
     return { success: true };
   } catch (error) {
     console.error("Error requesting password reset:", error);
-    return { success: true }; // Still return success to prevent enumeration
+    return { success: true };
   }
 }
 
-/**
- * Resets the user password using a valid reset token.
- * Validates token expiration and password strength.
- */
 export async function resetPassword(token: string, newPassword: string) {
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
   if (!passwordRegex.test(newPassword)) {
@@ -381,12 +370,11 @@ export async function resetPassword(token: string, newPassword: string) {
   }
 
   try {
-    // Find user with valid token
     const user = await prisma.user.findFirst({
       where: {
         resetPasswordToken: token,
         resetPasswordExpiry: {
-          gt: new Date() // Token must not be expired
+          gt: new Date()
         }
       }
     });
@@ -395,13 +383,13 @@ export async function resetPassword(token: string, newPassword: string) {
       return { error: "tokenInvalidOrExpired" };
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password and clear reset token
     await prisma.user.update({
       where: { id: user.id },
       data: {
+        // Single-use: clearing both fields after a successful reset ensures
+        // the same link cannot be replayed even within its original validity window.
         password: hashedPassword,
         resetPasswordToken: null,
         resetPasswordExpiry: null

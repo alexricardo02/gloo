@@ -4,25 +4,25 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 /**
- * Meldet einen Nutzer als Gast an, indem temporäre Cookies gesetzt werden.
+ * Creates a temporary guest session by setting short-lived cookies.
+ * Guests can browse the discovery feed but are blocked from messaging,
+ * profile creation, and other features that require a real account.
  */
 export async function loginAsGuest(locale: string) {
-  // 1. Unique id generieren
   const guestId = crypto.randomUUID();
   
-  // 2. Cookies-Instanz holen
   const cookieStore = await cookies();
 
-  // 3. Guest-Flag setzen (für UI-Zustände wie Blur/Paywall)
   cookieStore.set("gloo_is_guest", "true", {
     path: "/",
-    maxAge: 60 * 60 * 24, // 24 Stunden gültig
-    httpOnly: true,       // Schutz gegen XSS
+    maxAge: 60 * 60 * 24,
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
   });
 
-  // 4. Temporäre Guest-ID speichern (wichtig für GameScores laut Prisma-Schema)
+  // A guestId is generated even without an account because the GameScores
+  // schema requires a session identifier to attribute scores to anonymous users.
   cookieStore.set("gloo_guest_id", guestId, {
     path: "/",
     maxAge: 60 * 60 * 24,
@@ -31,12 +31,12 @@ export async function loginAsGuest(locale: string) {
     sameSite: "lax",
   });
 
-  // Nach dem Setzen der Cookies zum Dashboard weiterleiten
   redirect(`/${locale}/search-groups`);
 }
 
 /**
- * Löscht die Gast-Sitzung (z.B. beim echten Login oder Logout).
+ * Clears the guest session cookies on login or registration.
+ * Called to ensure a real authenticated session fully replaces the guest state.
  */
 export async function clearGuestSession() {
   const cookieStore = await cookies();
@@ -44,19 +44,13 @@ export async function clearGuestSession() {
   cookieStore.delete("gloo_guest_id");
 }
 
-/**
- * Prüft serverseitig, ob der aktuelle Nutzer ein Gast ist.
- * Wird in Server Components oder anderen Server Actions verwendet.
- */
+
 export async function checkIsGuest() {
   const cookieStore = await cookies();
   return cookieStore.get("gloo_is_guest")?.value === "true";
 }
 
-/**
- * Erhält die aktuelle Guest-ID aus den Cookies.
- * Nützlich, um GameScores in der DB einem Gast zuzuordnen.
- */
+
 export async function getGuestId() {
   const cookieStore = await cookies();
   return cookieStore.get("gloo_guest_id")?.value || null;

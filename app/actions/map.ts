@@ -102,6 +102,9 @@ export async function toggleVenueAttendance(venueId: string) {
       });
       return { success: true, isAttending: false };
     } else {
+      // A group can only commit to one venue per night. Clearing all previous
+      // attendances before inserting the new one enforces this constraint at
+      // the application layer — the DB has no unique-across-venues rule.
       await prisma.venueAttendance.deleteMany({
         where: { groupId: group.id },
       });
@@ -119,10 +122,6 @@ export async function toggleVenueAttendance(venueId: string) {
   }
 }
 
-
-/**
- * Startet eine neue Pre-Party (4 Stunden Timer)
- */
 export async function startPreParty(latitude: number, longitude: number, description: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -135,14 +134,16 @@ export async function startPreParty(latitude: number, longitude: number, descrip
     const startTime = new Date();
     const endTime = new Date(startTime.getTime() + 4 * 60 * 60 * 1000);
 
-    // Sicherheitsmaßnahme: Alte oder hängengebliebene Events dieses Nutzers löschen
+    // A user can only host one active pre-party at a time. Deleting stale events
+    // before creating a new one prevents orphaned records if a previous event
+    // was never properly closed (e.g., server restart, browser crash).
     await prisma.event.deleteMany({ where: { ownerId: userId } });
 
     const newEvent = await prisma.event.create({
       data: {
         title: "Vorglühen",
         description: description || "Wir glühen vor! Kommt vorbei.",
-        locationName: "Versteckt (Genauer Ort im Chat)", // Hausnummer bleibt verborgen
+        locationName: "Versteckt (Genauer Ort im Chat)",
         latitude,
         longitude,
         startTime,
@@ -158,9 +159,6 @@ export async function startPreParty(latitude: number, longitude: number, descrip
   }
 }
 
-/**
- * Beendet die Pre-Party manuell vor Ablauf der Zeit
- */
 export async function stopPreParty() {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -175,13 +173,13 @@ export async function stopPreParty() {
   }
 }
 
-/**
- * Lädt alle aktiven Pre-Partys für die Karte. 
- * Blockiert Gastnutzer aus Datenschutzgründen.
- */
+
 export async function getActiveEvents() {
   const cookieStore = await cookies();
   const isGuest = cookieStore.get("gloo_is_guest")?.value === "true";
+  // Pre-party pins show approximate real-world addresses. Exposing them to
+  // unauthenticated users would be a privacy risk for hosts, so guests are
+  // blocked at the data layer, not just the UI layer.
   if (isGuest) return [];
 
   const now = new Date();

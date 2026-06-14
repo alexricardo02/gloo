@@ -68,7 +68,7 @@ export async function createGroupAction(formData: FormData, locale: string) {
   );
 
   if (keptPhotos.length === 0 && !hasValidNewPhotos) {
-    throw new Error("At least one photo is required."); // TODO: t("photoRequired")
+    throw new Error("At least one photo is required.");
   }
 
   const uploadPromises = uploadedFiles.map(async (file) => {
@@ -81,6 +81,9 @@ export async function createGroupAction(formData: FormData, locale: string) {
         .from('gloo-images')
         .upload(filePath, file, {
           cacheControl: '3600',
+          // upsert: false prevents accidental overwrite if two requests arrive
+          // simultaneously. Each photo gets a UUID-based filename so uploads
+          // from different sessions never collide even on the same account.
           upsert: false,
         });
 
@@ -102,6 +105,9 @@ export async function createGroupAction(formData: FormData, locale: string) {
 
   const finalPhotos = [...keptPhotos, ...uploadedUrls];
 
+  // upsert handles both initial group creation and subsequent edits in a single
+  // atomic operation. A user can only have one group (1:1 DB relation), so
+  // separate create/update paths would risk race conditions on concurrent requests.
   await prisma.group.upsert({
     where: { userId: userId },
     update: {
@@ -117,6 +123,9 @@ export async function createGroupAction(formData: FormData, locale: string) {
       description,
       instagram,
       photos: finalPhotos,
+      // Geolocation is optional at profile creation time. Storing null instead
+      // of NaN ensures the DB accepts the value and the discovery distance
+      // filter can safely skip groups without coordinates.
       latitude: isNaN(latitude) ? null : latitude,
       longitude: isNaN(longitude) ? null : longitude,
     },
@@ -160,7 +169,6 @@ export async function deleteGroupAction() {
 
     if (!group) return { error: "No group found to delete" };
 
-    // 1. Delete associated photos from Supabase Storage securely
     if (group.photos && group.photos.length > 0) {
       const filesToDelete = group.photos
         .map(photoUrl => {
@@ -175,8 +183,6 @@ export async function deleteGroupAction() {
       }
     }
 
-    // 2. Delete the group from the database 
-    // (Prisma will Cascade delete group likes, blocks, and attendances)
     await prisma.group.delete({
       where: { userId }
     });
