@@ -90,7 +90,7 @@ export default function RegisterPage() {
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setPassword(val);
-    
+
     setPwdCriteria({
       length: val.length >= 8,
       uppercase: /[A-Z]/.test(val),
@@ -113,8 +113,8 @@ export default function RegisterPage() {
   const today = new Date();
   const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
     .toISOString()
-    .split('T')[0]; 
-    
+    .split('T')[0];
+
   const isPasswordStrong = pwdCriteria.length && pwdCriteria.uppercase && pwdCriteria.number && pwdCriteria.special;
   const canSubmit = agreed && isPasswordStrong && (isUsernameAvailable === true) && username.length >= 3 && dob;
 
@@ -125,41 +125,41 @@ export default function RegisterPage() {
           <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Check your email</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">{t("successTitle")}</h2>
           <p className="text-gray-600 mb-8">{t("successCheckEmail")}</p>
           <Link href={`/${locale}/login`} className="w-full bg-[#FF725E] text-white rounded-full py-4 font-semibold hover:bg-[#ff5f49] transition-colors">
-            Go to Login
+            {t("goToLogin")}
           </Link>
         </div>
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans py-12">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] px-8 pb-8 pt-6 shadow-xl flex flex-col">
-        
+
         <div className="flex items-center mb-6">
-          <button 
+          <button
             onClick={() => {
               sessionStorage.removeItem("gloo_register_data");
               router.push(`/${locale}/login`);
-            }} 
+            }}
             className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
             aria-label="Go to Dashboard"
-          > 
+          >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
           </button>
         </div>
-        
+
         <div className="mb-8 relative z-0">
           <h1 className="text-3xl font-extrabold text-black mb-2">{t('title')}</h1>
           <p className="text-sm text-gray-600">
             {t('alreadyHaveAccount')}
-            <Link 
-              href={`/${locale}/login`} 
+            <Link
+              href={`/${locale}/login`}
               onClick={() => sessionStorage.removeItem("gloo_register_data")}
               className="text-black font-bold hover:underline ml-1"
             >
@@ -169,21 +169,21 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-xl w-full text-sm text-center font-medium mb-6">
-              {t(error)}
-            </div>
-          )}
+          <div className="bg-red-50 text-red-600 p-4 rounded-xl w-full text-sm text-center font-medium mb-6">
+            {t(error)}
+          </div>
+        )}
 
         <form action={handleSubmit} className="flex flex-col gap-4">
-          
+
           <div className="flex gap-4">
             <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all w-full">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
               </svg>
-              <input 
+              <input
                 name="name"
-                type="text" 
+                type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('namePlaceholder')}
@@ -224,10 +224,10 @@ export default function RegisterPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
             </svg>
             <input
-              name="email" 
-              type="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
+              name="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder={t('emailPlaceholder')}
               required
               className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium"
@@ -239,17 +239,17 @@ export default function RegisterPage() {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
               </svg>
-              <input 
+              <input
                 name="username"
-                type="text" 
+                type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
                 placeholder={t('usernamePlaceholder')}
                 required
                 className="bg-transparent outline-none w-full ml-2 text-gray-800 placeholder-gray-400 font-medium pr-8"
               />
-              
-              
+
+
               <div className="absolute right-4 flex items-center justify-center">
                 {isCheckingUsername && (
                   <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
@@ -262,7 +262,7 @@ export default function RegisterPage() {
                 )}
               </div>
             </div>
-            
+
             <div className="ml-3 h-4">
               {!isCheckingUsername && isUsernameAvailable === false && username.length >= 3 && (
                 <span className="text-[11px] text-red-500 font-bold">{t('usernameTakenError')}</span>
@@ -281,17 +281,17 @@ export default function RegisterPage() {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
               </svg>
-              <input 
+              <input
                 name="password"
-                type={showPassword ? "text" : "password"} 
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={handlePasswordChange}
                 placeholder={t('passwordPlaceholder')}
                 required
                 className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium pr-8"
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 text-gray-400 hover:text-gray-600 focus:outline-none"
               >
@@ -335,9 +335,9 @@ export default function RegisterPage() {
           </div>
 
           <div className="flex items-start gap-3 mt-2">
-            <input 
-              type="checkbox" 
-              id="terms" 
+            <input
+              type="checkbox"
+              id="terms"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-1 w-5 h-5 rounded border-gray-300 text-black accent-black focus:ring-black cursor-pointer"
@@ -351,11 +351,10 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={!agreed}
-              className={`w-full font-black py-4 rounded-full text-sm uppercase tracking-widest transition-all ${
-                agreed
+              className={`w-full font-black py-4 rounded-full text-sm uppercase tracking-widest transition-all ${agreed
                   ? "bg-[#FF725E] text-black hover:scale-[1.01] active:scale-[0.99] shadow-xl shadow-[#FF725E]/10 cursor-pointer"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed opacity-70"
-              }`}
+                }`}
             >
               {t("createAccountButton")}
             </button>
@@ -379,11 +378,11 @@ export default function RegisterPage() {
           </button>
           <button className="w-14 h-14 bg-[#F7F7F7] rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors">
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="black" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.126 3.822 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.665-1.48 3.666-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2.025-.156-4.013 1.09-4.63 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.56-1.702z"/>
+              <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.126 3.822 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.665-1.48 3.666-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2.025-.156-4.013 1.09-4.63 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.56-1.702z" />
             </svg>
           </button>
         </div>
-        
+
         <div className="mt-6">
           <SocialLinks variant="light" />
         </div>

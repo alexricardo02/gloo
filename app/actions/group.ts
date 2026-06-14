@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 export async function getGroupByUser() {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
-  
+
   if (!userId) return null;
 
   const group = await prisma.group.findUnique({
@@ -28,7 +28,7 @@ export async function getGroupByUser() {
 export async function createGroupAction(formData: FormData, locale: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
-  
+
   if (!userId) throw new Error("User not found or unauthorized");
 
   const membersCount = Number(formData.get("membersCount")) || 1;
@@ -45,7 +45,7 @@ export async function createGroupAction(formData: FormData, locale: string) {
   const longitude = parseFloat(formData.get("longitude") as string);
 
   const publicProfile = ["true", "on", "1"].includes(
-    String(formData.get("publicProfile"))
+    String(formData.get("publicProfile")),
   );
 
   const description = String(formData.get("description") || "");
@@ -57,14 +57,12 @@ export async function createGroupAction(formData: FormData, locale: string) {
     }
   }
 
-
   const keptPhotos = formData.getAll("existingPhotos") as string[];
   const newPhotos: string[] = [];
   const uploadedFiles = formData.getAll("photos") as File[];
 
-
   const hasValidNewPhotos = uploadedFiles.some(
-    (file) => file && typeof file === "object" && file.size > 0
+    (file) => file && typeof file === "object" && file.size > 0,
   );
 
   if (keptPhotos.length === 0 && !hasValidNewPhotos) {
@@ -73,14 +71,14 @@ export async function createGroupAction(formData: FormData, locale: string) {
 
   const uploadPromises = uploadedFiles.map(async (file) => {
     if (file && typeof file === "object" && file.size > 0) {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${userId}-group-${crypto.randomUUID()}.${fileExt}`;
       const filePath = `groups/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('gloo-images')
+        .from("gloo-images")
         .upload(filePath, file, {
-          cacheControl: '3600',
+          cacheControl: "3600",
           // upsert: false prevents accidental overwrite if two requests arrive
           // simultaneously. Each photo gets a UUID-based filename so uploads
           // from different sessions never collide even on the same account.
@@ -89,11 +87,11 @@ export async function createGroupAction(formData: FormData, locale: string) {
 
       if (uploadError) {
         console.error("Group photo upload error:", uploadError);
-        return null; 
+        return null;
       }
 
       const { data } = supabase.storage
-        .from('gloo-images')
+        .from("gloo-images")
         .getPublicUrl(filePath);
 
       return data.publicUrl;
@@ -101,7 +99,9 @@ export async function createGroupAction(formData: FormData, locale: string) {
     return null;
   });
 
-  const uploadedUrls = (await Promise.all(uploadPromises)).filter(Boolean) as string[];
+  const uploadedUrls = (await Promise.all(uploadPromises)).filter(
+    Boolean,
+  ) as string[];
 
   const finalPhotos = [...keptPhotos, ...uploadedUrls];
 
@@ -167,27 +167,27 @@ export async function deleteGroupAction() {
   try {
     const group = await prisma.group.findUnique({
       where: { userId },
-      select: { id: true, photos: true }
+      select: { id: true, photos: true },
     });
 
     if (!group) return { error: "No group found to delete" };
 
     if (group.photos && group.photos.length > 0) {
       const filesToDelete = group.photos
-        .map(photoUrl => {
-          const urlParts = photoUrl.split('/');
+        .map((photoUrl) => {
+          const urlParts = photoUrl.split("/");
           const fileName = urlParts.pop();
           return fileName ? `groups/${userId}/${fileName}` : null;
         })
         .filter((file): file is string => file !== null);
 
       if (filesToDelete.length > 0) {
-        await supabase.storage.from('gloo-images').remove(filesToDelete);
+        await supabase.storage.from("gloo-images").remove(filesToDelete);
       }
     }
 
     await prisma.group.delete({
-      where: { userId }
+      where: { userId },
     });
 
     return { success: true };

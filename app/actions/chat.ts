@@ -11,7 +11,10 @@ import { cookies } from "next/headers";
 async function isChatBlocked(userId: string, otherUserId: string) {
   const [myGroup, otherGroup] = await Promise.all([
     prisma.group.findUnique({ where: { userId }, select: { id: true } }),
-    prisma.group.findUnique({ where: { userId: otherUserId }, select: { id: true } }),
+    prisma.group.findUnique({
+      where: { userId: otherUserId },
+      select: { id: true },
+    }),
   ]);
 
   if (!myGroup || !otherGroup) return false;
@@ -75,7 +78,10 @@ export async function sendMessage(chatId: string, text: string) {
     return { success: true, message };
   } catch (error) {
     console.error("Error sending message:", error);
-    return { error: "Failed to send message. Please check your connection and try again." };
+    return {
+      error:
+        "Failed to send message. Please check your connection and try again.",
+    };
   }
 }
 
@@ -127,7 +133,10 @@ export async function getChatMessages(chatId: string) {
       partner: {
         id: partner.id,
         name: partner.name || "Unknown User",
-        image: partnerGroup?.photos?.[0] || partner.image || "/images/bg-fallback.jpg",
+        image:
+          partnerGroup?.photos?.[0] ||
+          partner.image ||
+          "/images/bg-fallback.jpg",
       },
     };
   } catch (error) {
@@ -211,39 +220,40 @@ export async function getActiveChats() {
       blockedUserIds = blockedGroups.map((g) => g.userId);
     }
 
-    const allBlockedUserIds = [...new Set([...blockedUserIds, ...blockedByUserIds])];
+    const allBlockedUserIds = [
+      ...new Set([...blockedUserIds, ...blockedByUserIds]),
+    ];
 
     const chats = await prisma.chat.findMany({
       where: {
-        OR: [
-          { hostAId: userId },
-          { hostBId: userId }
-        ],
-        ...(allBlockedUserIds.length > 0 ? {
-          NOT: [
-            { hostAId: { in: allBlockedUserIds }, hostBId: userId },
-            { hostAId: userId, hostBId: { in: allBlockedUserIds } },
-          ],
-        } : {}),
+        OR: [{ hostAId: userId }, { hostBId: userId }],
+        ...(allBlockedUserIds.length > 0
+          ? {
+              NOT: [
+                { hostAId: { in: allBlockedUserIds }, hostBId: userId },
+                { hostAId: userId, hostBId: { in: allBlockedUserIds } },
+              ],
+            }
+          : {}),
       },
       include: {
         hostA: {
-          include: { group: true }
+          include: { group: true },
         },
         hostB: {
-          include: { group: true }
+          include: { group: true },
         },
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
-        }
-      }
+        },
+      },
     });
 
-    const formattedChats = chats.map(chat => {
+    const formattedChats = chats.map((chat) => {
       const isUserHostA = chat.hostAId === userId;
       const otherHost = isUserHostA ? chat.hostB : chat.hostA;
-      
+
       const otherGroup = otherHost.group;
       const lastMsg = chat.messages[0];
       const lastMessageText = lastMsg?.text || "No messages yet";
@@ -258,9 +268,12 @@ export async function getActiveChats() {
         name: otherHost.name || "Unknown User",
         lastMessage: lastMessageText,
         time: lastMsg?.createdAt || chat.createdAt,
-        unread: 0, 
+        unread: 0,
         isMatch,
-        image: otherGroup?.photos?.[0] || otherHost.image || "/images/bg-fallback.jpg", 
+        image:
+          otherGroup?.photos?.[0] ||
+          otherHost.image ||
+          "/images/bg-fallback.jpg",
       };
     });
 
@@ -273,11 +286,10 @@ export async function getActiveChats() {
       }
       const timeA = new Date(a.time).getTime();
       const timeB = new Date(b.time).getTime();
-      return timeB - timeA; 
+      return timeB - timeA;
     });
 
     return { success: true, chats: formattedChats };
-    
   } catch (error) {
     console.error("Error fetching chats:", error);
     return { error: "Failed to fetch chats" };

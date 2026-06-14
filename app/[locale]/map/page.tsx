@@ -8,7 +8,7 @@ import Navigation from "@/app/components/Navigation";
 // Dynamic component for MapDisplay to prevent SSR issues with Leaflet
 const MapDisplay = dynamic(() => import("@/app/components/MapDisplay"), {
   ssr: false,
-  loading: () => <div className="flex-1 flex items-center justify-center bg-black text-gray-500">Karte wird geladen...</div>
+  loading: () => <div className="flex-1 flex items-center justify-center bg-black text-gray-500">Loading map...</div>
 });
 
 

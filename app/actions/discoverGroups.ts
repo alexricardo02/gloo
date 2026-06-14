@@ -10,9 +10,15 @@ const MAX_LIKES_PER_WINDOW = 10;
 // globalThis persists across requests within the same Node.js process, making
 // this a zero-dependency in-memory rate limiter. It resets on server restart,
 // which is acceptable for an MVP — a Redis-backed limiter would be needed at scale.
-const likeRateLimit = (globalThis as any).__GLOO_LIKE_RATE_LIMITER ||= new Map<string, { count: number; windowStart: number }>();
+const likeRateLimit = ((globalThis as any).__GLOO_LIKE_RATE_LIMITER ||= new Map<
+  string,
+  { count: number; windowStart: number }
+>());
 
-async function getBlockedGroupIds(userId: string, myGroupId: string): Promise<Set<string>> {
+async function getBlockedGroupIds(
+  userId: string,
+  myGroupId: string,
+): Promise<Set<string>> {
   const blocksByMe = await prisma.groupBlock.findMany({
     where: { blockerId: userId },
     select: { blockedGroupId: true },
@@ -64,11 +70,20 @@ export async function getDiscoveryGroups({
       where: { userId },
     });
 
-    if (!userGroup || userGroup.latitude === null || userGroup.longitude === null) {
-      return { groups: [] }; 
+    if (
+      !userGroup ||
+      userGroup.latitude === null ||
+      userGroup.longitude === null
+    ) {
+      return { groups: [] };
     }
 
-    function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    function getDistanceKm(
+      lat1: number,
+      lon1: number,
+      lat2: number,
+      lon2: number,
+    ) {
       const toRad = (deg: number) => (deg * Math.PI) / 180;
       const R = 6371;
       const dLat = toRad(lat2 - lat1);
@@ -81,85 +96,91 @@ export async function getDiscoveryGroups({
     }
 
     const rawGroups = await prisma.group.findMany({
-    where: {
-      userId: { not: userId },
-      isPartyMode: isPartyMode,
-      publicProfile: true,
-      gender: userGroup.searchGender === 'MIXED' ? undefined : userGroup.searchGender,
+      where: {
+        userId: { not: userId },
+        isPartyMode: isPartyMode,
+        publicProfile: true,
+        gender:
+          userGroup.searchGender === "MIXED"
+            ? undefined
+            : userGroup.searchGender,
 
-      OR: [
-          { searchGender: 'MIXED' },
-          { searchGender: userGroup.gender }
-        ],
-      latitude: {
-        gte: userGroup.latitude - (distance / 111),
-        lte: userGroup.latitude + (distance / 111),
+        OR: [{ searchGender: "MIXED" }, { searchGender: userGroup.gender }],
+        latitude: {
+          gte: userGroup.latitude - distance / 111,
+          lte: userGroup.latitude + distance / 111,
+        },
+        longitude: {
+          gte: userGroup.longitude - distance / 111,
+          lte: userGroup.longitude + distance / 111,
+        },
       },
-      longitude: {
-        gte: userGroup.longitude - (distance / 111),
-        lte: userGroup.longitude + (distance / 111),
+      // Prisma's where clause applies a rectangular bounding box (lat/lon range),
+      // not a true circular radius. We overfetch up to 100 candidates, then apply
+      // precise Haversine filtering in JS below. 100 balances coverage vs. memory.
+      take: 100,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: { id: true, name: true, image: true },
+        },
       },
-    },
-    // Prisma's where clause applies a rectangular bounding box (lat/lon range),
-    // not a true circular radius. We overfetch up to 100 candidates, then apply
-    // precise Haversine filtering in JS below. 100 balances coverage vs. memory.
-    take: 100,
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: {
-        select: { id: true, name: true, image: true }
-      }
-    }
-  });
-
-  const filteredGroups = rawGroups
-    .map((group) => ({
-      ...group,
-      distance: getDistanceKm(
-        userGroup.latitude ?? 0,
-        userGroup.longitude ?? 0,
-        group.latitude ?? 0,
-        group.longitude ?? 0,
-      ),
-    }))
-    .filter((group) => {
-      if (group.distance > distance) return false;
-
-      // Both age preferences must overlap for matching to make sense.
-      // Showing a group that doesn't want to meet your age range would cause
-      // rejected interactions — the filter must be enforced in both directions.
-      const matchesYourAgePref =
-        userGroup.searchAgeMin == null || userGroup.searchAgeMax == null
-          ? true
-          : group.ageMax >= userGroup.searchAgeMin && group.ageMin <= userGroup.searchAgeMax;
-
-      const matchesTheirAgePref =
-        group.searchAgeMin == null || group.searchAgeMax == null
-          ? true
-          : userGroup.ageMax >= group.searchAgeMin && userGroup.ageMin <= group.searchAgeMax;
-
-      return matchesYourAgePref && matchesTheirAgePref;
     });
 
+    const filteredGroups = rawGroups
+      .map((group) => ({
+        ...group,
+        distance: getDistanceKm(
+          userGroup.latitude ?? 0,
+          userGroup.longitude ?? 0,
+          group.latitude ?? 0,
+          group.longitude ?? 0,
+        ),
+      }))
+      .filter((group) => {
+        if (group.distance > distance) return false;
+
+        // Both age preferences must overlap for matching to make sense.
+        // Showing a group that doesn't want to meet your age range would cause
+        // rejected interactions — the filter must be enforced in both directions.
+        const matchesYourAgePref =
+          userGroup.searchAgeMin == null || userGroup.searchAgeMax == null
+            ? true
+            : group.ageMax >= userGroup.searchAgeMin &&
+              group.ageMin <= userGroup.searchAgeMax;
+
+        const matchesTheirAgePref =
+          group.searchAgeMin == null || group.searchAgeMax == null
+            ? true
+            : userGroup.ageMax >= group.searchAgeMin &&
+              userGroup.ageMin <= group.searchAgeMax;
+
+        return matchesYourAgePref && matchesTheirAgePref;
+      });
+
     const likedGroupRecords = await prisma.groupLike.findMany({
-    where: { fromGroupId: userGroup.id },
-    select: { toGroupId: true },
-  });
-  
-  const likedGroupIds = new Set(likedGroupRecords.map((like) => like.toGroupId));
+      where: { fromGroupId: userGroup.id },
+      select: { toGroupId: true },
+    });
 
-  const allBlockedGroupIds = await getBlockedGroupIds(userId, userGroup.id);
+    const likedGroupIds = new Set(
+      likedGroupRecords.map((like) => like.toGroupId),
+    );
 
-  const mutualLikeRecords = await prisma.groupLike.findMany({
-    where: {
-      fromGroupId: { in: filteredGroups.map((group) => group.id) },
-      toGroupId: userGroup.id,
-    },
-    select: { fromGroupId: true },
-  });
-  const mutualLikeGroupIds = new Set(mutualLikeRecords.map((like) => like.fromGroupId));
+    const allBlockedGroupIds = await getBlockedGroupIds(userId, userGroup.id);
 
-  const limit = 10;
+    const mutualLikeRecords = await prisma.groupLike.findMany({
+      where: {
+        fromGroupId: { in: filteredGroups.map((group) => group.id) },
+        toGroupId: userGroup.id,
+      },
+      select: { fromGroupId: true },
+    });
+    const mutualLikeGroupIds = new Set(
+      mutualLikeRecords.map((like) => like.fromGroupId),
+    );
+
+    const limit = 10;
     const skip = page * limit;
 
     const groups = filteredGroups
@@ -174,10 +195,9 @@ export async function getDiscoveryGroups({
       }));
 
     return { groups };
-
-    } catch (error) {
+  } catch (error) {
     console.error("Critical error in getDiscoveryGroups:", error);
-    return { error: "Failed to fetch groups" }; 
+    return { error: "Failed to fetch groups" };
   }
 }
 
@@ -193,7 +213,9 @@ export async function toggleLike(toGroupId: string) {
   const existingRate = likeRateLimit.get(userId);
   if (existingRate && now - existingRate.windowStart < RATE_LIMIT_WINDOW_MS) {
     if (existingRate.count >= MAX_LIKES_PER_WINDOW) {
-      return { error: "Rate limit exceeded. Please wait a moment before liking again." };
+      return {
+        error: "Rate limit exceeded. Please wait a moment before liking again.",
+      };
     }
     existingRate.count += 1;
     likeRateLimit.set(userId, existingRate);
@@ -334,21 +356,21 @@ export async function getGroupsThatLikedMe() {
     const groups = incomingLikes
       .filter((like) => !allBlockedGroupIds.has(like.fromGroup.id))
       .map((like) => ({
-      id: like.fromGroup.id,
-      userId: like.fromGroup.userId,
-      user: like.fromGroup.user,
-      photos: like.fromGroup.photos,
-      description: like.fromGroup.description,
-      membersCount: like.fromGroup.membersCount,
-      gender: like.fromGroup.gender,
-      ageMin: like.fromGroup.ageMin,
-      ageMax: like.fromGroup.ageMax,
-      latitude: like.fromGroup.latitude,
-      longitude: like.fromGroup.longitude,
-      createdAt: like.fromGroup.createdAt.toISOString(),
-      likedByCurrentUser: likedBackIds.has(like.fromGroup.id),
-      isMutualLike: likedBackIds.has(like.fromGroup.id),
-    }));
+        id: like.fromGroup.id,
+        userId: like.fromGroup.userId,
+        user: like.fromGroup.user,
+        photos: like.fromGroup.photos,
+        description: like.fromGroup.description,
+        membersCount: like.fromGroup.membersCount,
+        gender: like.fromGroup.gender,
+        ageMin: like.fromGroup.ageMin,
+        ageMax: like.fromGroup.ageMax,
+        latitude: like.fromGroup.latitude,
+        longitude: like.fromGroup.longitude,
+        createdAt: like.fromGroup.createdAt.toISOString(),
+        likedByCurrentUser: likedBackIds.has(like.fromGroup.id),
+        isMutualLike: likedBackIds.has(like.fromGroup.id),
+      }));
 
     return { groups };
   } catch (error) {

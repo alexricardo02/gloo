@@ -10,7 +10,7 @@ import { AlertTriangle, ChevronLeft, X, Loader2 } from "lucide-react";
 export default function AccountSettingsPage() {
   const locale = useLocale();
   const t = useTranslations("AccountSettings");
-  
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export default function AccountSettingsPage() {
 
     try {
       const result = await deleteAccountAction(locale);
-      
+
       if (result?.error) {
         setDeleteError(result.error);
         setIsDeleting(false);
@@ -49,7 +49,7 @@ export default function AccountSettingsPage() {
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500">
             {t("securitySection")}
           </h2>
-          
+
           <div className="border border-white/10 bg-[#141414] rounded-3xl p-6 space-y-4">
             <div>
               <h3 className="font-black text-lg text-white mb-2">
@@ -69,7 +69,7 @@ export default function AccountSettingsPage() {
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500">
             {t("dataPrivacySection")}
           </h2>
-          
+
           <div className="border border-white/10 bg-[#141414] rounded-3xl p-6 space-y-4">
             <div>
               <h3 className="font-black text-lg text-white mb-2">
@@ -89,7 +89,7 @@ export default function AccountSettingsPage() {
           <h2 className="text-sm font-bold uppercase tracking-wider text-red-600">
             {t("dangerZone")}
           </h2>
-          
+
           <div className="border-2 border-red-600/30 bg-red-600/5 rounded-3xl p-6">
             <div className="flex items-start gap-4">
               <div className="p-3 bg-red-600/10 rounded-lg text-red-600 flex-shrink-0">

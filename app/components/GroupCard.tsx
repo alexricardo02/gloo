@@ -1,20 +1,21 @@
 "use client";
- 
+
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Heart, MessageCircle, Loader2, Flag, Check } from "lucide-react";
 import { toggleLike } from "@/app/actions/discoverGroups";
 import { getOrCreateChat } from "@/app/actions/chat";
 import { reportGroupByGroupIdAction } from "@/app/actions/moderation";
- 
+
 interface GroupCardProps {
   group: any;
 }
- 
+
 export default function GroupCard({ group }: GroupCardProps) {
   const router = useRouter();
   const locale = useLocale();
+  const t = useTranslations("Profile");
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [liked, setLiked] = useState(Boolean(group.likedByCurrentUser));
@@ -24,15 +25,15 @@ export default function GroupCard({ group }: GroupCardProps) {
   const [reportSent, setReportSent] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
- 
+
   const photos: string[] =
     group.photos && group.photos.length > 0
       ? group.photos
       : ["/images/bg-fallback.jpg"];
- 
+
   const goNext = () => setCurrentIndex((i) => Math.min(i + 1, photos.length - 1));
   const goPrev = () => setCurrentIndex((i) => Math.max(i - 1, 0));
- 
+
   const handleLike = async (id: string) => {
     const nextLiked = !liked;
     setLiked(nextLiked);
@@ -47,7 +48,7 @@ export default function GroupCard({ group }: GroupCardProps) {
       window.setTimeout(() => setIsAnimating(false), 180);
     }
   };
- 
+
   // ── Swipe support (no preventDefault — not needed with the translate approach) ──
   // We register on the container to detect horizontal swipes on touchend.
   // Because we don't call preventDefault(), vertical gestures still bubble
@@ -56,28 +57,25 @@ export default function GroupCard({ group }: GroupCardProps) {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
- 
+
   const handleTouchEnd = (e: React.TouchEvent) => {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     const THRESHOLD = 50;
- 
-    // Only act if the gesture was more horizontal than vertical
+
     if (Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
       if (dx < 0) goNext();
       else goPrev();
     }
   };
- 
+
   return (
     <div
       className="relative h-full w-full rounded-[2.5rem] overflow-hidden shadow-2xl bg-[#1A1A1A]"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* ── 1. CAROUSEL: use transform instead of overflow-x-auto ────────────────
-           Moving photos with translateX completely avoids the conflict between
-           the carousel's horizontal scroll and the parent's vertical snap.    */}
+
       <div className="absolute inset-0 overflow-hidden bg-black">
         {photos.map((photo: string, index: number) => (
           <div
@@ -95,9 +93,6 @@ export default function GroupCard({ group }: GroupCardProps) {
         ))}
       </div>
 
-      {/* ── 2. GRADIENT ───────────────────────────────────────────────────── */}
-      {/* ── 3. TOP INDICATORS (bars, Instagram Stories style) ────────────────
-           Always visible. They expand/contract to indicate the active photo. */}
       <div className="absolute top-4 left-4 right-4 flex gap-1 z-30 pointer-events-none">
         {photos.map((_: string, index: number) => (
           <div
@@ -105,13 +100,12 @@ export default function GroupCard({ group }: GroupCardProps) {
             className="flex-1 h-[3px] rounded-full overflow-hidden bg-white/30"
           >
             <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                index === currentIndex
+              className={`h-full rounded-full transition-all duration-300 ${index === currentIndex
                   ? "bg-white w-full"
                   : index < currentIndex
                     ? "bg-white w-full"
                     : "bg-transparent w-0"
-              }`}
+                }`}
             />
           </div>
         ))}
@@ -124,7 +118,6 @@ export default function GroupCard({ group }: GroupCardProps) {
         </div>
       )}
 
-      {/* ── 5. Content and interface ─────────────────────────────────────────── */}
       <div className="absolute top-0 left-0 p-6 pt-8 flex flex-col items-start text-left max-w-[85%] space-y-2 z-40 pointer-events-none">
         {" "}
         <h2 className="text-3xl font-extrabold text-white tracking-tighter drop-shadow-lg">
@@ -135,20 +128,18 @@ export default function GroupCard({ group }: GroupCardProps) {
             {group.gender}
           </span>
           <span className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white">
-            {group.membersCount} Members
+            {group.membersCount} {t("members")}
           </span>
           <span className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white">
             {group.ageMin}-{group.ageMax}
           </span>
         </div>
         <p className="text-sm text-gray-100 line-clamp-3 drop-shadow-md font-medium mt-1">
-          {group.description || "Looking for a fun night out!"}
+          {group.description || t("defaultDescription")}
         </p>
       </div>
 
-      {/* 5b. Action buttons*/}
       <div className="absolute bottom-0 right-0 p-4 pb-8 flex flex-col gap-4 items-end z-40 pointer-events-auto">
-        {/* (Report) */}
         <button
           type="button"
           onClick={async () => {
@@ -164,11 +155,10 @@ export default function GroupCard({ group }: GroupCardProps) {
               setIsReporting(false);
             }
           }}
-          className={`p-3 rounded-full border border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all duration-200 ${
-            reportSent
+          className={`p-3 rounded-full border border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all duration-200 ${reportSent
               ? "bg-green-500/20 border-green-500/30"
               : "bg-white/5 hover:bg-white/20"
-          }`}
+            }`}
           aria-label="Report group"
         >
           {isReporting ? (
@@ -179,14 +169,12 @@ export default function GroupCard({ group }: GroupCardProps) {
             <Flag size={18} className="text-yellow-400" />
           )}
         </button>
-        {/* (Like) */}
         <button
           type="button"
           onClick={() => handleLike(group.id)}
           aria-pressed={liked}
-          className={`p-4 rounded-full border border-white/20 bg-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:bg-white/20 transition-all duration-200 ${
-            isAnimating ? "scale-95" : ""
-          }`}
+          className={`p-4 rounded-full border border-white/20 bg-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:bg-white/20 transition-all duration-200 ${isAnimating ? "scale-95" : ""
+            }`}
         >
           <Heart
             size={26}

@@ -21,14 +21,14 @@ export async function getOrCreateChatWithUser(targetUserId: string) {
     where: {
       OR: [
         { hostAId: userId, hostBId: targetUserId },
-        { hostAId: targetUserId, hostBId: userId }
-      ]
-    }
+        { hostAId: targetUserId, hostBId: userId },
+      ],
+    },
   });
 
   if (!chat) {
     chat = await prisma.chat.create({
-      data: { hostAId: userId, hostBId: targetUserId }
+      data: { hostAId: userId, hostBId: targetUserId },
     });
   }
   return { success: true, chatId: chat.id };
@@ -50,29 +50,28 @@ export async function getVenues() {
                   select: {
                     name: true,
                     username: true,
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
-    return venues.map(venue => ({
+    return venues.map((venue) => ({
       ...venue,
       createdAt: venue.createdAt.toISOString(),
-      attendees: venue.attendees.map(a => ({
+      attendees: venue.attendees.map((a) => ({
         ...a,
-        createdAt: a.createdAt.toISOString()
-      }))
+        createdAt: a.createdAt.toISOString(),
+      })),
     }));
   } catch (error) {
     console.error("Error fetching venues:", error);
     return [];
   }
 }
-
 
 export async function toggleVenueAttendance(venueId: string) {
   const cookieStore = await cookies();
@@ -82,7 +81,7 @@ export async function toggleVenueAttendance(venueId: string) {
 
   try {
     const group = await prisma.group.findUnique({
-      where: { userId }
+      where: { userId },
     });
 
     if (!group) return { error: "You have to create a group first" };
@@ -91,9 +90,9 @@ export async function toggleVenueAttendance(venueId: string) {
       where: {
         groupId_venueId: {
           groupId: group.id,
-          venueId: venueId
-        }
-      }
+          venueId: venueId,
+        },
+      },
     });
 
     if (existingAttendance) {
@@ -122,14 +121,19 @@ export async function toggleVenueAttendance(venueId: string) {
   }
 }
 
-export async function startPreParty(latitude: number, longitude: number, description: string) {
+export async function startPreParty(
+  latitude: number,
+  longitude: number,
+  description: string,
+) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
   if (!userId) return { error: "Not authorized" };
 
   try {
     const group = await prisma.group.findUnique({ where: { userId } });
-    if (!group) return { error: "You must create a group first to be able to host." };
+    if (!group)
+      return { error: "You must create a group first to be able to host." };
 
     const startTime = new Date();
     const endTime = new Date(startTime.getTime() + 4 * 60 * 60 * 1000);
@@ -148,8 +152,8 @@ export async function startPreParty(latitude: number, longitude: number, descrip
         longitude,
         startTime,
         endTime,
-        ownerId: userId
-      }
+        ownerId: userId,
+      },
     });
 
     return { success: true, event: newEvent };
@@ -173,7 +177,6 @@ export async function stopPreParty() {
   }
 }
 
-
 export async function getActiveEvents() {
   const cookieStore = await cookies();
   const isGuest = cookieStore.get("gloo_is_guest")?.value === "true";
@@ -191,17 +194,22 @@ export async function getActiveEvents() {
         attendees: {
           include: {
             group: {
-              select: { id: true, membersCount: true, photos: true, gender: true, user: { select: { name: true, username: true } }}
-            }
-          }
-        }
-      }
+              select: {
+                id: true,
+                membersCount: true,
+                photos: true,
+                gender: true,
+                user: { select: { name: true, username: true } },
+              },
+            },
+          },
+        },
+      },
     });
   } catch (error) {
     return [];
   }
 }
-
 
 export async function getMyActiveEvent() {
   const cookieStore = await cookies();
@@ -211,7 +219,7 @@ export async function getMyActiveEvent() {
   const now = new Date();
   try {
     return await prisma.event.findFirst({
-      where: { ownerId: userId, endTime: { gt: now } }
+      where: { ownerId: userId, endTime: { gt: now } },
     });
   } catch (error) {
     return null;
@@ -230,7 +238,7 @@ export async function requestEventAttendance(eventId: string) {
     await prisma.eventAttendance.deleteMany({ where: { groupId: group.id } });
 
     await prisma.eventAttendance.create({
-      data: { groupId: group.id, eventId: eventId, status: "PENDING" }
+      data: { groupId: group.id, eventId: eventId, status: "PENDING" },
     });
     return { success: true };
   } catch (error) {
@@ -238,7 +246,10 @@ export async function requestEventAttendance(eventId: string) {
   }
 }
 
-export async function respondToEventRequest(attendanceId: string, accept: boolean) {
+export async function respondToEventRequest(
+  attendanceId: string,
+  accept: boolean,
+) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
   if (!userId) return { error: "Nicht autorisiert" };
@@ -246,15 +257,16 @@ export async function respondToEventRequest(attendanceId: string, accept: boolea
   try {
     const attendance = await prisma.eventAttendance.findUnique({
       where: { id: attendanceId },
-      include: { event: true }
+      include: { event: true },
     });
 
-    if (!attendance || attendance.event.ownerId !== userId) return { error: "Forbidden" };
+    if (!attendance || attendance.event.ownerId !== userId)
+      return { error: "Forbidden" };
 
     if (accept) {
       await prisma.eventAttendance.update({
         where: { id: attendanceId },
-        data: { status: "ACCEPTED" }
+        data: { status: "ACCEPTED" },
       });
     } else {
       await prisma.eventAttendance.delete({ where: { id: attendanceId } });

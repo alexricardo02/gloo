@@ -103,7 +103,7 @@ describe('Auth Server Actions (Unit Tests)', () => {
         email: 'test@test.com', password: 'Password123!', username: 'testuser', birthDate: getMinorDate() 
       });
       const result = await registerUser(formData, 'en');
-      expect(result).toEqual({ error: 'You must be at least 18 years old to register.' });
+      expect(result).toEqual({ error: 'ageMinError' });
     });
 
     it('should return passwordWeakError if password is not strong enough', async () => {

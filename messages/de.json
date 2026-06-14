@@ -170,56 +170,200 @@
     "truth": "Wahrheit",
     "dare": "Pflicht",
     "prompts": [
-      { "type": "truth", "text": "Was ist dein größtes Bedauern aus einer vergangenen Beziehung?" },
-      { "type": "truth", "text": "Wen in diesem Raum findest du am attraktivsten?" },
-      { "type": "truth", "text": "Was ist das Peinlichste, das du je betrunken gemacht hast?" },
-      { "type": "truth", "text": "Hast du schon mal gelogen, um einem Date zu entgehen?" },
-      { "type": "truth", "text": "Was ist im Moment das Peinlichste auf deinem Handy?" },
-      { "type": "truth", "text": "Hast du schon mal so getan, als wärst du krank, um jemandem aus dem Weg zu gehen?" },
-      { "type": "truth", "text": "Was ist das Schlimmste, das du je auf einer Party gemacht hast?" },
-      { "type": "truth", "text": "Hattest du schon mal einen Crush auf jemanden in diesem Raum?" },
-      { "type": "truth", "text": "Was ist ein Geheimnis, das du noch niemandem hier erzählt hast?" },
+      {
+        "type": "truth",
+        "text": "Was ist dein größtes Bedauern aus einer vergangenen Beziehung?"
+      },
+      {
+        "type": "truth",
+        "text": "Wen in diesem Raum findest du am attraktivsten?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist das Peinlichste, das du je betrunken gemacht hast?"
+      },
+      {
+        "type": "truth",
+        "text": "Hast du schon mal gelogen, um einem Date zu entgehen?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist im Moment das Peinlichste auf deinem Handy?"
+      },
+      {
+        "type": "truth",
+        "text": "Hast du schon mal so getan, als wärst du krank, um jemandem aus dem Weg zu gehen?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist das Schlimmste, das du je auf einer Party gemacht hast?"
+      },
+      {
+        "type": "truth",
+        "text": "Hattest du schon mal einen Crush auf jemanden in diesem Raum?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist ein Geheimnis, das du noch niemandem hier erzählt hast?"
+      },
       { "type": "truth", "text": "Hast du schon mal etwas geklaut?" },
-      { "type": "truth", "text": "Was war der seltsamste erste Eindruck, den du je von jemandem in diesem Raum hattest?" },
-      { "type": "truth", "text": "Was war die längste Zeit, die du dich nach einem langen Festival oder Party-Wochenende nicht geduscht hast?" },
-      { "type": "truth", "text": "Hast du schon mal in den Badezimmerschränken oder im Zimmer eines Freundes geschnüffelt, als du allein gelassen wurdest?" },
-      { "type": "truth", "text": "Was ist das Kindischste, das du immer noch regelmäßig machst?" },
-      { "type": "truth", "text": "Wenn du jeden in diesem Raum außer einer Person ghosten müsstest, wen würdest du behalten?" },
-      { "type": "truth", "text": "Was ist der absolut schlechteste Anmachspruch, den du je benutzt hast oder der bei dir benutzt wurde?" },
-      { "type": "truth", "text": "Hast du schon mal in der Öffentlichkeit so getan, als würdest du auf dein Handy schauen, nur um nicht mit jemandem reden zu müssen?" },
-      { "type": "truth", "text": "Wer ist die letzte Person, die du auf Instagram oder TikTok gestalkt hast?" },
-      { "type": "truth", "text": "Was ist das Teuerste, das du betrunken versehentlich kaputt gemacht hast?" },
-      { "type": "truth", "text": "Wurdest du schon mal dabei erwischt, wie du in der Öffentlichkeit in der Nase gebohrt hast?" },
-      { "type": "truth", "text": "Welche unpopuläre Meinung vertrittst du, über die sich jeder in diesem Raum mit dir streiten würde?" },
-      { "type": "truth", "text": "Was ist die lächerlichste Lüge, die du je in einem Dating-App-Profil erzählt hast?" },
-      { "type": "truth", "text": "Bist du schon mal in einer Beziehung geblieben oder auf ein Date gegangen, nur um kostenloses Essen oder Getränke zu bekommen?" },
-      { "type": "truth", "text": "Welcher Song ist dein ultimatives 'Guilty Pleasure', den du allein unter der Dusche singst?" },
-      { "type": "truth", "text": "Was war der dümmste Grund, warum du jemals mit jemandem Schluss gemacht hast oder wütend auf ihn warst?" },
-      { "type": "dare", "text": "Lass die Gruppe für 1 Minute durch die Fotogalerie deines Handys schauen." },
-      { "type": "dare", "text": "Sende eine riskante Nachricht an die 5. Person in deinen Kontakten." },
-      { "type": "dare", "text": "Mach deine beste Imitation von jemandem in diesem Raum." },
-      { "type": "dare", "text": "Trinke jetzt einen Shot oder dein Getränk aus." },
-      { "type": "dare", "text": "Ruf jemanden an und singe ihm 'Happy Birthday' vor – unabhängig davon, ob er Geburtstag hat." },
-      { "type": "dare", "text": "Lass die Gruppe posten, was sie will, in deiner Instagram-Story." },
+      {
+        "type": "truth",
+        "text": "Was war der seltsamste erste Eindruck, den du je von jemandem in diesem Raum hattest?"
+      },
+      {
+        "type": "truth",
+        "text": "Was war die längste Zeit, die du dich nach einem langen Festival oder Party-Wochenende nicht geduscht hast?"
+      },
+      {
+        "type": "truth",
+        "text": "Hast du schon mal in den Badezimmerschränken oder im Zimmer eines Freundes geschnüffelt, als du allein gelassen wurdest?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist das Kindischste, das du immer noch regelmäßig machst?"
+      },
+      {
+        "type": "truth",
+        "text": "Wenn du jeden in diesem Raum außer einer Person ghosten müsstest, wen würdest du behalten?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist der absolut schlechteste Anmachspruch, den du je benutzt hast oder der bei dir benutzt wurde?"
+      },
+      {
+        "type": "truth",
+        "text": "Hast du schon mal in der Öffentlichkeit so getan, als würdest du auf dein Handy schauen, nur um nicht mit jemandem reden zu müssen?"
+      },
+      {
+        "type": "truth",
+        "text": "Wer ist die letzte Person, die du auf Instagram oder TikTok gestalkt hast?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist das Teuerste, das du betrunken versehentlich kaputt gemacht hast?"
+      },
+      {
+        "type": "truth",
+        "text": "Wurdest du schon mal dabei erwischt, wie du in der Öffentlichkeit in der Nase gebohrt hast?"
+      },
+      {
+        "type": "truth",
+        "text": "Welche unpopuläre Meinung vertrittst du, über die sich jeder in diesem Raum mit dir streiten würde?"
+      },
+      {
+        "type": "truth",
+        "text": "Was ist die lächerlichste Lüge, die du je in einem Dating-App-Profil erzählt hast?"
+      },
+      {
+        "type": "truth",
+        "text": "Bist du schon mal in einer Beziehung geblieben oder auf ein Date gegangen, nur um kostenloses Essen oder Getränke zu bekommen?"
+      },
+      {
+        "type": "truth",
+        "text": "Welcher Song ist dein ultimatives 'Guilty Pleasure', den du allein unter der Dusche singst?"
+      },
+      {
+        "type": "truth",
+        "text": "Was war der dümmste Grund, warum du jemals mit jemandem Schluss gemacht hast oder wütend auf ihn warst?"
+      },
+      {
+        "type": "dare",
+        "text": "Lass die Gruppe für 1 Minute durch die Fotogalerie deines Handys schauen."
+      },
+      {
+        "type": "dare",
+        "text": "Sende eine riskante Nachricht an die 5. Person in deinen Kontakten."
+      },
+      {
+        "type": "dare",
+        "text": "Mach deine beste Imitation von jemandem in diesem Raum."
+      },
+      {
+        "type": "dare",
+        "text": "Trinke jetzt einen Shot oder dein Getränk aus."
+      },
+      {
+        "type": "dare",
+        "text": "Ruf jemanden an und singe ihm 'Happy Birthday' vor – unabhängig davon, ob er Geburtstag hat."
+      },
+      {
+        "type": "dare",
+        "text": "Lass die Gruppe posten, was sie will, in deiner Instagram-Story."
+      },
       { "type": "dare", "text": "Mach jetzt sofort 20 Liegestütze." },
-      { "type": "dare", "text": "Gib jeder Person im Raum 60 Sekunden lang ein Kompliment." },
-      { "type": "dare", "text": "Lass jemanden aus der Gruppe eine DM an dein letztes Tinder-Match senden." },
-      { "type": "dare", "text": "Trage in den nächsten 3 Runden etwas Peinliches." },
-      { "type": "dare", "text": "Gib dein Handy der Person zu deiner Rechten und lass sie deine letzten 3 WhatsApp-Chats laut vorlesen." },
-      { "type": "dare", "text": "Sprich für die nächsten 3 Runden des Spiels mit einem dramatischen britischen oder spanischen Akzent." },
-      { "type": "dare", "text": "Gib dein Handy der Person zu deiner Linken und lass sie deine Instagram-Bio für die nächsten 24 Stunden in alles ändern, was sie möchte." },
-      { "type": "dare", "text": "Lass die Gruppe einen zufälligen Kontakt auf deinem Handy auswählen und ihm eine Nachricht mit dem Text 'Ich weiß, was du letzten Sommer getan hast' schicken." },
-      { "type": "dare", "text": "Versuche deinen Ellbogen zu lecken, während du zu der Musik tanzt, die gerade läuft." },
-      { "type": "dare", "text": "Lass dir von jemandem mit einem abwaschbaren Stift einen lustigen Schnurrbart ins Gesicht malen." },
-      { "type": "dare", "text": "Öffne Spotify oder Apple Music und zeige der Gruppe deine 'On Repeat' oder zuletzt gespielten Songs, ohne etwas zu verbergen." },
-      { "type": "dare", "text": "Leg deine Hände auf die Knie und twerke oder mach einen dramatischen Tanz für 30 Sekunden." },
-      { "type": "dare", "text": "Lass die Gruppe 3 zufällige Flüssigkeiten aus der Küche oder Bar zusammenmischen und nimm einen Schluck davon." },
-      { "type": "dare", "text": "Ruf eine lokale Pizzeria oder Bar an und versuche mit ernster Stimme, einen völlig erfundenen Artikel wie einen 'McFlurry' zu bestellen." },
-      { "type": "dare", "text": "Tausche für die nächsten 2 Runden ein Kleidungsstück mit der Person, die dir direkt gegenübersitzt." },
-      { "type": "dare", "text": "Lass dir von der Gruppe die Augen verbinden und errate 3 Dinge im Raum durch Riechen oder Berühren." },
-      { "type": "dare", "text": "Leere jetzt deine Taschen oder den Inhalt deiner Tasche aus und erkläre der Gruppe jeden einzelnen Gegenstand." },
-      { "type": "dare", "text": "Lass die Person zu deiner Linken 30 Sekunden lang durch deine gelikten Beiträge auf TikTok oder Instagram scrollen." },
-      { "type": "dare", "text": "Mach einen dramatischen Zeitlupen-Walk durch den Raum und tu so, als wärst du auf einem High-Fashion-Laufsteg." }
+      {
+        "type": "dare",
+        "text": "Gib jeder Person im Raum 60 Sekunden lang ein Kompliment."
+      },
+      {
+        "type": "dare",
+        "text": "Lass jemanden aus der Gruppe eine DM an dein letztes Tinder-Match senden."
+      },
+      {
+        "type": "dare",
+        "text": "Trage in den nächsten 3 Runden etwas Peinliches."
+      },
+      {
+        "type": "dare",
+        "text": "Gib dein Handy der Person zu deiner Rechten und lass sie deine letzten 3 WhatsApp-Chats laut vorlesen."
+      },
+      {
+        "type": "dare",
+        "text": "Sprich für die nächsten 3 Runden des Spiels mit einem dramatischen britischen oder spanischen Akzent."
+      },
+      {
+        "type": "dare",
+        "text": "Gib dein Handy der Person zu deiner Linken und lass sie deine Instagram-Bio für die nächsten 24 Stunden in alles ändern, was sie möchte."
+      },
+      {
+        "type": "dare",
+        "text": "Lass die Gruppe einen zufälligen Kontakt auf deinem Handy auswählen und ihm eine Nachricht mit dem Text 'Ich weiß, was du letzten Sommer getan hast' schicken."
+      },
+      {
+        "type": "dare",
+        "text": "Versuche deinen Ellbogen zu lecken, während du zu der Musik tanzt, die gerade läuft."
+      },
+      {
+        "type": "dare",
+        "text": "Lass dir von jemandem mit einem abwaschbaren Stift einen lustigen Schnurrbart ins Gesicht malen."
+      },
+      {
+        "type": "dare",
+        "text": "Öffne Spotify oder Apple Music und zeige der Gruppe deine 'On Repeat' oder zuletzt gespielten Songs, ohne etwas zu verbergen."
+      },
+      {
+        "type": "dare",
+        "text": "Leg deine Hände auf die Knie und twerke oder mach einen dramatischen Tanz für 30 Sekunden."
+      },
+      {
+        "type": "dare",
+        "text": "Lass die Gruppe 3 zufällige Flüssigkeiten aus der Küche oder Bar zusammenmischen und nimm einen Schluck davon."
+      },
+      {
+        "type": "dare",
+        "text": "Ruf eine lokale Pizzeria oder Bar an und versuche mit ernster Stimme, einen völlig erfundenen Artikel wie einen 'McFlurry' zu bestellen."
+      },
+      {
+        "type": "dare",
+        "text": "Tausche für die nächsten 2 Runden ein Kleidungsstück mit der Person, die dir direkt gegenübersitzt."
+      },
+      {
+        "type": "dare",
+        "text": "Lass dir von der Gruppe die Augen verbinden und errate 3 Dinge im Raum durch Riechen oder Berühren."
+      },
+      {
+        "type": "dare",
+        "text": "Leere jetzt deine Taschen oder den Inhalt deiner Tasche aus und erkläre der Gruppe jeden einzelnen Gegenstand."
+      },
+      {
+        "type": "dare",
+        "text": "Lass die Person zu deiner Linken 30 Sekunden lang durch deine gelikten Beiträge auf TikTok oder Instagram scrollen."
+      },
+      {
+        "type": "dare",
+        "text": "Mach einen dramatischen Zeitlupen-Walk durch den Raum und tu so, als wärst du auf einem High-Fashion-Laufsteg."
+      }
     ]
   },
   "BusDriver": {
@@ -282,7 +426,10 @@
     "pwdMinChars": "Min. 8 Zeichen",
     "pwdUppercase": "1 Großbuchstabe",
     "pwdNumber": "1 Zahl",
-    "pwdSpecial": "1 Sonderzeichen"
+    "pwdSpecial": "1 Sonderzeichen",
+    "successTitle": "Überprüfe deine E-Mail",
+    "goToLogin": "Zum Login",
+    "usernameSpaceError": "Der Benutzername darf keine Leerzeichen enthalten."
   },
   "Profile": {
     "title": "Profil",
@@ -316,7 +463,13 @@
     "updatePhoto": "Foto aktualisieren",
     "tapToSelect": "Zum Auswählen tippen",
     "uploadNow": "Jetzt hochladen",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "deleteGroup": "Gruppe löschen",
+    "deleteGroupTitle": "Gruppe löschen?",
+    "deleteGroupDesc": "Bist du sicher, dass du deine Gruppe löschen möchtest? Diese Aktion ist permanent. Deine Mitglieder, aktiven Chats und Gruppenfotos werden vollständig entfernt.",
+    "deleteGroupConfirm": "Ja, Gruppe löschen",
+    "deleting": "Wird gelöscht...",
+    "defaultDescription": "Auf der Suche nach einer Gruppe für heute Nacht!"
   },
   "AccountSettings": {
     "title": "Kontoeinstellungen",
@@ -372,7 +525,17 @@
     "saving": "Speichern...",
     "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
     "minAge": "Mindestalter muss mindestens 18 sein.",
-    "maxAge": "Höchstalter muss über dem Mindestalter liegen."
+    "maxAge": "Höchstalter muss über dem Mindestalter liegen.",
+    "editGroupTitle": "Gruppe bearbeiten",
+    "galleryLabel": "Gruppenfotos ({count}/6)",
+    "addPhoto": "Hinzufügen",
+    "uploadHint": "Lade mindestens ein cooles Bild deiner Gruppe hoch!",
+    "uploadHintMore": "Super! Füge mehr hinzu, um aufzufallen.",
+    "photoRequired": "Foto erforderlich!",
+    "photoRequiredDesc": "Du musst mindestens ein Foto hochladen, um fortzufahren. Zeig der Community euren Vibe!",
+    "gotIt": "Verstanden",
+    "updateProfile": "Profil aktualisieren",
+    "locationRequired": "Standort erforderlich, um die Gruppe zu aktualisieren."
   },
   "Messages": {
     "emptyDesc": "Matche mit anderen Gruppen im Karussell, um einen Chat zu starten.",
@@ -415,7 +578,9 @@
     "groupRequiredDesc": "Um zu matchen, zu liken, Nachrichten zu senden oder weitere Gruppen in deiner Nähe freizuschalten, musst du zuerst ein Profil für deine eigene Gruppe erstellen.",
     "createGroupButton": "Gruppenprofil erstellen",
     "title": "Entdecken",
-    "radius": "Radius"
+    "radius": "Radius",
+    "kmAroundYou": "km um dich herum",
+    "modalTitle": "Suchradius"
   },
   "ForgotPassword": {
     "title": "Passwort zurücksetzen",
@@ -518,7 +683,10 @@
     "genderMixed": "Gemischt",
     "genderMale": "Männlich",
     "genderFemale": "Weiblich",
-    "genderDiverse": "Divers"
+    "genderDiverse": "Divers",
+    "noGroupAlert": "Bitte erstelle zuerst ein Gruppenprofil.",
+    "saveError": "Fehler beim Speichern der Einstellungen.",
+    "geolocationError": "Geolokalisierung wird nicht unterstützt."
   },
   "Verify": {
     "title": "Konto verifizieren",

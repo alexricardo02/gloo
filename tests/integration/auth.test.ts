@@ -218,7 +218,7 @@ describe("Auth Actions (Integration)", () => {
       );
 
       expect(result).toEqual({
-        error: "You must be at least 18 years old to register.",
+        error: "ageMinError",
       });
 
       const stored = await prisma.user.findUnique({
