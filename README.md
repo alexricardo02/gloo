@@ -19,18 +19,17 @@ The app supports a **Guest Mode** that lets anyone browse content without an acc
 ## Table of Contents
 
 - [Overview](#overview)
-- [Features](#features)
+- [Core Features](#core-features)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Database](#database)
+- [Incoming Features](#incoming-features)
 - [Internationalization](#internationalization)
 - [Authentication](#authentication)
-- [Key Pages & Routes](#key-pages--routes)
 - [Group Discovery](#group-discovery)
-- [Testing & CI](#testing--ci)
-- [Scripts](#scripts)
+- [Deployment](#deployment)
+- [Local Infrastructure (Docker)](#local-infrastructure-containerization-docker)
+- [Continuous Integration Pipeline](#4-continuous-integration-pipeline-github--gitlab-ci)
+- [License](#license)
 
 ---
 
@@ -175,15 +174,69 @@ The discovery algorithm in `discoverGroups.ts`:
 
 ---
 
-## Contributing
+## Deployment
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m 'feat: add your feature'`
-4. Push to the branch: `git push origin feature/your-feature`
-5. Open a pull request
+Gloo is built as a highly available, decoupled Full-Stack Web Application optimized for mobile-first clients. The architecture follows modern cloud-native patterns split into three core layers:
+- **Client/Server Layer:** Next.js 15 (App Router) serving as both the frontend user interface and the backend serverless execution environment (Server Actions).
+- **Data Persistence Layer:** PostgreSQL database hosted on a managed Supabase instance for development/production, and containerized via Docker for local isolation and testing.
+- **Real-Time Communication Layer:** Supabase Realtime Engine managing asynchronous WebSocket connections for instant group matching, messaging notifications, and live map updates.
 
-Please make sure `npm run test:ci` and `npm run build` pass before submitting a PR.
+### Environment Configuration & Twelve-Factor Compliance
+
+In strict compliance with the **Twelve-Factor App methodology**, all environment-specific configurations are isolated from the application code and injected exclusively via environment variables.
+
+### Required Environment Variables (`.env`)
+
+To spin up the application infrastructure, the following variables must be defined in your root `.env` file:
+
+| Variable Name | Description | Example Value / Context |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Connection pool URL used by Prisma Client for transactional runtime queries. | `postgresql://user:pass@host:6543/postgres` |
+| `DIRECT_URL` | Direct connection URL bypassing connection poolers, strictly required for database schema migrations. | `postgresql://user:pass@host:5432/postgres` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Public API gateway endpoint for the Supabase project instance. | `https://your-project.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anonymous client-side cryptographic key for initializing real-time WebSocket listeners. | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+
+
+### Local Infrastructure Containerization (Docker)
+
+To eliminate the "it works on my machine" anti-pattern, the local development database is fully containerized. A multi-container declarative configuration is defined using Docker Compose to orchestrate an isolated PostgreSQL server instance.
+
+#### Local Database Configuration (`docker-compose.yml`)
+- **Image:** `postgres:15-alpine` (lightweight, production-vetted Linux distribution)
+- **Local Port Mapping:** `5433:5432` (avoids port collisions with default host database installations)
+- **Database Name:** `gloo_db`
+- **User Credentials:** `party_admin` / `party_password123`
+
+#### Commands for Local Initialization
+1. **Boot up the containerized database infra (detached mode):**
+   ```bash docker-compose up -d```
+   
+1. **Synchronize and push the relational schema declarative definitions to the container:**
+   ```npx prisma db push```
+   
+1. **Boot up the containerized database infra (detached mode):**
+   ```bash docker-compose up -d```
+
+---
+
+## 4. Continuous Integration Pipeline (GitHub / GitLab CI)
+
+The project incorporates an automated Continuous Integration pipeline (`ci.yml`) executed on every code push or pull request. This ensures code correctness, verification of database constraints, licensing compliance, and security scanning before any build artifact is approved.
+
+### Automated Testing Lifecycle Steps:
+
+1. **Infrastructure Service Spin-up:** GitHub Actions provisions an ephemeral, isolated Docker container running `postgres:15-alpine`.
+2. **Security & Auth Trust-Mode:** The service is configured with `POSTGRES_HOST_AUTH_METHOD: trust` to permit secure loopback connections inside the CI virtual network.
+3. **Deterministic Synchronization (Race Condition Prevention):** The pipeline utilizes standard `pg_isready` diagnostic checks to stall execution loops until the database engine is explicitly healthy and ready to accept raw TCP connections.
+4. **Prisma Generation & Migration Execution:**
+   - `npx prisma generate` builds the type-safe data access layer models.
+   - `npx prisma db push` instantiates a clean relational schema inside the ephemeral container database.
+
+5. **License & Security Auditing:**
+   - Blocks copyleft dependencies (GPL/AGPL) to enforce compliant dependency trees.
+   - Executes structural privacy/security scans via Bearer.
+
+6. **Execution of Automated Test Suite:** Vitest fires all unit and integration test blocks against the isolated database container, ensuring complete functionality protection without polluting cloud production databases.
 
 ---
 
