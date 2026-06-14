@@ -14,10 +14,10 @@ export default function CreateGroupPage() {
 
   const [membersCount, setMembersCount] = useState(4);
   const [loading, setLoading] = useState(false);
-  const [ageMin, setAgeMin] = useState(18); 
+  const [ageMin, setAgeMin] = useState(18);
   const [ageMax, setAgeMax] = useState(30);
 
-  const [groupGender, setGroupGender] = useState("MIXED"); 
+  const [groupGender, setGroupGender] = useState("MIXED");
   const [searchGender, setSearchGender] = useState("MIXED");
   const [searchAgeMin, setSearchAgeMin] = useState(18);
   const [searchAgeMax, setSearchAgeMax] = useState(35);
@@ -36,7 +36,7 @@ export default function CreateGroupPage() {
   const handleBack = () => {
     // Check if the user arrived here immediately after registration
     const fromRegister = searchParams.get("from") === "register";
-    
+
     // --- FIX: Redirect to the new core feed instead of the legacy dashboard ---
     if (fromRegister) {
       router.push(`/${locale}/search-groups`);
@@ -90,7 +90,7 @@ export default function CreateGroupPage() {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
       const availableSlots = 6 - (existingPhotos.length + photos.length);
-      
+
       if (availableSlots > 0) {
         setPhotos((prev) => [...prev, ...selectedFiles.slice(0, availableSlots)]);
       }
@@ -143,11 +143,9 @@ export default function CreateGroupPage() {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            // 1. Append the new coordinates
             formData.append("latitude", position.coords.latitude.toString());
             formData.append("longitude", position.coords.longitude.toString());
 
-            // 2. Keep all your original code
             formData.append("membersCount", membersCount.toString());
             formData.append("ageMin", ageMin.toString());
             formData.append("ageMax", ageMax.toString());
@@ -164,14 +162,13 @@ export default function CreateGroupPage() {
             formData.append("agreedToTerms", agreed ? "true" : "false");
 
 
-            // 3. Execute the Server Action
             await createGroupAction(formData, locale);
             router.push(`/${locale}/profile`);
-            
+
           } catch (unknownError: unknown) {
             const err = unknownError as Error;
             if (err?.message === "NEXT_REDIRECT") {
-               return; 
+              return;
             }
             console.error("Error processing group:", err);
             alert(t("error"));
@@ -215,7 +212,7 @@ export default function CreateGroupPage() {
         </button>
 
         <h1 className="text-xl font-black uppercase tracking-tight">
-          {isEditing ? "Edit Your Group" : t("title")}
+          {isEditing ? t("editGroupTitle") : t("title")}
         </h1>
 
         <div className="w-10 h-10 flex items-center justify-center text-gray-500">
@@ -224,12 +221,12 @@ export default function CreateGroupPage() {
       </div>
 
       <form onSubmit={onSubmit} className="px-6 space-y-8">
-        
+
 
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <label className="block text-sm font-bold uppercase tracking-wider text-gray-500">
-              Group Gallery ({displayPhotos.length}/6)
+              {t("galleryLabel", { count: displayPhotos.length })}
             </label>
           </div>
 
@@ -274,7 +271,7 @@ export default function CreateGroupPage() {
                     className="flex flex-col items-center justify-center aspect-square w-full rounded-2xl border-2 border-dashed border-[#FF725E] bg-[#FF725E]/5 cursor-pointer hover:bg-[#FF725E]/10 transition-all group shadow-inner"
                   >
                     <Plus size={24} className="text-[#FF725E] group-hover:scale-110 transition-transform duration-200" />
-                    <span className="text-[10px] font-black uppercase text-[#FF725E] mt-1 tracking-wider">Add</span>
+                    <span className="text-[10px] font-black uppercase text-[#FF725E] mt-1 tracking-wider">{t("addPhoto")}</span>
                   </label>
                 );
               }
@@ -290,7 +287,7 @@ export default function CreateGroupPage() {
             })}
           </div>
           <p className="text-[9px] text-center text-[#FF725E] font-bold uppercase tracking-widest mt-2">
-            {displayPhotos.length === 0 ? "Upload at least one cool picture of your crew!" : "Great! Add more to stand out."}
+            {displayPhotos.length === 0 ? t("uploadHint") : t("uploadHintMore")}
           </p>
         </div>
 
@@ -372,14 +369,14 @@ export default function CreateGroupPage() {
 
             <div className="relative h-8 flex items-center pt-2">
               <div className="absolute w-full h-1 bg-[#333] rounded-lg"></div>
-              <div 
+              <div
                 className="absolute h-1 bg-[#FF725E] rounded-lg"
-                style={{ 
-                  left: `${((ageMin - 18) / 32) * 100}%`, 
-                  right: `${100 - ((ageMax - 18) / 32) * 100}%` 
+                style={{
+                  left: `${((ageMin - 18) / 32) * 100}%`,
+                  right: `${100 - ((ageMax - 18) / 32) * 100}%`
                 }}
               ></div>
-              
+
               <input
                 type="range"
                 name="ageMin"
@@ -389,7 +386,7 @@ export default function CreateGroupPage() {
                 onChange={(e) => setAgeMin(Math.min(Number(e.target.value), ageMax - 1))}
                 className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
               />
-              
+
               <input
                 type="range"
                 name="ageMax"
@@ -452,19 +449,19 @@ export default function CreateGroupPage() {
               </span>
             </div>
 
-  
+
             <div className="relative h-8 flex items-center pt-2">
 
               <div className="absolute w-full h-1 bg-[#333] rounded-lg"></div>
 
-              <div 
+              <div
                 className="absolute h-1 bg-[#FF725E] rounded-lg"
-                style={{ 
-                  left: `${((searchAgeMin - 18) / 32) * 100}%`, 
-                  right: `${100 - ((searchAgeMax - 18) / 32) * 100}%` 
+                style={{
+                  left: `${((searchAgeMin - 18) / 32) * 100}%`,
+                  right: `${100 - ((searchAgeMax - 18) / 32) * 100}%`
                 }}
               ></div>
-              
+
               <input
                 type="range"
                 name="searchAgeMin"
@@ -474,7 +471,7 @@ export default function CreateGroupPage() {
                 onChange={(e) => setSearchAgeMin(Math.min(Number(e.target.value), searchAgeMax - 1))}
                 className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
               />
-              
+
               <input
                 type="range"
                 name="searchAgeMax"
@@ -632,16 +629,15 @@ export default function CreateGroupPage() {
           <button
             type="submit"
             disabled={!agreed || loading}
-            className={`w-full font-black py-5 rounded-[1.5rem] text-sm uppercase tracking-[0.2em] transition-all ${
-              agreed
+            className={`w-full font-black py-5 rounded-[1.5rem] text-sm uppercase tracking-[0.2em] transition-all ${agreed
                 ? "bg-[#FF725E] text-black hover:bg-[#ff8575]"
                 : "bg-[#333333] text-gray-500 opacity-50"
-            }`}
+              }`}
           >
             {loading
-              ? "Processing..."
+              ? t("saving")
               : isEditing
-                ? "Update Profile"
+                ? t("updateProfile")
                 : t("createGroupButton")}
           </button>
         </div>
@@ -650,29 +646,29 @@ export default function CreateGroupPage() {
       {showPhotoAlert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#121212] border border-white/10 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(255,114,94,0.15)] flex flex-col items-center text-center space-y-4">
-            
+
             <div className="w-16 h-16 bg-[#FF725E]/10 rounded-full flex items-center justify-center text-[#FF725E] mb-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            
+
             <h2 className="text-lg font-black uppercase tracking-wider text-white">
-              Photo Required!
+              {t("photoRequired")}
             </h2>
-            
+
             <p className="text-sm text-gray-400">
-              You must upload at least one photo of your crew to continue. Show your vibe to the community!
+              {t("photoRequiredDesc")}
             </p>
-            
+
             <button
               type="button"
               onClick={() => setShowPhotoAlert(false)}
               className="w-full mt-4 bg-[#333] hover:bg-[#444] text-white font-bold py-4 rounded-[1.5rem] uppercase tracking-[0.2em] text-xs transition-colors"
             >
-              Got it
+              {t("gotIt")}
             </button>
-            
+
           </div>
         </div>
       )}

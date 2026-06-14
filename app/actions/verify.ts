@@ -17,11 +17,11 @@ export async function verifyAccountAction(token: string, locale: string) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { 
+    data: {
       // Token is cleared immediately after first use to prevent the same
       // email link from being reused to hijack the account later.
-      isVerified: true, 
-      verificationToken: null 
+      isVerified: true,
+      verificationToken: null,
     },
   });
 
@@ -30,7 +30,7 @@ export async function verifyAccountAction(token: string, locale: string) {
   // The user may have browsed as a guest before clicking the verification link.
   // Clearing the guest flag grants full authenticated access immediately,
   // so they don't need a separate login step after confirming their email.
-  cookieStore.delete("gloo_is_guest"); 
+  cookieStore.delete("gloo_is_guest");
 
   redirect(`/${locale}/search-groups`);
 }

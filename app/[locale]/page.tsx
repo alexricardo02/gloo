@@ -18,11 +18,9 @@ const languages = [
 function LoadingOverlay({ visible }: { visible: boolean }) {
   return (
     <div
-      className={`fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black transition-opacity duration-300 ${
-        visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-      }`}
+      className={`fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black transition-opacity duration-300 ${visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
     >
-      {/* Global loading overlay shown during navigation/guest login transitions */}
       <div className="relative w-48 h-24 mb-10 flex items-center justify-center">
         <Image
           src="/images/logo2.png"
@@ -32,13 +30,13 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
           priority
         />
       </div>
- 
+
       <div className="relative w-20 h-20 flex items-center justify-center">
         <span className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-[#FF5733] animate-[spin_1.4s_linear_infinite]" />
         <span className="absolute inset-[6px] rounded-full border-[3px] border-transparent border-t-[#FF5733]/60 animate-[spin_1s_linear_infinite_reverse]" />
         <span className="absolute inset-[13px] rounded-full border-[2px] border-transparent border-t-white/40 animate-[spin_0.7s_linear_infinite]" />
       </div>
- 
+
       <p className="mt-10 text-[11px] font-black uppercase tracking-[0.3em] text-white/40 animate-pulse">
         Loading
       </p>
@@ -47,8 +45,8 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
 }
 
 export default function Home() {
-  const t = useTranslations("WelcomePage"); 
-  const currentLocale = useLocale(); 
+  const t = useTranslations("WelcomePage");
+  const currentLocale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
@@ -65,7 +63,7 @@ export default function Home() {
       await loginAsGuest(currentLocale);
     });
   };
-  
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -90,9 +88,9 @@ export default function Home() {
     setIsOpen(false);
 
     document.cookie = `NEXT_LOCALE=${lang.code}; path=/; max-age=31536000`;
-    
+
     const newPath = pathname.replace(`/${currentLocale}`, `/${lang.code}`);
-    
+
     router.replace(newPath);
     router.refresh();
   };
@@ -100,11 +98,11 @@ export default function Home() {
   return (
     <>
       <LoadingOverlay visible={isPending} />
- 
+
       <main className="relative flex flex-col items-center justify-between min-h-screen text-[#FDFEFE] p-8 font-sans overflow-hidden">
- 
+
         <div className="absolute inset-0 bg-black -z-30" />
- 
+
         <video
           ref={videoRef}
           autoPlay
@@ -112,16 +110,15 @@ export default function Home() {
           muted
           playsInline
           onCanPlay={() => setVideoReady(true)}
-          className={`absolute inset-0 w-full h-full object-cover -z-20 transition-opacity duration-700 ${
-            videoReady ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute inset-0 w-full h-full object-cover -z-20 transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"
+            }`}
         >
           <source src="/videos/video1.mp4" type="video/mp4" />
         </video>
- 
+
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm -z-10" />
         <div className="flex-1 w-full relative z-10" />
- 
+
         <div className="flex flex-col items-center justify-center flex-2 space-y-6 relative z-10">
           <div className="relative w-56 h-28 mb-10 flex items-center justify-center">
             <Image
@@ -132,7 +129,7 @@ export default function Home() {
               priority
             />
           </div>
-          
+
           <div className="text-center space-y-3">
             <h1 className="text-3xl font-extrabold tracking-tight drop-shadow-lg">
               {t("titleStart")}
@@ -141,9 +138,9 @@ export default function Home() {
             </h1>
           </div>
         </div>
- 
+
         <div className="flex flex-col w-full max-w-sm space-y-4 flex-1 justify-end pb-12 relative z-10">
- 
+
           <div className="relative w-full" ref={dropdownRef}>
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -158,7 +155,7 @@ export default function Home() {
                 <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
               </svg>
             </button>
- 
+
             {isOpen && (
               <ul className="absolute z-10 w-full mt-2 bg-[#1A1A1A]/90 backdrop-blur-lg border-2 border-[#8E44AD] rounded-2xl shadow-2xl overflow-hidden bottom-full mb-2">
                 {languages.map((lang) => (
@@ -182,7 +179,7 @@ export default function Home() {
           >
             {t("buttonStart")}
           </button>
- 
+
           <div className="pt-4">
             <SocialLinks variant="dark" />
           </div>

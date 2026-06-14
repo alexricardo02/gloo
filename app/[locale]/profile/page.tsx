@@ -71,7 +71,7 @@ export default function ProfilePage() {
     setIsDeleting(true);
     const result = await deleteGroupAction();
     setIsDeleting(false);
-    
+
     if (result.success) {
       setGroup(null); // Revert UI back to host-less / spectator view
       setShowDeleteConfirm(false);
@@ -83,17 +83,17 @@ export default function ProfilePage() {
 
   const handleUpload = async () => {
     if (!selectedFile) return;
-    
+
     setIsUploading(true);
     const formData = new FormData();
     formData.append("image", selectedFile);
 
     const result = await updateProfileImage(formData);
-    
+
     if (result?.success && result.image) {
       // Update local user state immediately so UI reflects the new image
       setUser((prev: any) => ({ ...prev, image: result.image }));
-      
+
       // Clean up and close modal
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -101,13 +101,13 @@ export default function ProfilePage() {
     } else {
       console.error("Upload failed:", result?.error);
     }
-    
+
     setIsUploading(false);
   };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-32">
-      
+
       <div className="flex items-center justify-between gap-4 p-6 border-b border-white/10 mb-6 bg-[#111111] rounded-b-[2.5rem]">
         <h1 className="text-3xl font-extrabold text-white">
           {t("title")}
@@ -115,7 +115,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="px-6 space-y-10">
-        
+
         <div className="flex flex-col items-center text-center gap-4 py-4">
           <div className="relative">
             <div className="w-[110px] h-[110px] rounded-full border-2 border-[#FF725E] overflow-hidden bg-[#1A1A1A] flex items-center justify-center shadow-2xl">
@@ -125,8 +125,8 @@ export default function ProfilePage() {
                 <User className="w-12 h-12 text-gray-600" />
               )}
             </div>
-            
-            <button 
+
+            <button
               onClick={() => setIsModalOpen(true)}
               className="absolute bottom-1 right-1 bg-[#FF725E] text-black p-2 rounded-full border-2 border-black hover:scale-110 transition-transform shadow-lg z-10"
             >
@@ -136,7 +136,7 @@ export default function ProfilePage() {
 
           <div className="mt-2">
             <h2 className="text-3xl font-black uppercase tracking-tighter text-white">
-              {user?.name || "Loading..."}
+              {user?.name || t("loading")}
             </h2>
           </div>
         </div>
@@ -168,11 +168,11 @@ export default function ProfilePage() {
             </Link>
           ) : (
             <div className="relative block">
-              
+
               <div className="absolute top-1/2 -translate-y-1/2 right-4 z-20">
-                <button 
+                <button
                   onClick={(e) => {
-                    e.preventDefault(); 
+                    e.preventDefault();
                     e.stopPropagation();
                     setIsMenuOpen(!isMenuOpen);
                   }}
@@ -180,7 +180,7 @@ export default function ProfilePage() {
                 >
                   <MoreVertical size={18} />
                 </button>
-                
+
                 {isMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-[#141414] border border-[#262626] rounded-2xl shadow-2xl py-1 z-30 animate-in fade-in slide-in-from-top-2 duration-100">
                     <button
@@ -193,7 +193,7 @@ export default function ProfilePage() {
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm text-[#FF725E] hover:bg-[#1f1f1f] transition-colors font-black uppercase tracking-wider text-left"
                     >
                       <Trash2 size={16} />
-                      Delete Group
+                      {t("deleteGroup")}
                     </button>
                   </div>
                 )}
@@ -201,7 +201,7 @@ export default function ProfilePage() {
 
               <Link href={`/${locale}/profile/create-group`} className="block">
                 <div className="border border-white/10 bg-[#141414] rounded-3xl p-5 pr-14 flex items-center gap-4 hover:border-[#FF725E]/50 hover:bg-[#1A1A1A] transition-all relative">
-                  
+
                   <div className="relative w-20 h-20 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0 bg-[#1A1A1A]">
                     <img
                       src={group.photos?.[0] || "/images/vorgluehen.jpg"}
@@ -209,7 +209,7 @@ export default function ProfilePage() {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  
+
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <h4 className="font-extrabold text-xl text-white">
@@ -219,7 +219,7 @@ export default function ProfilePage() {
                         {t(group.gender)}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
                       <span className="flex items-center gap-1.5 font-bold">
                         <Users size={16} className="text-[#FF725E]" />
@@ -274,61 +274,58 @@ export default function ProfilePage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div 
-            className="absolute inset-0 bg-black/80 backdrop-blur-md" 
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-md"
             onClick={() => setIsModalOpen(false)}
           />
-          
+
           <div className="relative bg-[#111111] border border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-300">
-            <button 
+            <button
               onClick={() => setIsModalOpen(false)}
               className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors"
             >
               <X size={24} />
             </button>
-            
+
             <h3 className="text-2xl font-black italic uppercase mb-8 text-center tracking-tight">
               {t("updatePhoto")}
             </h3>
 
-            <label 
-              htmlFor="profile-upload" 
+            <label
+              htmlFor="profile-upload"
               className="w-40 h-40 rounded-full border-2 border-dashed border-[#FF725E] flex flex-col items-center justify-center bg-white/5 mb-8 cursor-pointer hover:bg-[#FF725E]/5 transition-colors group overflow-hidden relative"
             >
               {previewUrl ? (
-                /* Show image preview if a file is selected */
                 <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
               ) : (
-                /* Show default camera icon if no file is selected */
                 <>
                   <Camera size={40} className="text-[#FF725E] mb-2 group-hover:scale-110 transition-transform" />
                   <span className="text-[10px] font-bold uppercase text-gray-500">{t("tapToSelect")}</span>
                 </>
               )}
-              
-              <input 
-                type="file" 
-                id="profile-upload" 
-                className="hidden" 
+
+              <input
+                type="file"
+                id="profile-upload"
+                className="hidden"
                 accept="image/*"
                 onChange={handleFileSelect}
               />
             </label>
 
-            <button 
+            <button
               onClick={handleUpload}
               disabled={!selectedFile || isUploading}
-              className={`w-full font-black py-4 rounded-full uppercase tracking-widest text-sm transition-transform mb-4 flex items-center justify-center gap-2 ${
-                !selectedFile || isUploading
+              className={`w-full font-black py-4 rounded-full uppercase tracking-widest text-sm transition-transform mb-4 flex items-center justify-center gap-2 ${!selectedFile || isUploading
                   ? "bg-[#333333] text-gray-500 opacity-50 cursor-not-allowed"
                   : "bg-[#FF725E] text-black hover:scale-[1.02]"
-              }`}
+                }`}
             >
               <Upload size={18} />
               {isUploading ? "Uploading..." : t("uploadNow")}
             </button>
 
-            <button 
+            <button
               onClick={() => {
                 setIsModalOpen(false);
                 setSelectedFile(null);
@@ -340,25 +337,25 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <Navigation/>
+      <Navigation />
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-[#111111] border border-[#222222] rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl">
-            <h3 className="text-xl font-black text-white uppercase tracking-wide mb-2">Delete Group?</h3>
+            <h3 className="text-xl font-black text-white uppercase tracking-wide mb-2">{t("deleteGroupTitle")}</h3>
             <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-              Are you sure you want to delete your group? This action is permanent. Your members, active chats, and group photo history will be completely removed.
+              {t("deleteGroupDesc")}
             </p>
-            
+
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleDeleteGroup}
                 disabled={isDeleting}
                 className="w-full bg-[#FF725E] text-black font-black py-4 rounded-full uppercase tracking-widest text-xs transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isDeleting ? "Deleting..." : "Yes, Delete Group"}
+                {isDeleting ? t("deleting") : t("deleteGroupConfirm")}
               </button>
-              
+
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
@@ -370,7 +367,7 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-      
+
     </div>
   );
 }

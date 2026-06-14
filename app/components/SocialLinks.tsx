@@ -4,19 +4,18 @@ import { useTranslations } from "next-intl";
 
 interface SocialLinksProps {
   variant?: "dark" | "light";
-  handles?: string[]; // Neu: Optionale Liste von Usernames
+  handles?: string[];
 }
 
 export default function SocialLinks({ variant = "dark", handles }: SocialLinksProps) {
   const t = useTranslations("Common");
   const isDark = variant === "dark";
-  
+
   const baseClasses = "inline-flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200 font-semibold";
   const themeClasses = isDark
     ? "border border-white/20 bg-white/10 text-white hover:bg-white/15"
     : "border border-gray-200 bg-[#F7F7F7] text-gray-900 hover:bg-gray-200";
 
-  // Wenn Handles übergeben wurden (für das Gruppenprofil)
   if (handles && handles.length > 0) {
     return (
       <div className="flex flex-wrap justify-center gap-3">
@@ -36,7 +35,6 @@ export default function SocialLinks({ variant = "dark", handles }: SocialLinksPr
     );
   }
 
-  // Standard-Fall: Der allgemeine Gloo-Link (z.B. im Footer oder Profile)
   return (
     <div className="flex justify-center">
       <a
@@ -52,7 +50,6 @@ export default function SocialLinks({ variant = "dark", handles }: SocialLinksPr
   );
 }
 
-// Kleine Hilfskomponente für das Icon, um Code-Duplikate zu vermeiden
 function InstagramIcon() {
   return (
     <svg

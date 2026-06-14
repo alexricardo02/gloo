@@ -168,14 +168,13 @@ export default function PrePartyPage() {
 
   return (
     <div className="flex flex-col h-screen bg-black overflow-hidden relative bg-black min-h-screen text-white font-sans selection:bg-[#FF725E] selection:text-black">
-      {/* Header shows page title and currently selected search radius */}
       <div className="relative z-50 bg-black px-6 pt-6 pb-3 flex justify-between items-center">
         <div>
           <h1 className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">
             {t("title") || "Discover"}
           </h1>
           <p className="text-[11px] text-gray-500 font-bold mt-0.5">
-            {isReady ? `${distance} km` : "— km"} km around you
+            {isReady ? `${distance} km` : "— km"} {t("kmAroundYou")}
           </p>
         </div>
 
@@ -239,13 +238,12 @@ export default function PrePartyPage() {
       />
 
       {/* Modals handle radius adjustment, missing-group flow, and guest paywall */}
-
       {isDistanceModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center animate-in fade-in duration-200">
           <div className="bg-[#121212] w-full max-w-md rounded-t-[2.5rem] p-8 border-t border-white/10 animate-in slide-in-from-bottom-8 duration-300 pb-12">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black uppercase tracking-tight">
-                Search Radius
+                {t("modalTitle")}
               </h3>
               <button
                 onClick={() => setIsDistanceModalOpen(false)}

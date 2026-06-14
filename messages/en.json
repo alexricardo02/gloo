@@ -432,7 +432,10 @@
     "pwdMinChars": "Min 8 chars",
     "pwdUppercase": "1 Uppercase",
     "pwdNumber": "1 Number",
-    "pwdSpecial": "1 Special char"
+    "pwdSpecial": "1 Special char",
+    "successTitle": "Check your email",
+    "goToLogin": "Go to Login",
+    "usernameSpaceError": "Username cannot contain spaces."
   },
   "Profile": {
     "title": "Profile",
@@ -522,7 +525,17 @@
     "saving": "Saving...",
     "error": "Something went wrong. Please try again.",
     "minAge": "Minimum age must be at least 18.",
-    "maxAge": "Maximum age must be greater than minimum age."
+    "maxAge": "Maximum age must be greater than minimum age.",
+    "editGroupTitle": "Edit Your Group",
+    "galleryLabel": "Group Gallery ({count}/6)",
+    "addPhoto": "Add",
+    "uploadHint": "Upload at least one cool picture of your crew!",
+    "uploadHintMore": "Great! Add more to stand out.",
+    "photoRequired": "Photo Required!",
+    "photoRequiredDesc": "You must upload at least one photo of your crew to continue. Show your vibe to the community!",
+    "gotIt": "Got it",
+    "updateProfile": "Update Profile",
+    "locationRequired": "Location required to update group."
   },
   "Messages": {
     "emptyDesc": "Match with other groups in the carousel to start a conversation.",
@@ -565,7 +578,9 @@
     "groupRequiredDesc": "To match, like, send messages, or unlock more groups near you, you must create a profile for your own group first.",
     "createGroupButton": "Create Group Profile",
     "title": "Discover",
-    "radius": "Radius"
+    "radius": "Radius",
+    "kmAroundYou": "km around you",
+    "modalTitle": "Search Radius"
   },
   "ForgotPassword": {
     "title": "Reset Password",
@@ -623,7 +638,13 @@
     "section2Title": "2. How We Use Your Data",
     "section2Content": "Your data is used solely to provide and improve our services, match you with relevant groups, and ensure a safe environment for our community.",
     "section3Title": "3. Data Sharing",
-    "section3Content": "We do not sell your personal data. We only share information with third parties when necessary to provide our services or comply with legal obligations."
+    "section3Content": "We do not sell your personal data. We only share information with third parties when necessary to provide our services or comply with legal obligations.",
+    "deleteGroup": "Delete Group",
+    "deleteGroupTitle": "Delete Group?",
+    "deleteGroupDesc": "Are you sure you want to delete your group? This action is permanent. Your members, active chats, and group photo history will be completely removed.",
+    "deleteGroupConfirm": "Yes, Delete Group",
+    "deleting": "Deleting...",
+    "defaultDescription": "Looking for a fun night out!"
   },
   "Map": {
     "title": "Gloo Map",
@@ -668,7 +689,10 @@
     "genderMixed": "Mixed",
     "genderMale": "Male",
     "genderFemale": "Female",
-    "genderDiverse": "Diverse"
+    "genderDiverse": "Diverse",
+    "noGroupAlert": "Please create a group profile first.",
+    "saveError": "Error saving preferences.",
+    "geolocationError": "Geolocation not supported."
   },
   "Verify": {
     "title": "Verify your Account",

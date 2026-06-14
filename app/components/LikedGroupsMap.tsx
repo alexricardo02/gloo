@@ -72,7 +72,6 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
 
   return (
     <div className="w-56 p-2 text-black font-sans flex flex-col">
-      {/* Group photo */}
       <div className="w-full h-24 rounded-xl overflow-hidden bg-gray-200 mb-2">
         <img
           src={group.photos?.[0] || "/images/bg-fallback.jpg"}
@@ -81,7 +80,6 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
         />
       </div>
 
-      {/* Name & badges */}
       <h3 className="font-black text-sm tracking-tight text-gray-900">
         {displayName}
       </h3>
@@ -113,7 +111,6 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
         </div>
       )}
 
-      {/* Chat button */}
       <button
         onClick={handleOpenChat}
         disabled={isOpeningChat}
@@ -135,20 +132,18 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
 export default function LikedGroupsMap({ groups }: LikedGroupsMapProps) {
   const locale = useLocale();
 
-  // Filter groups with location
   const groupsWithLocation = groups.filter(
     (g) => g.latitude != null && g.longitude != null
   );
 
-  // Calculate map center from groups or default to Mainz
   const center: [number, number] =
     groupsWithLocation.length > 0
       ? [
-          groupsWithLocation.reduce((sum, g) => sum + (g.latitude ?? 0), 0) /
-            groupsWithLocation.length,
-          groupsWithLocation.reduce((sum, g) => sum + (g.longitude ?? 0), 0) /
-            groupsWithLocation.length,
-        ]
+        groupsWithLocation.reduce((sum, g) => sum + (g.latitude ?? 0), 0) /
+        groupsWithLocation.length,
+        groupsWithLocation.reduce((sum, g) => sum + (g.longitude ?? 0), 0) /
+        groupsWithLocation.length,
+      ]
       : [49.9929, 8.2473];
 
   return (

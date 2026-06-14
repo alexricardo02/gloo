@@ -6,7 +6,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-
 /**
  * Registers a new user and establishes their initial security boundaries.
  * Enforces strict age verification (18+) and password complexity to comply with security standards.
@@ -33,33 +32,37 @@ export async function registerUser(formData: FormData, locale: string) {
   // A simple year subtraction gives the wrong age for birthdays that haven't
   // occurred yet this year (e.g., today is March, birthday is December → off by 1).
   // monthDifference corrects this before the age gate is applied.
-  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+  if (
+    monthDifference < 0 ||
+    (monthDifference === 0 && today.getDate() < birthDate.getDate())
+  ) {
     age--;
   }
 
-
   if (age < 18) {
-    return { error: "You must be at least 18 years old to register." };
+    return { error: "ageMinError" };
   }
 
   if (username && /\s/.test(username)) {
     return { error: "usernameSpaceError" };
   }
 
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
   if (!passwordRegex.test(password)) {
     return { error: "passwordWeakError" };
   }
 
   try {
-    
     const existingEmail = await prisma.user.findUnique({ where: { email } });
     if (existingEmail) {
       return { error: "emailExistsError" };
     }
 
     if (username) {
-      const existingUsername = await prisma.user.findUnique({ where: { username } });
+      const existingUsername = await prisma.user.findUnique({
+        where: { username },
+      });
       if (existingUsername) {
         return { error: "usernameTakenError" };
       }
@@ -68,7 +71,6 @@ export async function registerUser(formData: FormData, locale: string) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const verificationToken = crypto.randomUUID();
-
 
     await prisma.user.create({
       data: {
@@ -79,15 +81,16 @@ export async function registerUser(formData: FormData, locale: string) {
         birthDate,
         // Account stays locked until the user confirms their email.
         // This prevents access with typo'd or stolen email addresse
-        isVerified: false, 
+        isVerified: false,
         verificationToken,
       },
     });
 
-    console.log(`[EMAIL SIMULATION] Verification link sent to ${email}: http://localhost:3000/${locale}/verify?token=${verificationToken}`);
+    console.log(
+      `[EMAIL SIMULATION] Verification link sent to ${email}: http://localhost:3000/${locale}/verify?token=${verificationToken}`,
+    );
 
     return { success: true, needsVerification: true };
-
   } catch (error) {
     console.error("Registration critical error:", error);
     return { error: "registrationGenericError" };
@@ -108,13 +111,10 @@ export async function loginUser(formData: FormData, locale: string) {
   // Search user
   const user = await prisma.user.findFirst({
     where: {
-      OR: [
-        { email: identifier },
-        { username: identifier }
-      ]
-    }
+      OR: [{ email: identifier }, { username: identifier }],
+    },
   });
-  
+
   if (!user) return { error: "invalidCredentialsError" };
 
   // Validate password
@@ -144,17 +144,17 @@ export async function getCurrentUser() {
       name: true,
       username: true,
       image: true,
-    }
+    },
   });
 }
 
 export async function logOutAction(locale: string) {
   const cookieStore = await cookies();
-  
+
   cookieStore.delete("gloo_user_id");
-  
+
   const guestId = crypto.randomUUID();
-  
+
   // After logout the user lands on the discovery feed, which requires a valid
   // session to render. Setting guest cookies prevents a redirect loop by
   // providing a browsing session without account privileges.
@@ -177,10 +177,10 @@ export async function logOutAction(locale: string) {
   redirect(`/${locale}/search-groups`);
 }
 
-
 export async function checkUsernameAvailability(username: string) {
-  if (!username || username.length < 3 || /\s/.test(username)) return { available: false };
-  
+  if (!username || username.length < 3 || /\s/.test(username))
+    return { available: false };
+
   try {
     // Selecting only the ID avoids loading the full user row from the DB.
     // At scale, this matters because username checks fire on every keystroke.
@@ -188,7 +188,7 @@ export async function checkUsernameAvailability(username: string) {
       where: { username },
       select: { id: true },
     });
-    
+
     return { available: !user };
   } catch (error) {
     console.error("Error checking username:", error);
@@ -199,21 +199,21 @@ export async function checkUsernameAvailability(username: string) {
 export async function updateProfileImage(formData: FormData) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
-  
+
   if (!userId) return { error: "Unauthorized" };
 
   const file = formData.get("image") as File;
   if (!file || file.size === 0) return { error: "No image provided" };
 
   try {
-    const fileExt = file.name.split('.').pop();
+    const fileExt = file.name.split(".").pop();
     const fileName = `${userId}-${Date.now()}.${fileExt}`;
     const filePath = `profiles/${fileName}`;
 
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('gloo-images') 
+      .from("gloo-images")
       .upload(filePath, file, {
-        cacheControl: '3600',
+        cacheControl: "3600",
         upsert: true,
       });
 
@@ -223,7 +223,7 @@ export async function updateProfileImage(formData: FormData) {
     }
 
     const { data: publicUrlData } = supabase.storage
-      .from('gloo-images')
+      .from("gloo-images")
       .getPublicUrl(filePath);
 
     const publicUrl = publicUrlData.publicUrl;
@@ -253,9 +253,9 @@ export async function deleteAccountAction(locale: string) {
       where: { id: userId },
       include: {
         group: {
-          select: { photos: true }
-        }
-      }
+          select: { photos: true },
+        },
+      },
     });
 
     if (!user) {
@@ -267,7 +267,7 @@ export async function deleteAccountAction(locale: string) {
     // has no foreign key constraints, so file deletion order doesn't affect
     // data integrity — only UX speed.
     await prisma.user.delete({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     cookieStore.delete("gloo_user_id");
@@ -297,17 +297,17 @@ export async function deleteAccountAction(locale: string) {
       try {
         const filesToDelete: string[] = [];
 
-        if (user.image && user.image.includes('supabase')) {
-          const imageFileName = user.image.split('/').pop();
+        if (user.image && user.image.includes("supabase")) {
+          const imageFileName = user.image.split("/").pop();
           if (imageFileName) {
             filesToDelete.push(`profiles/${imageFileName}`);
           }
         }
 
         if (user.group?.photos && user.group.photos.length > 0) {
-          user.group.photos.forEach(url => {
-            if (url.includes('supabase')) {
-              const photoFileName = url.split('/').pop();
+          user.group.photos.forEach((url) => {
+            if (url.includes("supabase")) {
+              const photoFileName = url.split("/").pop();
               if (photoFileName) {
                 filesToDelete.push(`groups/${photoFileName}`);
               }
@@ -316,15 +316,12 @@ export async function deleteAccountAction(locale: string) {
         }
 
         if (filesToDelete.length > 0) {
-          await supabase.storage
-            .from('gloo-images')
-            .remove(filesToDelete);
+          await supabase.storage.from("gloo-images").remove(filesToDelete);
         }
       } catch (error) {
         console.error("Error deleting Supabase files in background:", error);
       }
     })();
-
   } catch (error) {
     console.error("Error deleting account:", error);
     return { error: "Failed to delete account" };
@@ -333,9 +330,8 @@ export async function deleteAccountAction(locale: string) {
   redirect(`/${locale}/search-groups`);
 }
 
-
 export async function requestPasswordReset(email: string, locale: string) {
-  const passwordRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
+  const passwordRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!passwordRegex.test(email)) {
     return { success: true };
   }
@@ -343,7 +339,7 @@ export async function requestPasswordReset(email: string, locale: string) {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true }
+      select: { id: true },
     });
 
     // Returning success even when the email is not registered prevents user
@@ -354,21 +350,21 @@ export async function requestPasswordReset(email: string, locale: string) {
     }
 
     const resetToken = crypto.randomUUID() + "-" + crypto.randomUUID();
-    
+
     const expiryTime = new Date(Date.now() + 60 * 60 * 1000);
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
         resetPasswordToken: resetToken,
-        resetPasswordExpiry: expiryTime
-      }
+        resetPasswordExpiry: expiryTime,
+      },
     });
 
     // In production, send email via Resend/SendGrid
     // For now, log to console
     console.log(
-      `[EMAIL SIMULATION] Password reset link sent to ${email}: http://localhost:3000/${locale}/resetPassword?token=${resetToken}`
+      `[EMAIL SIMULATION] Password reset link sent to ${email}: http://localhost:3000/${locale}/resetPassword?token=${resetToken}`,
     );
 
     return { success: true };
@@ -379,7 +375,8 @@ export async function requestPasswordReset(email: string, locale: string) {
 }
 
 export async function resetPassword(token: string, newPassword: string) {
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
   if (!passwordRegex.test(newPassword)) {
     return { error: "passwordWeakError" };
   }
@@ -389,9 +386,9 @@ export async function resetPassword(token: string, newPassword: string) {
       where: {
         resetPasswordToken: token,
         resetPasswordExpiry: {
-          gt: new Date()
-        }
-      }
+          gt: new Date(),
+        },
+      },
     });
 
     if (!user) {
@@ -407,8 +404,8 @@ export async function resetPassword(token: string, newPassword: string) {
         // the same link cannot be replayed even within its original validity window.
         password: hashedPassword,
         resetPasswordToken: null,
-        resetPasswordExpiry: null
-      }
+        resetPasswordExpiry: null,
+      },
     });
 
     return { success: true };

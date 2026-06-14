@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
  */
 export async function loginAsGuest(locale: string) {
   const guestId = crypto.randomUUID();
-  
+
   const cookieStore = await cookies();
 
   cookieStore.set("gloo_is_guest", "true", {
@@ -44,12 +44,10 @@ export async function clearGuestSession() {
   cookieStore.delete("gloo_guest_id");
 }
 
-
 export async function checkIsGuest() {
   const cookieStore = await cookies();
   return cookieStore.get("gloo_is_guest")?.value === "true";
 }
-
 
 export async function getGuestId() {
   const cookieStore = await cookies();

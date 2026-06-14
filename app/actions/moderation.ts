@@ -3,7 +3,6 @@
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 
-
 export async function blockGroupAction(chatId: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -113,7 +112,10 @@ export async function reportGroupAction(chatId: string, reason?: string) {
   }
 }
 
-export async function reportGroupByGroupIdAction(groupId: string, reason?: string) {
+export async function reportGroupByGroupIdAction(
+  groupId: string,
+  reason?: string,
+) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
 
@@ -153,7 +155,6 @@ export async function reportGroupByGroupIdAction(groupId: string, reason?: strin
   }
 }
 
-
 export async function unblockGroupAction(blockedGroupId: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -174,7 +175,6 @@ export async function unblockGroupAction(blockedGroupId: string) {
     return { error: "Failed to unblock group. Please try again." };
   }
 }
-
 
 export async function getBlockedGroupsAction() {
   const cookieStore = await cookies();

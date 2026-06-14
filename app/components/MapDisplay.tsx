@@ -6,15 +6,14 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
-import { 
-  getVenues, toggleVenueAttendance, getActiveEvents, getMyActiveEvent, 
-  startPreParty, stopPreParty, getMapSession, requestEventAttendance, 
+import {
+  getVenues, toggleVenueAttendance, getActiveEvents, getMyActiveEvent,
+  startPreParty, stopPreParty, getMapSession, requestEventAttendance,
   respondToEventRequest, getOrCreateChatWithUser
 } from "../actions/map";
 import { Check, Users, Flame, X, Clock, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import GuestPaywall from "./GuestPaywall";
-import { Lock } from "lucide-react";
 
 interface EventAttendance {
   id: string;
@@ -45,7 +44,7 @@ interface VenueAttendance {
 interface Venue {
   id: string;
   name: string;
-  type: string; // "BAR" or "CLUB"
+  type: string;
   latitude: number;
   longitude: number;
   attendees: VenueAttendance[];
@@ -71,17 +70,16 @@ interface PrePartyEvent {
 }
 
 export default function MapDisplay() {
-  // Koordinaten-Zentrum für Mainz
   const t = useTranslations("Map");
   const locale = useLocale();
   const router = useRouter();
   const mapRef = useRef<L.Map | null>(null);
   const centerPosition: [number, number] = [49.9929, 8.2473]; // Mainz Central Coordinates
-  
+
   const [showPaywall, setShowPaywall] = useState(false);
   const [userPosition, setUserPosition] = useState<[number, number]>(centerPosition);
   const [locationName, setLocationName] = useState<string>(t("mainzLocation"));
-  const [session, setSession] = useState<{userId: string, groupId: string | null} | null>(null);
+  const [session, setSession] = useState<{ userId: string, groupId: string | null } | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [preParties, setPreParties] = useState<PrePartyEvent[]>([]);
   const [myEvent, setMyEvent] = useState<PrePartyEvent | null>(null);
@@ -97,7 +95,7 @@ export default function MapDisplay() {
 
   const loadMapData = async () => {
     if (isGuest) {
-      setShowPaywall(true); 
+      setShowPaywall(true);
     }
     const sess = await getMapSession();
     setSession(sess);
@@ -166,14 +164,14 @@ export default function MapDisplay() {
 
 
   // Custom DivIcon generator to render clean Tailwind circles instead of default image flags
-  const createMarkerIcon = (type: "BAR" | "CLUB" | "USER" |"PARTY") => {
-    let colorClass = "bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)]"; 
+  const createMarkerIcon = (type: "BAR" | "CLUB" | "USER" | "PARTY") => {
+    let colorClass = "bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)]";
     let extraClasses = "transition-all duration-300 transform hover:scale-125";
-    
+
     if (type === "CLUB") {
       colorClass = "bg-[#FF725E] shadow-[0_0_15px_rgba(255,114,94,0.7)]";
     } else if (type === "BAR") {
-      colorClass = "bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.7)]"; 
+      colorClass = "bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.7)]";
     } else if (type === "PARTY") {
       colorClass = "bg-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.9)]";
       extraClasses += " animate-pulse";
@@ -202,7 +200,7 @@ export default function MapDisplay() {
           try {
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
             const data = await res.json();
-            
+
             if (data && data.address) {
               const name = data.address.suburb || data.address.city || data.address.town || data.address.village || "Actual Location";
               setLocationName(name);
@@ -222,13 +220,13 @@ export default function MapDisplay() {
   const handleRsvpToggle = async (venueId: string) => {
     setLoadingActionId(venueId);
     const result = await toggleVenueAttendance(venueId);
-    
+
     if (result && 'success' in result && result.success) {
       await loadMapData();
     } else if (result && 'error' in result && result.error) {
 
       const authErrors = ["Not authorized", "Group required", "Gruppe erforderlich", "Nicht autorisiert"];
-      
+
       if (authErrors.includes(result.error)) {
         setShowPaywall(true);
       } else {
@@ -242,14 +240,14 @@ export default function MapDisplay() {
   const handleStartParty = async () => {
     if (!mapRef.current) return;
     setIsProcessingParty(true);
-    
+
     const center = mapRef.current.getCenter();
-    
+
     const result = await startPreParty(center.lat, center.lng, partyDescription);
-    
+
     if (result && result.error) {
       const authErrors = ["Not authorized", "Group required", "Gruppe erforderlich", "Nicht autorisiert"];
-      
+
       if (authErrors.includes(result.error)) {
         setShowPaywall(true);
       } else {
@@ -261,7 +259,7 @@ export default function MapDisplay() {
       setIsSheetOpen(false);
       await loadMapData();
     }
-    
+
     setIsProcessingParty(false);
   };
 
@@ -278,10 +276,10 @@ export default function MapDisplay() {
   const handleRequestAccess = async (eventId: string) => {
     setLoadingActionId(eventId);
     const result = await requestEventAttendance(eventId);
-    
+
     if (result && 'error' in result && result.error) {
       const authErrors = ["Not authorized", "Group required", "Gruppe erforderlich", "Nicht autorisiert"];
-      
+
       if (authErrors.includes(result.error)) {
         setShowPaywall(true);
       } else {
@@ -291,7 +289,7 @@ export default function MapDisplay() {
     } else {
       await loadMapData();
     }
-    
+
     setLoadingActionId(null);
   };
 
@@ -299,14 +297,14 @@ export default function MapDisplay() {
     await respondToEventRequest(attendanceId, accept);
     await loadMapData();
   };
-  
+
   const handleOpenChat = async (targetUserId: string) => {
     setIsProcessingParty(true);
     const result = await getOrCreateChatWithUser(targetUserId);
-    
+
     if (result && result.error) {
       const authErrors = ["Not authorized", "Group required", "Gruppe erforderlich", "Nicht autorisiert"];
-      
+
       if (authErrors.includes(result.error)) {
         setShowPaywall(true);
       } else {
@@ -316,7 +314,7 @@ export default function MapDisplay() {
     } else if (result && result.success && result.chatId) {
       router.push(`/${locale}/messages/${result.chatId}`);
     }
-    
+
     setIsProcessingParty(false);
   };
 
@@ -347,13 +345,13 @@ export default function MapDisplay() {
                   <div className="border-b border-gray-100 pb-2 mb-2">
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-white ${venue.type === "CLUB" ? "bg-[#FF725E]" : "bg-amber-500"}`}>{venue.type}</span>
                     <h3 className="font-black text-base mt-1 tracking-tight text-gray-900">{venue.name}</h3>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5"><Users size={12} /><span>{t("groupsAttending", {count: totalGroups})}</span></div>
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5"><Users size={12} /><span>{t("groupsAttending", { count: totalGroups })}</span></div>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-2 pr-1 my-1 max-h-32 scrollbar-thin">
                     {totalGroups === 0 ? <p className="text-xs text-gray-400 italic py-2 text-center">{t("noGroups")}</p> : venue.attendees.map((attendance) => (
                       <div key={attendance.id} className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-xl border border-gray-100">
-                         <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden relative flex-shrink-0">
-                          {attendance.group.photos?.[0] ? <img src={attendance.group.photos[0]} alt="Group" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-gray-300" />}
+                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden relative flex-shrink-0">
+                          {attendance.group.photos?.[0] ? <img src={attendance.group.photos[0]} alt="Group" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-300" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-gray-800 truncate">{attendance.group.user?.name || "Group"}</p>
@@ -371,14 +369,13 @@ export default function MapDisplay() {
           );
         })}
 
-        {/* Party markers */}
         {preParties.map((party) => {
 
           const isHost = party.ownerId === session?.userId;
           const myAttendance = party.attendees?.find(a => a.groupId === session?.groupId);
           const isAccepted = myAttendance?.status === "ACCEPTED";
           const isPending = myAttendance?.status === "PENDING";
-          
+
           const acceptedAttendees = party.attendees?.filter(a => a.status === "ACCEPTED") || [];
           const pendingAttendees = party.attendees?.filter(a => a.status === "PENDING") || [];
 
@@ -399,8 +396,8 @@ export default function MapDisplay() {
                       <div className="overflow-y-auto max-h-24 space-y-1.5 scrollbar-thin">
                         {acceptedAttendees.map(att => (
                           <div key={att.id} className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-xl border border-gray-100">
-                             <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden"><img src={att.group.photos?.[0]} className="w-full h-full object-cover"/></div>
-                             <div className="text-xs font-bold truncate flex-1">{att.group.user.name}</div>
+                            <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden"><img src={att.group.photos?.[0]} className="w-full h-full object-cover" /></div>
+                            <div className="text-xs font-bold truncate flex-1">{att.group.user.name}</div>
                           </div>
                         ))}
                       </div>
@@ -408,23 +405,23 @@ export default function MapDisplay() {
                   )}
 
                   {isHost && pendingAttendees.length > 0 && (
-                     <div className="mt-2 border-t border-pink-100 pt-2">
-                        <p className="text-[10px] font-bold uppercase text-pink-500 mb-1 animate-pulse">{t("pendingRequests")} ({pendingAttendees.length})</p>
-                        <div className="overflow-y-auto max-h-28 space-y-1.5 scrollbar-thin">
-                          {pendingAttendees.map(req => (
-                             <div key={req.id} className="flex items-center justify-between p-1.5 bg-pink-50/50 rounded-xl border border-pink-100">
-                                <div className="flex items-center gap-2 overflow-hidden">
-                                  <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden shrink-0"><img src={req.group.photos?.[0]} className="w-full h-full object-cover"/></div>
-                                  <div className="text-xs font-bold truncate text-gray-800">{req.group.user.name}</div>
-                                </div>
-                                <div className="flex gap-1 shrink-0">
-                                   <button onClick={() => handleRespondRequest(req.id, true)} className="bg-white p-1 rounded hover:bg-green-50 text-green-600 shadow-sm border border-gray-100"><Check size={14} strokeWidth={3}/></button>
-                                   <button onClick={() => handleRespondRequest(req.id, false)} className="bg-white p-1 rounded hover:bg-red-50 text-red-600 shadow-sm border border-gray-100"><X size={14} strokeWidth={3}/></button>
-                                </div>
-                             </div>
-                          ))}
-                        </div>
-                     </div>
+                    <div className="mt-2 border-t border-pink-100 pt-2">
+                      <p className="text-[10px] font-bold uppercase text-pink-500 mb-1 animate-pulse">{t("pendingRequests")} ({pendingAttendees.length})</p>
+                      <div className="overflow-y-auto max-h-28 space-y-1.5 scrollbar-thin">
+                        {pendingAttendees.map(req => (
+                          <div key={req.id} className="flex items-center justify-between p-1.5 bg-pink-50/50 rounded-xl border border-pink-100">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden shrink-0"><img src={req.group.photos?.[0]} className="w-full h-full object-cover" /></div>
+                              <div className="text-xs font-bold truncate text-gray-800">{req.group.user.name}</div>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <button onClick={() => handleRespondRequest(req.id, true)} className="bg-white p-1 rounded hover:bg-green-50 text-green-600 shadow-sm border border-gray-100"><Check size={14} strokeWidth={3} /></button>
+                              <button onClick={() => handleRespondRequest(req.id, false)} className="bg-white p-1 rounded hover:bg-red-50 text-red-600 shadow-sm border border-gray-100"><X size={14} strokeWidth={3} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
 
                   {!isHost && (
@@ -435,11 +432,11 @@ export default function MapDisplay() {
                         </button>
                       ) : isPending ? (
                         <button disabled className="w-full bg-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl flex items-center justify-center gap-1.5 border border-gray-300">
-                           <Clock size={14} /> {t("requestPending")}
+                          <Clock size={14} /> {t("requestPending")}
                         </button>
                       ) : (
                         <button onClick={() => handleRequestAccess(party.id)} disabled={loadingActionId === party.id} className="w-full bg-black hover:bg-gray-900 text-pink-400 text-xs font-black uppercase tracking-widest py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform active:scale-95 shadow-md">
-                           {loadingActionId === party.id ? t("sending") : t("requestAccess")}
+                          {loadingActionId === party.id ? t("sending") : t("requestAccess")}
                         </button>
                       )}
                     </div>
@@ -451,15 +448,13 @@ export default function MapDisplay() {
         })}
       </MapContainer>
 
-      {/* FAB & Bottom Sheet*/}
       <div className="absolute bottom-20 right-4 z-[1000]">
         <button
           onClick={() => setIsSheetOpen(true)}
-          className={`h-12 px-5 rounded-full flex items-center gap-2 transition-all duration-300 shadow-2xl font-sans text-xs font-black uppercase tracking-wider ${
-            myEvent 
-            ? "bg-pink-500 border border-white text-white animate-pulse" 
-            : "bg-[#111] border border-[#FF725E] text-[#FF725E] hover:scale-105 active:scale-95"
-          }`}
+          className={`h-12 px-5 rounded-full flex items-center gap-2 transition-all duration-300 shadow-2xl font-sans text-xs font-black uppercase tracking-wider ${myEvent
+              ? "bg-pink-500 border border-white text-white animate-pulse"
+              : "bg-[#111] border border-[#FF725E] text-[#FF725E] hover:scale-105 active:scale-95"
+            }`}
         >
           {myEvent ? (
             <>
@@ -500,7 +495,7 @@ export default function MapDisplay() {
                 <p className="text-sm text-gray-400 leading-relaxed mb-4">Share your location to invite other groups to your pre-party. Move the map to the desired location before creating.</p>
                 <div>
                   <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">{t("descriptionLabel")}</label>
-                  <input type="text" value={partyDescription} onChange={(e) => setPartyDescription(e.target.value)} placeholder= {t("descriptionPlaceholder")} className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-pink-500 transition-colors placeholder:text-gray-700"/>
+                  <input type="text" value={partyDescription} onChange={(e) => setPartyDescription(e.target.value)} placeholder={t("descriptionPlaceholder")} className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-pink-500 transition-colors placeholder:text-gray-700" />
                 </div>
                 <div className="bg-[#1a1a1a] p-3 rounded-xl border border-white/5 flex items-start gap-3 mt-4">
                   <p className="text-xs text-gray-400 leading-tight"><strong className="text-white">{t("privacySafeLabel")}</strong> We will mark the current center of your map, but your exact street/house number will be <span className="text-pink-400 font-bold">hidden</span> until you chat with a match.</p>

@@ -15,13 +15,13 @@ export default function GuestPaywall({ onClose }: GuestPaywallProps) {
   return (
     <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div className="relative bg-[#121212] border border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
-        <button 
+        <button
           onClick={onClose}
           className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors"
         >
           <X size={24} />
         </button>
-        
+
         <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-white mb-6 border border-white/10">
           <Lock size={28} />
         </div>
@@ -29,7 +29,7 @@ export default function GuestPaywall({ onClose }: GuestPaywallProps) {
         <h3 className="text-2xl font-black italic uppercase tracking-tight mb-3">
           {dashboardT("actionSheetTitle") || "Create an Account"}
         </h3>
-        
+
         <p className="text-sm text-gray-400 mb-8 leading-relaxed">
           {dashboardT("actionSheetDesc") || "Sign up for free to unlock groups, send messages, and connect with other groups near you."}
         </p>

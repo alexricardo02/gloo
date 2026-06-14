@@ -84,10 +84,10 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans py-12">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] px-8 pb-8 pt-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col relative">
-        
+
         <div className="flex items-center mb-6">
-          <button 
-            onClick={() => router.push(`/${locale}/login`)} 
+          <button
+            onClick={() => router.push(`/${locale}/login`)}
             className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-900"
             aria-label="Back to Login"
           >
@@ -107,7 +107,7 @@ export default function ResetPasswordPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              
+
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                   {t('passwordLabel')}

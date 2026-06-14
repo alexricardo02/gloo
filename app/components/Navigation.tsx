@@ -45,31 +45,31 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
   const navItems = [
     {
       id: "discover",
-      label: t("navGroups"), 
+      label: t("navGroups"),
       href: `/${locale}/search-groups`,
       icon: Search,
     },
     {
       id: "games",
-      label: t("enterGames") || "Games", 
+      label: t("enterGames") || "Games",
       href: `/${locale}/games`,
       icon: Gamepad2,
     },
     {
       id: "map",
-      label: t("navMap"), 
+      label: t("navMap"),
       href: `/${locale}/map`,
       icon: Map,
     },
     {
       id: "messages",
-      label: t("navMessages"), 
+      label: t("navMessages"),
       href: `/${locale}/messages`,
       icon: MessageSquare,
     },
     {
       id: "profile",
-      label: t("navProfile"), 
+      label: t("navProfile"),
       href: `/${locale}/profile`,
       icon: User,
     },
@@ -89,7 +89,7 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
     router.push(item.href);
   };
 
-  
+
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-white/10 z-40 px-4 pb-5 pt-3 safe-bottom">
@@ -105,17 +105,14 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
               onClick={(e) => handleNavigation(e, item)}
               className="flex flex-col items-center justify-center flex-1 min-w-0 transition-all duration-200 relative group bg-transparent border-none cursor-pointer"
             >
-              {/* Icon layout with dynamic color matching */}
               <div
-                className={`p-1.5 rounded-xl transition-all duration-200 relative ${
-                  isActive 
-                    ? "text-[#FF725E] scale-110" 
+                className={`p-1.5 rounded-xl transition-all duration-200 relative ${isActive
+                    ? "text-[#FF725E] scale-110"
                     : "text-gray-500 group-hover:text-gray-300"
-                }`}
+                  }`}
               >
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                
-                {/* DYNAMIC NOTIFICATION BADGE */}
+
                 {isMessagesTab && unreadCount > 0 && (
                   <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF725E] text-black text-[10px] font-black flex items-center justify-center rounded-full border-2 border-black animate-in zoom-in">
                     {unreadCount}
@@ -123,7 +120,6 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
                 )}
               </div>
 
-              {/* Subtle top indicator bar for active states */}
               {isActive && (
                 <div className="absolute -top-3 w-8 h-0.5 bg-[#FF725E] rounded-full shadow-[0_0_10px_#FF725E]" />
               )}

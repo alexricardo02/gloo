@@ -10,9 +10,9 @@ export default function PrivacyPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      
+
       <div className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 flex items-center gap-4">
-        <button 
+        <button
           onClick={() => router.back()}
           className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500"
         >
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
           </p>
         </section>
       </div>
-      
+
     </div>
   );
 }

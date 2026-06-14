@@ -84,7 +84,6 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
 
   return (
     <div className="w-full bg-[#111111] border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:border-[#FF725E]/30 transition-all">
-      {/* Photo */}
       <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 bg-[#1A1A1A]">
         <img
           src={photo}
@@ -98,7 +97,6 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
         )}
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <h3 className="font-extrabold text-white text-sm truncate">
           {displayName}
@@ -121,15 +119,13 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
         )}
       </div>
 
-      {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
           type="button"
           onClick={handleLike}
           aria-pressed={liked}
-          className={`p-2.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-200 ${
-            isAnimating ? "scale-95" : ""
-          }`}
+          className={`p-2.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-200 ${isAnimating ? "scale-95" : ""
+            }`}
         >
           <Heart
             size={18}

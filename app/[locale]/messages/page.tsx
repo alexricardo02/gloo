@@ -51,26 +51,21 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"chats" | "likes">("chats");
 
-  // Chat states
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
 
-  // Likes states
   const [likedGroups, setLikedGroups] = useState<LikedGroup[]>([]);
   const [isLoadingLikes, setIsLoadingLikes] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
-  // Map component dynamic import
   const [MapComponent, setMapComponent] = useState<any>(null);
 
-  // Blocked groups state
   const [menuOpen, setMenuOpen] = useState(false);
   const [blockedModalOpen, setBlockedModalOpen] = useState(false);
   const [blockedGroups, setBlockedGroups] = useState<any[]>([]);
   const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
 
-  // Close menu on outside click
   useEffect(() => {
     if (!menuOpen) return;
     const handleClick = (e: MouseEvent) => {
@@ -83,7 +78,6 @@ export default function MessagesPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
-  // Load chats
   const loadChats = useCallback(async () => {
     const response = await getActiveChats();
     if (response.success && response.chats) {
@@ -92,7 +86,6 @@ export default function MessagesPage() {
     setIsLoadingChats(false);
   }, []);
 
-  // Load groups that liked me
   const loadLikedGroups = useCallback(async () => {
     setIsLoadingLikes(true);
     const result = await getGroupsThatLikedMe();
@@ -102,7 +95,6 @@ export default function MessagesPage() {
     setIsLoadingLikes(false);
   }, []);
 
-  // Dynamic map import for code splitting
   useEffect(() => {
     if (viewMode === "map" && !MapComponent) {
       import("@/app/components/LikedGroupsMap")
@@ -156,14 +148,11 @@ export default function MessagesPage() {
     };
   }, [loadChats]);
 
-  // ── Supabase Realtime + Polling for Likes ──
   useEffect(() => {
-    // Polling fallback every 5s (same pattern as chats)
     const likesPollInterval = setInterval(() => {
       loadLikedGroups();
     }, 5000);
 
-    // Supabase Realtime: listen for GroupLike INSERT and DELETE
     const likesChannel = supabase
       .channel("realtime_group_likes")
       .on(
@@ -267,21 +256,19 @@ export default function MessagesPage() {
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab("chats")}
-            className={`flex-1 py-2.5 rounded-full text-sm font-black uppercase tracking-wider transition-all ${
-              activeTab === "chats"
+            className={`flex-1 py-2.5 rounded-full text-sm font-black uppercase tracking-wider transition-all ${activeTab === "chats"
                 ? "bg-[#FF725E] text-black"
                 : "bg-white/5 text-gray-400 hover:text-white"
-            }`}
+              }`}
           >
             {t("tabChats") || "Chats"}
           </button>
           <button
             onClick={() => setActiveTab("likes")}
-            className={`flex-1 py-2.5 rounded-full text-sm font-black uppercase tracking-wider transition-all relative ${
-              activeTab === "likes"
+            className={`flex-1 py-2.5 rounded-full text-sm font-black uppercase tracking-wider transition-all relative ${activeTab === "likes"
                 ? "bg-[#FF725E] text-black"
                 : "bg-white/5 text-gray-400 hover:text-white"
-            }`}
+              }`}
           >
             <span className="flex items-center justify-center gap-1.5">
               <Heart size={14} />
@@ -300,22 +287,20 @@ export default function MessagesPage() {
             <div className="flex bg-white/5 rounded-full p-0.5">
               <button
                 onClick={() => setViewMode("list")}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
-                  viewMode === "list"
+                className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${viewMode === "list"
                     ? "bg-[#FF725E] text-black"
                     : "text-gray-400 hover:text-white"
-                }`}
+                  }`}
               >
                 <List size={12} />
                 {t("listView") || "List"}
               </button>
               <button
                 onClick={() => setViewMode("map")}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
-                  viewMode === "map"
+                className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${viewMode === "map"
                     ? "bg-[#FF725E] text-black"
                     : "text-gray-400 hover:text-white"
-                }`}
+                  }`}
               >
                 <Map size={12} />
                 {t("mapView") || "Map"}
@@ -373,9 +358,8 @@ export default function MessagesPage() {
                       <div className="flex justify-between items-center mb-1 pr-2">
                         <div className="flex items-center gap-2">
                           <h3
-                            className={`text-base truncate ${
-                              chat.unread > 0 ? "font-black text-white" : "font-bold text-gray-200"
-                            }`}
+                            className={`text-base truncate ${chat.unread > 0 ? "font-black text-white" : "font-bold text-gray-200"
+                              }`}
                           >
                             {chat.name}
                           </h3>
@@ -386,18 +370,16 @@ export default function MessagesPage() {
                           )}
                         </div>
                         <span
-                          className={`text-[10px] shrink-0 ml-2 ${
-                            chat.unread > 0 ? "text-[#FF725E] font-bold" : "text-gray-500 font-medium"
-                          }`}
+                          className={`text-[10px] shrink-0 ml-2 ${chat.unread > 0 ? "text-[#FF725E] font-bold" : "text-gray-500 font-medium"
+                            }`}
                         >
                           {formatMessageTime(chat.time)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <p
-                          className={`text-sm line-clamp-1 flex-1 pr-4 ${
-                            chat.unread > 0 ? "text-white font-semibold" : "text-gray-400"
-                          }`}
+                          className={`text-sm line-clamp-1 flex-1 pr-4 ${chat.unread > 0 ? "text-white font-semibold" : "text-gray-400"
+                            }`}
                         >
                           {chat.lastMessage}
                         </p>
