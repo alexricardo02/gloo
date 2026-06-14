@@ -36,7 +36,6 @@ export default function MostLikelyToPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans selection:bg-[#FF725E] selection:text-black">
       
-      {/* Top Header */}
       <div className="relative z-50 px-6 pt-10 pb-4 flex items-center">
         <button 
           onClick={() => router.push(`/${locale}/games`)}
@@ -49,7 +48,6 @@ export default function MostLikelyToPage() {
         </h1>
       </div>
 
-      {/* Game Area */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
         
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/20 blur-[100px] pointer-events-none" />

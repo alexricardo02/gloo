@@ -68,7 +68,6 @@ export default function GamesPage() {
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-32">
       
-      {/* Fixed Consistent Header */}
       <header className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md z-30 pt-12 pb-6 px-6 border-b border-white/5 text-center">
         <h1 className="text-3xl font-black italic uppercase tracking-tight text-white mb-1">
           {t("title") || "Gloo Games"}
@@ -78,7 +77,6 @@ export default function GamesPage() {
         </p>
       </header>
 
-      {/* Main Content Area containing Games Grid */}
       <main className="pt-36 px-4 max-w-md mx-auto">
         <div className="flex flex-col gap-3">
           {gamesList.map((game) => {
@@ -88,12 +86,10 @@ export default function GamesPage() {
                 key={game.id}
                 className="relative w-full bg-[#111111] rounded-2xl overflow-hidden border border-white/5 hover:border-[#FF725E]/30 transition-all duration-300 p-5 text-left flex items-start gap-4 group hover:scale-[1.01] block" // Añadí 'block'
               >
-                {/* Visual Icon Container */}
                 <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center text-3xl shrink-0 group-hover:bg-[#FF725E]/10 transition-colors duration-300">
                   {game.emoji}
                 </div>
 
-                {/* Game Information and Badges */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <h2 className="text-lg font-bold text-white group-hover:text-[#FF725E] transition-colors duration-300 truncate">
@@ -144,7 +140,6 @@ export default function GamesPage() {
         </div>
       )}
 
-      {/* Global Bottom Navigation Bar */}
       <Navigation 
         isGuest={isGuest} 
         onSecureClick={() => setShowPaywall(true)} 

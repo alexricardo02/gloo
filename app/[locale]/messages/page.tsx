@@ -188,7 +188,6 @@ export default function MessagesPage() {
     };
   }, [loadLikedGroups]);
 
-  // Load blocked groups
   const loadBlockedGroups = useCallback(async () => {
     setIsLoadingBlocked(true);
     const result = await getBlockedGroupsAction();
@@ -198,19 +197,16 @@ export default function MessagesPage() {
     setIsLoadingBlocked(false);
   }, []);
 
-  // Handle unblock
   const handleUnblock = async (blockedGroupId: string) => {
     setUnblockingId(blockedGroupId);
     const result = await unblockGroupAction(blockedGroupId);
     if (result.success) {
       setBlockedGroups((prev) => prev.filter((g) => g.blockedGroupId !== blockedGroupId));
-      // Refresh chats to show unblocked conversations
       loadChats();
     }
     setUnblockingId(null);
   };
 
-  // Load liked groups when tab switches to likes
   useEffect(() => {
     if (activeTab === "likes") {
       loadLikedGroups();
@@ -240,7 +236,6 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-32">
-      {/* Fixed Header */}
       <div className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md z-30 pt-12 pb-4 px-6 border-b border-white/5">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-black italic uppercase tracking-tight">{t("title")}</h1>
@@ -269,7 +264,6 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        {/* Tab Bar */}
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab("chats")}
@@ -301,7 +295,6 @@ export default function MessagesPage() {
           </button>
         </div>
 
-        {/* View Toggle (only for Likes tab with groups) */}
         {activeTab === "likes" && filteredLikedGroups.length > 0 && (
           <div className="flex justify-end mb-2">
             <div className="flex bg-white/5 rounded-full p-0.5">
@@ -331,7 +324,6 @@ export default function MessagesPage() {
           </div>
         )}
 
-        {/* Search Bar */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search size={18} className="text-gray-500" />
@@ -346,9 +338,7 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Content Area */}
       <div className="pt-72 px-4">
-        {/* Chats Tab */}
         {activeTab === "chats" && (
           <>
             {isLoadingChats && (
@@ -438,7 +428,6 @@ export default function MessagesPage() {
           </>
         )}
 
-        {/* Likes Tab */}
         {activeTab === "likes" && (
           <>
             {isLoadingLikes && (
@@ -447,14 +436,12 @@ export default function MessagesPage() {
               </div>
             )}
 
-            {/* Map View */}
             {!isLoadingLikes && viewMode === "map" && MapComponent && (
               <div className="rounded-2xl overflow-hidden h-[60vh] border border-white/10">
                 <MapComponent groups={filteredLikedGroups} />
               </div>
             )}
 
-            {/* List View */}
             {!isLoadingLikes && viewMode === "list" && (
               <div className="flex flex-col gap-3">
                 {filteredLikedGroups.map((group) => (
@@ -480,7 +467,6 @@ export default function MessagesPage() {
         )}
       </div>
 
-      {/* Blocked Groups Modal */}
       {blockedModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-6 mx-4 max-w-md w-full max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">

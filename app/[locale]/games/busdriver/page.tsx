@@ -99,7 +99,6 @@ export default function BusDriverPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans selection:bg-[#FF725E] selection:text-black overflow-hidden">
       
-      {/* 1. Header */}
       <div className="relative z-50 px-6 pt-10 pb-4 flex items-center">
         <button 
           onClick={() => router.push(`/${locale}/games`)}
@@ -112,7 +111,6 @@ export default function BusDriverPage() {
         </h1>
       </div>
 
-      {/* 2. Game Area */}
       <div className="flex-1 flex flex-col items-center p-6 relative">
         
 

@@ -35,7 +35,6 @@ export default function AccountSettingsPage() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-32">
-      {/* Top Header */}
       <div className="flex items-center justify-between gap-4 p-6 border-b border-white/10 mb-6 bg-[#111111] rounded-b-[2.5rem]">
         <Link href={`/${locale}/profile`} className="hover:text-[#FF725E] transition-colors">
           <ChevronLeft size={28} strokeWidth={3} />
@@ -46,7 +45,6 @@ export default function AccountSettingsPage() {
       </div>
 
       <div className="px-6 space-y-10">
-        {/* Account Security Section */}
         <div className="space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500">
             {t("securitySection")}
@@ -67,7 +65,6 @@ export default function AccountSettingsPage() {
           </div>
         </div>
 
-        {/* Data & Privacy Section */}
         <div className="space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500">
             {t("dataPrivacySection")}
@@ -88,7 +85,6 @@ export default function AccountSettingsPage() {
           </div>
         </div>
 
-        {/* Danger Zone */}
         <div className="space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-red-600">
             {t("dangerZone")}
@@ -118,7 +114,6 @@ export default function AccountSettingsPage() {
         </div>
       </div>
 
-      {/* Delete Account Confirmation Modal */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div

@@ -192,7 +192,6 @@ export default function CreateGroupPage() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-20">
-      {/* Header */}
       <div className="px-6 pt-12 pb-6 flex items-center justify-between">
         <button
           type="button"
@@ -294,9 +293,7 @@ export default function CreateGroupPage() {
             {displayPhotos.length === 0 ? "Upload at least one cool picture of your crew!" : "Great! Add more to stand out."}
           </p>
         </div>
-        {/* --------------------------------------------------- */}
 
-        {/* Group Details */}
         <div className="bg-[#121212] rounded-[2rem] p-6 space-y-8 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
           <div className="flex items-center gap-2">
             <div className="w-1 h-4 bg-[#FF725E]/40 rounded-full"></div>
@@ -305,7 +302,6 @@ export default function CreateGroupPage() {
             </h3>
           </div>
 
-          {/* Members Counter */}
           <div className="flex justify-between items-center">
             <span className="font-bold text-sm">{t("members")}</span>
 
@@ -335,7 +331,6 @@ export default function CreateGroupPage() {
             </div>
           </div>
 
-          {/* Gender */}
           <div className="space-y-3">
             <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
               {t("memberGender")}
@@ -366,7 +361,7 @@ export default function CreateGroupPage() {
             </div>
           </div>
 
-          {/* Age Range */}
+
           <div className="space-y-4">
             <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
               <span>{t("ageRange")}</span>
@@ -375,7 +370,6 @@ export default function CreateGroupPage() {
               </span>
             </div>
 
-            {/* Custom Dual-Thumb Slider */}
             <div className="relative h-8 flex items-center pt-2">
               <div className="absolute w-full h-1 bg-[#333] rounded-lg"></div>
               <div 
@@ -409,7 +403,7 @@ export default function CreateGroupPage() {
           </div>
         </div>
 
-        {/* Search Preferences */}
+
         <div className="bg-[#121212] rounded-[2rem] p-6 space-y-8 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
           <div className="flex items-center gap-2">
             <div className="w-1 h-4 bg-[#FFD54F] rounded-full"></div>
@@ -418,7 +412,7 @@ export default function CreateGroupPage() {
             </h3>
           </div>
 
-          {/* Search Gender */}
+
           <div className="space-y-3">
             <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
               {t("searchGender")}
@@ -449,7 +443,7 @@ export default function CreateGroupPage() {
             </div>
           </div>
 
-          {/* Search Age Range */}
+
           <div className="space-y-4">
             <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
               <span>{t("preferredAgeRange")}</span>
@@ -458,11 +452,11 @@ export default function CreateGroupPage() {
               </span>
             </div>
 
-            {/* Custom Dual-Thumb Slider */}
+  
             <div className="relative h-8 flex items-center pt-2">
-              {/* Background track */}
+
               <div className="absolute w-full h-1 bg-[#333] rounded-lg"></div>
-              {/* Active track (Highlighted in Orange) */}
+
               <div 
                 className="absolute h-1 bg-[#FF725E] rounded-lg"
                 style={{ 
@@ -471,7 +465,6 @@ export default function CreateGroupPage() {
                 }}
               ></div>
               
-              {/* Min Range Slider */}
               <input
                 type="range"
                 name="searchAgeMin"
@@ -482,7 +475,6 @@ export default function CreateGroupPage() {
                 className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
               />
               
-              {/* Max Range Slider */}
               <input
                 type="range"
                 name="searchAgeMax"
@@ -495,7 +487,6 @@ export default function CreateGroupPage() {
             </div>
           </div>
 
-          {/* Max Distance */}
           <div className="space-y-4">
             <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
               <span>{t("maxDistance")}</span>
@@ -515,7 +506,6 @@ export default function CreateGroupPage() {
             />
           </div>
 
-          {/* Public Profile */}
           <div className="flex justify-between items-center bg-black/20 p-4 rounded-2xl border border-white/5">
             <div className="flex items-center gap-3">
               <span className="text-xl">🔒</span>
@@ -542,7 +532,6 @@ export default function CreateGroupPage() {
           </div>
         </div>
 
-        {/* Instagram Links */}
         <div className="bg-[#121212] rounded-[2rem] p-6 space-y-6 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
           <div className="flex items-center gap-2">
             <div className="w-1 h-4 bg-[#FF55A5] rounded-full"></div>
@@ -585,7 +574,6 @@ export default function CreateGroupPage() {
           </button>
         </div>
 
-        {/* Short Description */}
         <div className="space-y-3">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">
             {t("shortDescription")}
@@ -606,7 +594,6 @@ export default function CreateGroupPage() {
           </div>
         </div>
 
-        {/* Terms & Submit */}
         <div className="space-y-4">
           <div className="flex items-start gap-3 px-2">
             <input
@@ -664,7 +651,6 @@ export default function CreateGroupPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#121212] border border-white/10 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(255,114,94,0.15)] flex flex-col items-center text-center space-y-4">
             
-            {/* Alert Icon */}
             <div className="w-16 h-16 bg-[#FF725E]/10 rounded-full flex items-center justify-center text-[#FF725E] mb-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -679,7 +665,6 @@ export default function CreateGroupPage() {
               You must upload at least one photo of your crew to continue. Show your vibe to the community!
             </p>
             
-            {/* Close Button */}
             <button
               type="button"
               onClick={() => setShowPhotoAlert(false)}

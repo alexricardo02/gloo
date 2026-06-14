@@ -24,7 +24,6 @@ export default function ResetPasswordPage() {
   const [isValidating, setIsValidating] = useState(true);
 
   useEffect(() => {
-    // Basic token validation
     if (!token) {
       setError("tokenMissing");
     }
@@ -86,7 +85,6 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans py-12">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] px-8 pb-8 pt-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col relative">
         
-        {/* Back Button */}
         <div className="flex items-center mb-6">
           <button 
             onClick={() => router.push(`/${locale}/login`)} 
@@ -99,7 +97,6 @@ export default function ResetPasswordPage() {
 
         {!success && !error ? (
           <>
-            {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-black uppercase tracking-tight text-gray-900 mb-3">
                 {t('title')}
@@ -109,10 +106,8 @@ export default function ResetPasswordPage() {
               </p>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               
-              {/* New Password */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                   {t('passwordLabel')}
@@ -137,7 +132,6 @@ export default function ResetPasswordPage() {
                 </div>
               </div>
 
-              {/* Confirm Password */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                   {t('confirmPasswordLabel')}
@@ -162,7 +156,6 @@ export default function ResetPasswordPage() {
                 </div>
               </div>
 
-              {/* Password Requirements */}
               <div className="text-xs text-gray-500 bg-gray-50 rounded-2xl p-4">
                 <p className="font-bold mb-2">{t('passwordRequirements')}:</p>
                 <ul className="space-y-1">
@@ -188,7 +181,6 @@ export default function ResetPasswordPage() {
           </>
         ) : error && !success ? (
           <>
-            {/* Error State */}
             <div className="flex flex-col items-center text-center py-8">
               <div className="mb-6 p-4 bg-red-100 rounded-full">
                 <AlertCircle className="w-12 h-12 text-red-600" />
@@ -212,7 +204,6 @@ export default function ResetPasswordPage() {
           </>
         ) : (
           <>
-            {/* Success State */}
             <div className="flex flex-col items-center text-center py-8">
               <div className="mb-6 p-4 bg-green-100 rounded-full">
                 <CheckCircle className="w-12 h-12 text-green-600" />

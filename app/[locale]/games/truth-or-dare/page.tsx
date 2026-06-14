@@ -86,7 +86,6 @@ export default function TruthOrDarePage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans selection:bg-[#FF725E] selection:text-black">
       
-      {/* Top Header */}
       <div className="relative z-50 px-6 pt-10 pb-4 flex items-center">
         <button 
           onClick={() => router.push(`/${locale}/games`)}
@@ -99,7 +98,6 @@ export default function TruthOrDarePage() {
         </h1>
       </div>
 
-      {/* Game Area */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
         
         <div 

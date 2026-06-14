@@ -168,7 +168,7 @@ export default function PrePartyPage() {
 
   return (
     <div className="flex flex-col h-screen bg-black overflow-hidden relative bg-black min-h-screen text-white font-sans selection:bg-[#FF725E] selection:text-black">
-      {/* Top Header */}
+      {/* Header shows page title and currently selected search radius */}
       <div className="relative z-50 bg-black px-6 pt-6 pb-3 flex justify-between items-center">
         <div>
           <h1 className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">
@@ -190,9 +190,8 @@ export default function PrePartyPage() {
         </button>
       </div>
 
-      {/* Main Carousel Feed */}
       <main className="h-screen w-full overflow-y-auto snap-y snap-mandatory scroll-smooth pb-24 relative">
-        {/* Invisible Overlay to block interactions if restricted */}
+        {/* Block interactions for guests or users without a group so clicking opens paywall/modal instead of interacting with content */}
         {(hasNoGroup || isGuest) && (
           <div
             className="absolute inset-0 z-30 cursor-pointer"
@@ -213,7 +212,6 @@ export default function PrePartyPage() {
           );
         })}
 
-        {/* Empty States */}
         {!loading && groups.length === 0 && (
           <div className="h-screen w-full flex flex-col items-center justify-center p-8 text-center snap-center">
             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
@@ -240,9 +238,8 @@ export default function PrePartyPage() {
         onSecureClick={() => setShowPaywall(true)}
       />
 
-      {/* MODALS*/}
+      {/* Modals handle radius adjustment, missing-group flow, and guest paywall */}
 
-      {/* 1. Distance Adjust Modal */}
       {isDistanceModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center animate-in fade-in duration-200">
           <div className="bg-[#121212] w-full max-w-md rounded-t-[2.5rem] p-8 border-t border-white/10 animate-in slide-in-from-bottom-8 duration-300 pb-12">
@@ -284,7 +281,6 @@ export default function PrePartyPage() {
         </div>
       )}
 
-      {/* 2. Missing Group Modal */}
       {isBlockModalOpen && !isGuest && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="relative bg-[#121212] border border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
@@ -318,7 +314,6 @@ export default function PrePartyPage() {
         </div>
       )}
 
-      {/* 3. Guest Paywall Modal */}
       {showPaywall && isGuest && (
         <GuestPaywall onClose={() => setShowPaywall(false)} />
       )}

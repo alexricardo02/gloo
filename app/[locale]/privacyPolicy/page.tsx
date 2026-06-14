@@ -11,7 +11,6 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       
-      {/* Header Bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 flex items-center gap-4">
         <button 
           onClick={() => router.back()}
@@ -24,7 +23,6 @@ export default function PrivacyPage() {
         </h1>
       </div>
 
-      {/* Content */}
       <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
         <div>
           <h2 className="text-3xl font-black uppercase tracking-tight mb-2">{t("title")}</h2>
