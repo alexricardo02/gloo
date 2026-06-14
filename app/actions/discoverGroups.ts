@@ -37,6 +37,14 @@ async function getBlockedGroupIds(userId: string, myGroupId: string): Promise<Se
   return new Set([...blockedByMeIds, ...blockedMeGroupIds]);
 }
 
+/**
+ * Core matching algorithm for the discovery feed.
+ * Retrieves nearby groups based on the user's set preferences (age, gender, distance constraint).
+ * Utilizes the Haversine formula directly within PostgreSQL via Prisma $queryRaw for highly performant geofencing.
+ * Strictly enforces data isolation by excluding the user's own group and all mutually blocked groups.
+ * * @param filters - An object containing 'page' (for pagination offset) and 'distance' (search radius in km).
+ * @returns A structured array of group profiles authorized for the current user's feed.
+ */
 export async function getDiscoveryGroups({
   page = 0,
   distance,

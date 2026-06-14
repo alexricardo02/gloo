@@ -152,8 +152,11 @@ export async function createGroupAction(formData: FormData, locale: string) {
 }
 
 /**
- * Deletes ONLY the user's group and associated files, reverting them to a host-less user.
- * Keeps the user account and authentication intact.
+ * Executes a partial account teardown by deleting only the user's host group and associated media.
+ * Relies on Prisma's Cascade constraints to automatically prune related Likes, Blocks, and Chats.
+ * The underlying User account and authentication session remain fully intact, reverting the user to spectator mode.
+ * * @throws Will silently fail and log if Supabase storage deletion encounters an error, preventing UI blocking.
+ * @returns Object indicating operation success or authorization failure.
  */
 export async function deleteGroupAction() {
   const cookieStore = await cookies();

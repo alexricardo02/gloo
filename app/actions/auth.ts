@@ -7,6 +7,14 @@ import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 
+/**
+ * Registers a new user and establishes their initial security boundaries.
+ * Enforces strict age verification (18+) and password complexity to comply with security standards.
+ * Accounts are created in a locked state (isVerified: false) until email confirmation is completed.
+ * * @param formData - Contains email, password, username, name, and birthDate.
+ * @param locale - The current routing locale used for generating the verification email link.
+ * @returns Object indicating success status or specific i18n error keys (e.g., "emailExistsError").
+ */
 export async function registerUser(formData: FormData, locale: string) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -86,6 +94,13 @@ export async function registerUser(formData: FormData, locale: string) {
   }
 }
 
+/**
+ * Authenticates a user using either their email or username.
+ * Establishes a secure HttpOnly session cookie upon success, mitigating XSS attack vectors.
+ * Rejects authentication if the user's email has not been verified.
+ * * @param formData - Contains the identifier (email/username) and raw password.
+ * @param locale - The current routing locale for redirection after successful login.
+ */
 export async function loginUser(formData: FormData, locale: string) {
   const identifier = formData.get("identifier") as string;
   const password = formData.get("password") as string;

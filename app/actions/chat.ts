@@ -29,10 +29,12 @@ async function isChatBlocked(userId: string, otherUserId: string) {
 }
 
 /**
- * Sends a message to an existing chat. Validates that the sender
- * is a participant, the text is non-empty, the chat is not blocked,
- * and persists to the DB.
- * Returns the created message so the client can optimistically render.
+ * Handles outgoing chat messages securely.
+ * Enforces Horizontal Privilege Escalation prevention by verifying the sender is an active participant in the specific chat.
+ * Checks the moderation ledger to silently abort if either user has blocked the other.
+ * * @param chatId - The unique identifier of the target conversation.
+ * @param text - The raw message content payload.
+ * @returns The newly created message object for optimistic UI updates, or an error state.
  */
 export async function sendMessage(chatId: string, text: string) {
   const cookieStore = await cookies();
