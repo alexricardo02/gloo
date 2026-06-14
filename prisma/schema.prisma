@@ -60,6 +60,9 @@ model Group {
   likesReceived    GroupLike[]       @relation("LikesReceived")
   reportsReceived  GroupReport[]
   venueAttendances VenueAttendance[]
+
+  @@index([latitude, longitude])
+  @@index([publicProfile, isPartyMode, gender])
 }
 
 model GroupLike {
@@ -71,6 +74,7 @@ model GroupLike {
   toGroup     Group    @relation("LikesReceived", fields: [toGroupId], references: [id], onDelete: Cascade)
 
   @@unique([fromGroupId, toGroupId])
+  @@index([toGroupId])
 }
 
 model Event {
@@ -98,6 +102,8 @@ model Chat {
   messages  Message[]
 
   @@unique([hostAId, hostBId])
+  @@index([hostAId])
+  @@index([hostBId])
 }
 
 model Message {
@@ -108,6 +114,8 @@ model Message {
   createdAt DateTime @default(now())
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt(sort: Desc)])
 }
 
 model GameScore {
