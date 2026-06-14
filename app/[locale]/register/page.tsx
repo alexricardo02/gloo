@@ -137,7 +137,6 @@ export default function RegisterPage() {
   
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans py-12">
-      {/* Main Card */}
       <div className="w-full max-w-md bg-white rounded-[2.5rem] px-8 pb-8 pt-6 shadow-xl flex flex-col">
         
         <div className="flex items-center mb-6">
@@ -155,7 +154,6 @@ export default function RegisterPage() {
           </button>
         </div>
         
-        {/* Header */}
         <div className="mb-8 relative z-0">
           <h1 className="text-3xl font-extrabold text-black mb-2">{t('title')}</h1>
           <p className="text-sm text-gray-600">
@@ -170,20 +168,15 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* Error Alert Display */}
         {error && (
             <div className="bg-red-50 text-red-600 p-4 rounded-xl w-full text-sm text-center font-medium mb-6">
-              {/* @ts-ignore */}
               {t(error)}
             </div>
           )}
 
-        {/* Form */}
         <form action={handleSubmit} className="flex flex-col gap-4">
           
-          {/* Row 1: Names */}
           <div className="flex gap-4">
-            {/* Input First Name */}
             <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all w-full">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -200,10 +193,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Row 2: Date of Birth (Below names) */}
           <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all w-full overflow-hidden">
-            
-            {/* Calendar Icon */}
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
             </svg>
@@ -229,7 +219,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Input Email */}
           <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
@@ -245,7 +234,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Row 4: Username with Real-Time Validation */}
           <div className="flex flex-col w-full gap-1">
             <div className={`relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 transition-all w-full ${isUsernameAvailable === false ? 'ring-2 ring-red-500/50' : isUsernameAvailable === true ? 'ring-2 ring-green-500/50' : 'focus-within:ring-black/20'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
@@ -261,7 +249,7 @@ export default function RegisterPage() {
                 className="bg-transparent outline-none w-full ml-2 text-gray-800 placeholder-gray-400 font-medium pr-8"
               />
               
-              {/* Dynamic Status Indicator */}
+              
               <div className="absolute right-4 flex items-center justify-center">
                 {isCheckingUsername && (
                   <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
@@ -275,7 +263,6 @@ export default function RegisterPage() {
               </div>
             </div>
             
-            {/* Contextual Feedback Text */}
             <div className="ml-3 h-4">
               {!isCheckingUsername && isUsernameAvailable === false && username.length >= 3 && (
                 <span className="text-[11px] text-red-500 font-bold">{t('usernameTakenError')}</span>
@@ -289,7 +276,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Row 5: Password with Real-Time Strength Meter */}
           <div className="flex flex-col w-full gap-1">
             <div className={`relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 transition-all ${password.length > 0 && isPasswordStrong ? 'ring-2 ring-green-500/50' : 'focus-within:ring-black/20'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
@@ -322,7 +308,6 @@ export default function RegisterPage() {
               </button>
             </div>
 
-            {/* Visual Password Strength Indicator */}
             {password.length > 0 && (
               <div className="flex flex-col gap-1.5 px-3 mt-1">
                 <div className="flex gap-2">
@@ -349,7 +334,6 @@ export default function RegisterPage() {
             )}
           </div>
 
-          {/* Terms & Conditions Checkbox */}
           <div className="flex items-start gap-3 mt-2">
             <input 
               type="checkbox" 
@@ -363,7 +347,6 @@ export default function RegisterPage() {
             </label>
           </div>
 
-          {/* Action Button */}
           <div className="pt-4">
             <button
               type="submit"
@@ -379,9 +362,6 @@ export default function RegisterPage() {
           </div>
         </form>
 
-        
-
-        {/* Social Register */}
         <div className="flex items-center my-6">
           <hr className="flex-grow border-gray-200" />
           <span className="px-4 text-gray-400 text-sm">{t('orSignUpWith')}</span>

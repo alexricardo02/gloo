@@ -22,7 +22,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
         visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       }`}
     >
-      {/* Logo */}
+      {/* Global loading overlay shown during navigation/guest login transitions */}
       <div className="relative w-48 h-24 mb-10 flex items-center justify-center">
         <Image
           src="/images/logo2.png"
@@ -33,7 +33,6 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
         />
       </div>
  
-      {/* Spinner */}
       <div className="relative w-20 h-20 flex items-center justify-center">
         <span className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-[#FF5733] animate-[spin_1.4s_linear_infinite]" />
         <span className="absolute inset-[6px] rounded-full border-[3px] border-transparent border-t-[#FF5733]/60 animate-[spin_1s_linear_infinite_reverse]" />

@@ -38,7 +38,6 @@ export default function NeverHaveIEverPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-sans selection:bg-[#FF725E] selection:text-black">
       
-      {/* 1. Top Header */}
       <div className="relative z-50 px-6 pt-10 pb-4 flex items-center">
         <button 
           onClick={() => router.push(`/${locale}/games`)}
@@ -51,13 +50,11 @@ export default function NeverHaveIEverPage() {
         </h1>
       </div>
 
-      {/* 2. Game Area */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
         
         {/* Background glow effect for premium feel */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#FF725E]/20 blur-[100px] pointer-events-none" />
 
-        {/* 3. The Interactive Card */}
         <button
           onClick={pickRandomQuestion}
           className={`relative z-10 w-full max-w-sm aspect-[3/4] bg-[#121212] border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-center p-8 text-center transition-all duration-200 active:scale-95 ${

@@ -4,15 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_LIKES_PER_WINDOW = 10;
 
+// globalThis persists across requests within the same Node.js process, making
+// this a zero-dependency in-memory rate limiter. It resets on server restart,
+// which is acceptable for an MVP — a Redis-backed limiter would be needed at scale.
 const likeRateLimit = (globalThis as any).__GLOO_LIKE_RATE_LIMITER ||= new Map<string, { count: number; windowStart: number }>();
 
-/**
- * ST0-88: Returns a Set of group IDs that the current user has blocked
- * or has been blocked by (both directions).
- */
 async function getBlockedGroupIds(userId: string, myGroupId: string): Promise<Set<string>> {
   const blocksByMe = await prisma.groupBlock.findMany({
     where: { blockerId: userId },
@@ -38,10 +37,6 @@ async function getBlockedGroupIds(userId: string, myGroupId: string): Promise<Se
   return new Set([...blockedByMeIds, ...blockedMeGroupIds]);
 }
 
-/**
- * Fetches groups in packs of 10 for the discovery carousel.
- * Filters by distance, gender preferences, and party mode.
- */
 export async function getDiscoveryGroups({
   page = 0,
   distance,
@@ -67,7 +62,7 @@ export async function getDiscoveryGroups({
 
     function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
       const toRad = (deg: number) => (deg * Math.PI) / 180;
-      const R = 6371; // Earth radius in km
+      const R = 6371;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a =
@@ -79,7 +74,7 @@ export async function getDiscoveryGroups({
 
     const rawGroups = await prisma.group.findMany({
     where: {
-      userId: { not: userId }, // Exclude own group
+      userId: { not: userId },
       isPartyMode: isPartyMode,
       publicProfile: true,
       gender: userGroup.searchGender === 'MIXED' ? undefined : userGroup.searchGender,
@@ -88,7 +83,6 @@ export async function getDiscoveryGroups({
           { searchGender: 'MIXED' },
           { searchGender: userGroup.gender }
         ],
-      // Basic coordinates filter (approximate range)
       latitude: {
         gte: userGroup.latitude - (distance / 111),
         lte: userGroup.latitude + (distance / 111),
@@ -98,6 +92,9 @@ export async function getDiscoveryGroups({
         lte: userGroup.longitude + (distance / 111),
       },
     },
+    // Prisma's where clause applies a rectangular bounding box (lat/lon range),
+    // not a true circular radius. We overfetch up to 100 candidates, then apply
+    // precise Haversine filtering in JS below. 100 balances coverage vs. memory.
     take: 100,
     orderBy: { createdAt: "desc" },
     include: {
@@ -120,6 +117,9 @@ export async function getDiscoveryGroups({
     .filter((group) => {
       if (group.distance > distance) return false;
 
+      // Both age preferences must overlap for matching to make sense.
+      // Showing a group that doesn't want to meet your age range would cause
+      // rejected interactions — the filter must be enforced in both directions.
       const matchesYourAgePref =
         userGroup.searchAgeMin == null || userGroup.searchAgeMax == null
           ? true
@@ -140,7 +140,6 @@ export async function getDiscoveryGroups({
   
   const likedGroupIds = new Set(likedGroupRecords.map((like) => like.toGroupId));
 
-  // ST0-88: Get blocked group IDs (both directions)
   const allBlockedGroupIds = await getBlockedGroupIds(userId, userGroup.id);
 
   const mutualLikeRecords = await prisma.groupLike.findMany({
@@ -247,6 +246,9 @@ export async function toggleLike(toGroupId: string) {
       },
     });
 
+    // A race condition is possible if both groups like each other at the same
+    // instant. Checking for an existing chat before creating prevents duplicate
+    // chat rooms between the same pair of users.
     if (!existingChat) {
       const newChat = await prisma.chat.create({
         data: {
@@ -255,6 +257,9 @@ export async function toggleLike(toGroupId: string) {
         },
       });
 
+      // An empty chat would be confusing — users need confirmation that a match
+      // occurred. This system message serves as the conversation opener and
+      // ensures the chat list is never blank after a mutual like.
       await prisma.message.create({
         data: {
           chatId: newChat.id,
@@ -288,10 +293,8 @@ export async function getGroupsThatLikedMe() {
 
     if (!myGroup) return { groups: [] };
 
-    // ST0-88: Get blocked group IDs (both directions)
     const allBlockedGroupIds = await getBlockedGroupIds(userId, myGroup.id);
 
-    // Find all likes where the current group is the target
     const incomingLikes = await prisma.groupLike.findMany({
       where: { toGroupId: myGroup.id },
       include: {
@@ -310,7 +313,6 @@ export async function getGroupsThatLikedMe() {
 
     const fromGroupIds = incomingLikes.map((like) => like.fromGroup.id);
 
-    // Check which of these groups the current user has liked back
     const outgoingLikes = await prisma.groupLike.findMany({
       where: {
         fromGroupId: myGroup.id,

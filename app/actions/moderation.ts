@@ -3,11 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 
-/**
- * Blocks the other participant's group in a chat conversation.
- * After blocking, both users can no longer see each other's chats,
- * send messages, or discover each other in search results.
- */
+
 export async function blockGroupAction(chatId: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -15,7 +11,6 @@ export async function blockGroupAction(chatId: string) {
   if (!userId) return { error: "Unauthorized" };
 
   try {
-    // Find the chat and determine the other user
     const chat = await prisma.chat.findUnique({
       where: { id: chatId },
       select: { hostAId: true, hostBId: true },
@@ -28,7 +23,6 @@ export async function blockGroupAction(chatId: string) {
 
     const otherUserId = chat.hostAId === userId ? chat.hostBId : chat.hostAId;
 
-    // Find the other user's group
     const otherGroup = await prisma.group.findUnique({
       where: { userId: otherUserId },
       select: { id: true },
@@ -36,7 +30,6 @@ export async function blockGroupAction(chatId: string) {
 
     if (!otherGroup) return { error: "Group not found" };
 
-    // Check if already blocked
     const existing = await prisma.groupBlock.findUnique({
       where: {
         blockerId_blockedGroupId: {
@@ -46,6 +39,9 @@ export async function blockGroupAction(chatId: string) {
       },
     });
 
+    // Returning success instead of an error on a duplicate block prevents the
+    // caller from detecting that they had already blocked this group — which
+    // could otherwise be exploited to probe moderation state.
     if (existing) return { success: true, alreadyBlocked: true };
 
     await prisma.groupBlock.create({
@@ -62,10 +58,6 @@ export async function blockGroupAction(chatId: string) {
   }
 }
 
-/**
- * Reports the other participant's group in a chat conversation.
- * The reason is optional but encouraged for moderation purposes.
- */
 export async function reportGroupAction(chatId: string, reason?: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -92,7 +84,6 @@ export async function reportGroupAction(chatId: string, reason?: string) {
 
     if (!otherGroup) return { error: "Group not found" };
 
-    // Check if already reported
     const existing = await prisma.groupReport.findUnique({
       where: {
         reporterId_reportedGroupId: {
@@ -102,6 +93,9 @@ export async function reportGroupAction(chatId: string, reason?: string) {
       },
     });
 
+    // Silent success on duplicate reports keeps report history opaque to the
+    // reporter. A bad actor should not be able to tell whether their account
+    // has already been flagged by someone else.
     if (existing) return { success: true, alreadyReported: true };
 
     await prisma.groupReport.create({
@@ -119,9 +113,6 @@ export async function reportGroupAction(chatId: string, reason?: string) {
   }
 }
 
-/**
- * Reports a group directly by its group ID (used from discovery / group cards).
- */
 export async function reportGroupByGroupIdAction(groupId: string, reason?: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -129,7 +120,6 @@ export async function reportGroupByGroupIdAction(groupId: string, reason?: strin
   if (!userId) return { error: "Unauthorized" };
 
   try {
-    // Verify the group exists
     const group = await prisma.group.findUnique({
       where: { id: groupId },
       select: { id: true },
@@ -137,7 +127,6 @@ export async function reportGroupByGroupIdAction(groupId: string, reason?: strin
 
     if (!group) return { error: "Group not found" };
 
-    // Check if already reported
     const existing = await prisma.groupReport.findUnique({
       where: {
         reporterId_reportedGroupId: {
@@ -164,9 +153,7 @@ export async function reportGroupByGroupIdAction(groupId: string, reason?: strin
   }
 }
 
-/**
- * Unblocks a previously blocked group.
- */
+
 export async function unblockGroupAction(blockedGroupId: string) {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;
@@ -188,9 +175,7 @@ export async function unblockGroupAction(blockedGroupId: string) {
   }
 }
 
-/**
- * Returns all groups the current user has blocked, with user/group info.
- */
+
 export async function getBlockedGroupsAction() {
   const cookieStore = await cookies();
   const userId = cookieStore.get("gloo_user_id")?.value;

@@ -108,7 +108,6 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-32">
       
-      {/* Top Header */}
       <div className="flex items-center justify-between gap-4 p-6 border-b border-white/10 mb-6 bg-[#111111] rounded-b-[2.5rem]">
         <h1 className="text-3xl font-extrabold text-white">
           {t("title")}
@@ -117,7 +116,6 @@ export default function ProfilePage() {
 
       <div className="px-6 space-y-10">
         
-        {/* Profile Info (Minimalist) */}
         <div className="flex flex-col items-center text-center gap-4 py-4">
           <div className="relative">
             <div className="w-[110px] h-[110px] rounded-full border-2 border-[#FF725E] overflow-hidden bg-[#1A1A1A] flex items-center justify-center shadow-2xl">
@@ -143,7 +141,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* --- REDESIGN: Groups Section (Minimalist Card) --- */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500">
@@ -170,14 +167,12 @@ export default function ProfilePage() {
               </div>
             </Link>
           ) : (
-            // --- REDESIGNED GROUP CARD WITH DELETE MENU ---
             <div className="relative block">
               
-              {/* THREE DOTS ACTIONS DROP-DOWN */}
               <div className="absolute top-1/2 -translate-y-1/2 right-4 z-20">
                 <button 
                   onClick={(e) => {
-                    e.preventDefault(); // Prevents the <Link> from triggering
+                    e.preventDefault(); 
                     e.stopPropagation();
                     setIsMenuOpen(!isMenuOpen);
                   }}
@@ -204,11 +199,9 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Clickable Card to Edit */}
               <Link href={`/${locale}/profile/create-group`} className="block">
                 <div className="border border-white/10 bg-[#141414] rounded-3xl p-5 pr-14 flex items-center gap-4 hover:border-[#FF725E]/50 hover:bg-[#1A1A1A] transition-all relative">
                   
-                  {/* Photo Preview Square */}
                   <div className="relative w-20 h-20 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0 bg-[#1A1A1A]">
                     <img
                       src={group.photos?.[0] || "/images/vorgluehen.jpg"}
@@ -217,7 +210,6 @@ export default function ProfilePage() {
                     />
                   </div>
                   
-                  {/* Minimalist Details */}
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <h4 className="font-extrabold text-xl text-white">
@@ -245,7 +237,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Settings Options */}
         <div className="space-y-4 mt-8">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500">
             {t("settings")}
@@ -267,7 +258,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Logout Button */}
         <div className="flex justify-center mt-12 mb-10">
           <button
             onClick={async () => {
@@ -340,7 +330,6 @@ export default function ProfilePage() {
 
             <button 
               onClick={() => {
-                /* Reset states when modal closes */
                 setIsModalOpen(false);
                 setSelectedFile(null);
                 setPreviewUrl(null);
@@ -353,7 +342,6 @@ export default function ProfilePage() {
 
       <Navigation/>
 
-      {/* --- DELETE GROUP CONFIRMATION MODAL --- */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-[#111111] border border-[#222222] rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl">

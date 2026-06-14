@@ -182,16 +182,13 @@ export default function ChatDetailPage() {
     const textToSend = newMessage;
     setIsSending(true);
     setError(null);
-    // Clear input immediately for snappy feel
     setNewMessage("");
 
     const result = await sendMessage(chatId, textToSend);
     if (result.error) {
       setError(result.error);
-      // Restore text on failure
       setNewMessage(textToSend);
     } else if (result.message) {
-      // Optimistic UI: add message immediately — WhatsApp-like instant feedback
       setMessages((prev) => {
         if (prev.some((m) => m.id === result.message.id)) return prev;
         return [...prev, result.message as unknown as MessageWithSender];
@@ -270,7 +267,6 @@ export default function ChatDetailPage() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-      {/* ── Fixed Header ── */}
       <div className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md z-30 pt-12 pb-3 px-4 border-b border-white/5">
         <div className="flex items-center gap-3">
           <button
@@ -377,7 +373,6 @@ export default function ChatDetailPage() {
         </div>
       )}
 
-      {/* ── Messages list ── */}
       <div className="flex-1 pt-24 pb-24 px-4 overflow-y-auto">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">

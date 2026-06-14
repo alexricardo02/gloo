@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 
 /**
- * Helper: checks if either participant in a chat has blocked the other.
- * Returns true if a block exists (conversation should be hidden).
+ * Checks both directions of the block relationship before allowing chat access.
+ * A block must be invisible to both parties — the blocked user should not know
+ * they are blocked, and the blocker should not see the conversation either.
  */
 async function isChatBlocked(userId: string, otherUserId: string) {
   const [myGroup, otherGroup] = await Promise.all([
@@ -43,7 +44,6 @@ export async function sendMessage(chatId: string, text: string) {
   if (!trimmed) return { error: "Message cannot be empty" };
 
   try {
-    // Verify that the caller is a participant of this chat
     const chat = await prisma.chat.findUnique({
       where: { id: chatId },
       select: { hostAId: true, hostBId: true },
@@ -56,7 +56,6 @@ export async function sendMessage(chatId: string, text: string) {
 
     const otherUserId = chat.hostAId === userId ? chat.hostBId : chat.hostAId;
 
-    // ST0-88: Prevent messages if either user has blocked the other
     const blocked = await isChatBlocked(userId, otherUserId);
     if (blocked) return { error: "This conversation is no longer available." };
 
@@ -105,7 +104,6 @@ export async function getChatMessages(chatId: string) {
 
     const otherUserId = chat.hostAId === userId ? chat.hostBId : chat.hostAId;
 
-    // ST0-88: Check if either user has blocked the other
     const blocked = await isChatBlocked(userId, otherUserId);
     if (blocked) return { error: "This conversation is no longer available." };
 
@@ -117,7 +115,6 @@ export async function getChatMessages(chatId: string) {
       },
     });
 
-    // Determine the chat partner
     const partner = chat.hostAId === userId ? chat.hostB : chat.hostA;
     const partnerGroup = partner.group;
 
@@ -150,7 +147,6 @@ export async function getOrCreateChat(targetUserId: string) {
   if (targetUserId === userId) return { error: "Cannot chat with yourself" };
 
   try {
-    // Look for an existing chat between these two users
     const existing = await prisma.chat.findFirst({
       where: {
         OR: [
@@ -163,7 +159,6 @@ export async function getOrCreateChat(targetUserId: string) {
 
     if (existing) return { success: true, chatId: existing.id };
 
-    // Create a new chat
     const chat = await prisma.chat.create({
       data: { hostAId: userId, hostBId: targetUserId },
       select: { id: true },
@@ -183,7 +178,6 @@ export async function getActiveChats() {
   if (!userId) return { error: "Unauthorized" };
 
   try {
-    // ST0-88: Get IDs of groups the current user has blocked or been blocked by
     const myGroup = await prisma.group.findUnique({
       where: { userId },
       select: { id: true },
@@ -193,14 +187,12 @@ export async function getActiveChats() {
     let blockedByUserIds: string[] = [];
 
     if (myGroup) {
-      // Groups I have blocked
       const blocksByMe = await prisma.groupBlock.findMany({
         where: { blockerId: userId },
         select: { blockedGroupId: true },
       });
       blockedGroupIds = blocksByMe.map((b) => b.blockedGroupId);
 
-      // Users who have blocked my group
       const blocksOnMe = await prisma.groupBlock.findMany({
         where: { blockedGroupId: myGroup.id },
         select: { blockerId: true },
@@ -208,7 +200,6 @@ export async function getActiveChats() {
       blockedByUserIds = blocksOnMe.map((b) => b.blockerId);
     }
 
-    // Get userIds for groups I've blocked (to exclude their chats)
     let blockedUserIds: string[] = [];
     if (blockedGroupIds.length > 0) {
       const blockedGroups = await prisma.group.findMany({
@@ -218,17 +209,14 @@ export async function getActiveChats() {
       blockedUserIds = blockedGroups.map((g) => g.userId);
     }
 
-    // Combine: users I've blocked + users who blocked me
     const allBlockedUserIds = [...new Set([...blockedUserIds, ...blockedByUserIds])];
 
-    // 1. Fetch all chats where the current user is either Host A or Host B
     const chats = await prisma.chat.findMany({
       where: {
         OR: [
           { hostAId: userId },
           { hostBId: userId }
         ],
-        // ST0-88: Exclude chats with blocked users
         ...(allBlockedUserIds.length > 0 ? {
           NOT: [
             { hostAId: { in: allBlockedUserIds }, hostBId: userId },
@@ -237,14 +225,12 @@ export async function getActiveChats() {
         } : {}),
       },
       include: {
-        // Include both hosts and their respective groups to retrieve names and photos
         hostA: {
           include: { group: true }
         },
         hostB: {
           include: { group: true }
         },
-        // Fetch ONLY the last message for the preview snippet
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -252,32 +238,33 @@ export async function getActiveChats() {
       }
     });
 
-    // 2. Format the data to make it easily consumable by the frontend
     const formattedChats = chats.map(chat => {
-      // Determine who the other participant in the chat is
       const isUserHostA = chat.hostAId === userId;
       const otherHost = isUserHostA ? chat.hostB : chat.hostA;
       
       const otherGroup = otherHost.group;
       const lastMsg = chat.messages[0];
       const lastMessageText = lastMsg?.text || "No messages yet";
+      // There is no dedicated isMatch column in the schema. When two groups
+      // mutually like each other, the system creates a first message with a
+      // known text. Detecting that text here is the cheapest way to flag
+      // matched chats without an extra DB query per chat.
       const isMatch = lastMessageText.toLowerCase().includes("match");
 
       return {
         id: chat.id,
-        // Since groups don't have names, we use the host's name
         name: otherHost.name || "Unknown User",
-        // Notice we use 'text' as defined in your schema.prisma
         lastMessage: lastMessageText,
         time: lastMsg?.createdAt || chat.createdAt,
-        unread: 0, // Will be implemented dynamically later via WebSockets
+        unread: 0, 
         isMatch,
-        // Fallback sequentially: Group photo -> User profile image -> Fallback image
         image: otherGroup?.photos?.[0] || otherHost.image || "/images/bg-fallback.jpg", 
       };
     });
 
-    // 3. PRIORITIZE MATCHED CHATS THEN NEWEST MESSAGES
+    // Prisma's orderBy supports a single sort dimension. Matches must appear
+    // first regardless of time, so a two-level sort is applied in JS instead
+    // of SQL — it cannot be expressed in a single ORDER BY clause without a subquery.
     formattedChats.sort((a, b) => {
       if (a.isMatch !== b.isMatch) {
         return a.isMatch ? -1 : 1;

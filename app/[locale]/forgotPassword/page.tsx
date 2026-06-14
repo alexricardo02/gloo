@@ -42,7 +42,6 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans py-12">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] px-8 pb-8 pt-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col relative">
         
-        {/* Back Button */}
         <div className="flex items-center mb-6">
           <button 
             onClick={() => router.push(`/${locale}/login`)} 
@@ -55,7 +54,6 @@ export default function ForgotPasswordPage() {
 
         {!submitted ? (
           <>
-            {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-black uppercase tracking-tight text-gray-900 mb-3">
                 {t('title')}
@@ -72,7 +70,6 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               
               <div className="space-y-1.5">
@@ -107,7 +104,6 @@ export default function ForgotPasswordPage() {
           </>
         ) : (
           <>
-            {/* Success State */}
             <div className="flex flex-col items-center text-center py-8">
               <div className="mb-6 p-4 bg-green-100 rounded-full">
                 <CheckCircle className="w-12 h-12 text-green-600" />
