@@ -6,29 +6,22 @@ GLOO is a mobile-first social nightlife app that connects groups of people befor
 
 ---
 
-## Overview
-
-GLOO allows users to create a group profile (with photos, descriptions, age ranges, genders, and Instagram handles), then browse other nearby groups in a vertical snap-scroll carousel. Users can like groups, send messages upon a mutual match, and filter by distance using geobased queries.
-
-Beyond discovery, GLOO features a **Real-Time Interactive Map** where groups can broadcast their private "Pre-Parties" (Vorglühen) or RSVP to public venues (Bars/Clubs). It also includes a suite of integrated **Party Games** to play with your group or new matches.
-
-The app supports a **Guest Mode** that lets anyone browse content without an account, utilizing a contextual paywall for restricted features.
-
----
-
 ## Table of Contents
 
 - [Overview](#overview)
 - [Core Features](#core-features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Incoming Features](#incoming-features)
-- [Internationalization](#internationalization)
-- [Authentication](#authentication)
+  - [Group Discovery & Matching](#group-discovery--matching)
+  - [Real-Time Map & Pre-Parties](#real-time-map--pre-parties)
+  - [Party Games](#party-games)
+  - [Authentication & Security](#authentication--security)
+  - [Internationalization (i18n)](#internationalization-i18n)
+- [Local Development Setup & Installation Guide](#local-development-setup--installation-guide)
+  - [Prerequisites](#1-prerequisites)
+  - [Step-by-Step Installation](#2-step-by-step-installation)
 - [Group Discovery](#group-discovery)
 - [Deployment](#deployment)
-- [Local Infrastructure (Docker)](#local-infrastructure-containerization-docker)
-- [Continuous Integration Pipeline](#4-continuous-integration-pipeline-github--gitlab-ci)
+  - [Environment Configuration & Twelve-Factor Compliance](#environment-configuration--twelve-factor-compliance)
+  - [Required Environment Variables (`.env`)](#required-environment-variables-env)
 - [License](#license)
 
 ---
@@ -69,95 +62,95 @@ The app supports a **guest mode** that lets anyone browse content without an acc
 
 ---
 
-## Tech Stack
+## Local Development Setup & Installation Guide
 
-- **Frontend:** Next.js (App Router), React, Tailwind CSS, Lucide Icons.
-- **Backend:** Next.js Server Actions.
-- **Database:** PostgreSQL hosted on Supabase.
-- **ORM:** Prisma.
-- **Real-time:** Supabase WebSockets (Postgres Changes).
-- **Mapping:** Leaflet & React-Leaflet.
-- **Testing:** Vitest (Unit & Integration tests).
-- **CI/CD:** GitHub Actions (Schema validation, automated testing, build checks).
+Follow these step-by-step instructions to clone, configure, and execute the Gloo application environment locally on your machine.
+
+### 1. Prerequisites
+Ensure you have the following software architectures installed on your host system:
+- **Node.js** (v18.x or v20.x LTS recommended)
+- **npm** (comes bundled with Node.js)
+- **Docker & Docker Compose** (Desktop client or daemon running)
 
 ---
 
-## Project Structure
+### 2. Step-by-Step Installation
 
+#### Step 2.1: Clone the Repository
+Clone the project repository from the remote server and navigate into the root workspace directory:
+```bash 
+git clone [https://github.com/alexricardo02/gloo-app.git](https://github.com/alexricardo02/gloo-app.git)
 ```
-gloo-app/
-├── app/
-│   ├── [locale]/           # i18n routing pages (UI)
-│   ├── actions/            # Next.js Server Actions (Backend logic)
-│   ├── components/         # Reusable React components (Map, Cards, Navigation)
-│   └── globals.css         # Tailwind directives & global styles
-├── lib/                    # Prisma and Supabase client instances
-├── messages/               # Translation JSON files (en, de, es, fr, it)
-├── prisma/                 # Database schema, migrations, and seed scripts
-├── public/                 # Static assets, images, icons
-├── tests/                  # Vitest suite (unit and integration tests)
-├── i18n.ts                 # Next-intl configuration
-├── middleware.ts           # Route protection and locale proxy
-└── .github/workflows/ci.yml# GitHub Actions CI pipeline
+```bash 
+cd gloo-app
 ```
 
----
+#### Step 2.2: Install Package Dependencies
+Install the required node modules and third-party dependencies declared in the package.json manifest:
 
-## Incoming Features
+```bash
+npm install
+```
 
-- Account & Group Deletion: As a user, I want to be able to permanently delete my account, group, and associated data for privacy reasons. (Requires UI in preferences and a cascading delete Server Action).
+#### Step 2.3: Environment Variables Configuration (.env)
+The application relies on externalized parameters for connection orchestration. Duplicate the distributed template environment file to instantiate your local configuration:
 
-- Admin & Moderation Dashboard: As an administrator, I need to be able to view reports and delete inappropriate groups or events to keep the community safe.
+```bash
+cp .env.example .env
+```
 
-- Gamification UI: As a user, I want to see my party game scores and compare them on a leaderboard. (Backend schema GameScore exists, UI pending).
+Open the newly created .env file in your preferred text editor and ensure the database connection strings are mapped to point to your local loopback address and the Docker mapped port (5433):
 
-- Push Notifications: As a user, I want to be notified on my phone when another group matches with me or accepts my pre-party request.
+```bash
+# Relational Database connection strings for local Docker environment
+DATABASE_URL="postgresql://party_admin:party_password123@localhost:5433/gloo_db?schema=public"
+DIRECT_URL="postgresql://party_admin:party_password123@localhost:5433/gloo_db?schema=public"
 
-### Technical Debt
-- Migrate Image Storage: Currently, profile photos are converted to Base64 strings and stored directly in the PostgreSQL database. This needs to be migrated to Supabase Storage Buckets to improve database performance and reduce payload sizes.
+# Supabase Client Credentials (used as fallback mock placeholders for local runtime)
+NEXT_PUBLIC_SUPABASE_URL="[https://dummy-project.supabase.co](https://dummy-project.supabase.co)"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="dummy-anon-key-for-local-compilation-and-testing-purposes"
+```
 
----
+#### Step 2.4: Spin Up the Containerized Database
+Launch the isolated PostgreSQL server instance background service using Docker Compose:
 
-## Internationalization
+```bash
+docker-compose up -d
+```
 
-GLOO supports 5 languages out of the box, selectable from the welcome screen:
+Step 2.5: Synchronize Relational Schema & Populate Seed Data
+Apply the declarative database schema representations onto the active PostgreSQL container and execute the database seeder to pre-populate the tables with structured test profiles, groups, matches, and logs:
 
-| Code | Language |
-|---|---|
-| `en` | English |
-| `de` | Deutsch (German) |
-| `es` | Español (Spanish) |
-| `fr` | Français (French) |
-| `it` | Italiano (Italian) |
+```bash
+# Generate type-safe Prisma Client models
+npx prisma generate
+```
+```bash
+# Push the schema architecture into the Docker instance
+npx prisma db push
+```
+```bash
+# Populate database with mock data (Users, Groups, Messages)
+npx prisma db seed
+```
 
----
+#### 3. Execution & Testing
+Running the Automated Test Suite
+To execute the comprehensive suite of over 60 automated unit and integration testing blocks via Vitest, run:
 
-## Authentication
+```Bash
+npm run test
+```
 
-Authentication uses **custom cookie-based sessions** with no external providers.
+Launching the Local Development Server
+Boot up the Next.js compilation engine to serve the interactive web interface locally:
 
-### Flow
+```Bash
+npm run dev
+```
 
-1. **Register** → password hashed with bcrypt (10 rounds) → `gloo_user_id` cookie set
-2. **Login** → credentials verified → `gloo_user_id` cookie set
-3. **Guest** → `gloo_is_guest=true` + `gloo_guest_id=<uuid>` cookies set (24h expiry)
-4. **Logout** → `gloo_user_id` deleted → new guest session created → redirect to login
-
-All cookies are `httpOnly` and `secure` in production. Session is read server-side in Server Actions via `cookies()` from `next/headers`.
-
-### Guest restrictions
-
-| Feature | Guest | Registered |
-|---|---|---|
-| Browse dashboard | ✅ | ✅ |
-| Play games | ✅ | ✅ |
-| View pre-party feed | ❌ | ✅ |
-| Like groups | ❌ | ✅ |
-| Send messages | ❌ | ✅ |
-| View map | ❌ | ✅ |
-| Create group profile | ❌ | ✅ |
-
-When a guest taps a restricted feature, a **bottom sheet** slides up with "Create free account" and "Sign in" options — keeping the user in context rather than redirecting them away.
+Once initialized, open your web browser and navigate to:
+http://localhost:3000
 
 --- 
 
@@ -195,48 +188,6 @@ To spin up the application infrastructure, the following variables must be defin
 | `DIRECT_URL` | Direct connection URL bypassing connection poolers, strictly required for database schema migrations. | `postgresql://user:pass@host:5432/postgres` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public API gateway endpoint for the Supabase project instance. | `https://your-project.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anonymous client-side cryptographic key for initializing real-time WebSocket listeners. | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
-
-
-### Local Infrastructure Containerization (Docker)
-
-To eliminate the "it works on my machine" anti-pattern, the local development database is fully containerized. A multi-container declarative configuration is defined using Docker Compose to orchestrate an isolated PostgreSQL server instance.
-
-#### Local Database Configuration (`docker-compose.yml`)
-- **Image:** `postgres:15-alpine` (lightweight, production-vetted Linux distribution)
-- **Local Port Mapping:** `5433:5432` (avoids port collisions with default host database installations)
-- **Database Name:** `gloo_db`
-- **User Credentials:** `party_admin` / `party_password123`
-
-#### Commands for Local Initialization
-1. **Boot up the containerized database infra (detached mode):**
-   ```bash docker-compose up -d```
-   
-1. **Synchronize and push the relational schema declarative definitions to the container:**
-   ```npx prisma db push```
-   
-1. **Boot up the containerized database infra (detached mode):**
-   ```bash docker-compose up -d```
-
----
-
-## 4. Continuous Integration Pipeline (GitHub / GitLab CI)
-
-The project incorporates an automated Continuous Integration pipeline (`ci.yml`) executed on every code push or pull request. This ensures code correctness, verification of database constraints, licensing compliance, and security scanning before any build artifact is approved.
-
-### Automated Testing Lifecycle Steps:
-
-1. **Infrastructure Service Spin-up:** GitHub Actions provisions an ephemeral, isolated Docker container running `postgres:15-alpine`.
-2. **Security & Auth Trust-Mode:** The service is configured with `POSTGRES_HOST_AUTH_METHOD: trust` to permit secure loopback connections inside the CI virtual network.
-3. **Deterministic Synchronization (Race Condition Prevention):** The pipeline utilizes standard `pg_isready` diagnostic checks to stall execution loops until the database engine is explicitly healthy and ready to accept raw TCP connections.
-4. **Prisma Generation & Migration Execution:**
-   - `npx prisma generate` builds the type-safe data access layer models.
-   - `npx prisma db push` instantiates a clean relational schema inside the ephemeral container database.
-
-5. **License & Security Auditing:**
-   - Blocks copyleft dependencies (GPL/AGPL) to enforce compliant dependency trees.
-   - Executes structural privacy/security scans via Bearer.
-
-6. **Execution of Automated Test Suite:** Vitest fires all unit and integration test blocks against the isolated database container, ensuring complete functionality protection without polluting cloud production databases.
 
 ---
 
