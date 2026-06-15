@@ -21,7 +21,7 @@ describe("Mathematical Formula: Haversine Distance (TC19)", () => {
     
     const distance = calculateHaversineDistance(mainz.lat, mainz.lon, frankfurt.lat, frankfurt.lon);
     
-    // Acceptable tolerance due to exact coordinates variations (between 36 and 38 km)
+    // Acceptable tolerance due to exact coordinates variations (between 33 and 35 km)
     expect(distance).toBeGreaterThan(33);
     expect(distance).toBeLessThan(35);
   });

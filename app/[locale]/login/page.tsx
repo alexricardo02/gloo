@@ -54,7 +54,7 @@ export default function LoginPage() {
           <p className="text-sm text-gray-600">
             {t("newUser")}{" "}
             <Link
-              href="/register"
+              href={`/${locale}/register`}
               className="text-black font-bold hover:underline"
             >
               {t("createAccount")}
@@ -144,7 +144,7 @@ export default function LoginPage() {
 
           <div className="flex justify-start">
             <Link
-              href="/forgotPassword"
+              href={`/${locale}/forgotPassword`}
               className="text-sm font-bold text-gray-800 hover:underline"
             >
               {t("forgotPassword")}
