@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
-import { deleteAccountAction } from "@/app/actions/auth";
+import { deleteAccountAction, getCurrentUser, requestPasswordReset } from "@/app/actions/auth";
 import Navigation from "@/app/components/Navigation";
-import { AlertTriangle, ChevronLeft, X, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, X, Loader2, CheckCircle } from "lucide-react";
 
 export default function AccountSettingsPage() {
   const locale = useLocale();
@@ -14,6 +14,34 @@ export default function AccountSettingsPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetPasswordSent, setResetPasswordSent] = useState(false);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const user = await getCurrentUser();
+      if (user?.email) {
+        setUserEmail(user.email);
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleChangePassword = async () => {
+    if (!userEmail) return;
+    setIsResettingPassword(true);
+    try {
+      await requestPasswordReset(userEmail, locale);
+      setResetPasswordSent(true);
+    } catch {
+      // Silently handle – requestPasswordReset always returns success
+      setResetPasswordSent(true);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
@@ -58,29 +86,29 @@ export default function AccountSettingsPage() {
               <p className="text-sm text-gray-400 mb-4">
                 {t("passwordDesc")}
               </p>
-              <button className="font-bold text-sm bg-[#1A1A1A] text-white border border-white/10 px-6 py-3 rounded-full hover:bg-white/5 transition-colors">
-                {t("changePasswordButton")}
-              </button>
-            </div>
-          </div>
-        </div>
 
-        <div className="space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500">
-            {t("dataPrivacySection")}
-          </h2>
-
-          <div className="border border-white/10 bg-[#141414] rounded-3xl p-6 space-y-4">
-            <div>
-              <h3 className="font-black text-lg text-white mb-2">
-                {t("dataDownloadTitle")}
-              </h3>
-              <p className="text-sm text-gray-400 mb-4">
-                {t("dataDownloadDesc")}
-              </p>
-              <button className="font-bold text-sm bg-[#1A1A1A] text-white border border-white/10 px-6 py-3 rounded-full hover:bg-white/5 transition-colors">
-                {t("downloadDataButton")}
-              </button>
+              {!resetPasswordSent ? (
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isResettingPassword}
+                  className="font-bold text-sm bg-[#1A1A1A] text-white border border-white/10 px-6 py-3 rounded-full hover:bg-white/5 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isResettingPassword && <Loader2 size={14} className="animate-spin" />}
+                  {isResettingPassword ? t("sending") || "Sending…" : t("changePasswordButton")}
+                </button>
+              ) : (
+                <div className="flex items-start gap-3 p-4 bg-green-600/10 border border-green-600/20 rounded-2xl">
+                  <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-green-400">
+                      {t("resetLinkSentTitle") || "Reset link sent!"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {t("resetLinkSentDesc") || "Check your email for the password reset link."}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

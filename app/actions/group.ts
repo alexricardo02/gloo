@@ -75,14 +75,20 @@ export async function createGroupAction(formData: FormData, locale: string) {
       const fileName = `${userId}-group-${crypto.randomUUID()}.${fileExt}`;
       const filePath = `groups/${fileName}`;
 
+      // Firefox serializes FormData File objects without a reliable content-type.
+      // Converting to a Buffer with explicit contentType fixes browser incompatibility.
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
       const { error: uploadError } = await supabase.storage
         .from("gloo-images")
-        .upload(filePath, file, {
+        .upload(filePath, buffer, {
           cacheControl: "3600",
           // upsert: false prevents accidental overwrite if two requests arrive
           // simultaneously. Each photo gets a UUID-based filename so uploads
           // from different sessions never collide even on the same account.
           upsert: false,
+          contentType: file.type || "image/jpeg",
         });
 
       if (uploadError) {
