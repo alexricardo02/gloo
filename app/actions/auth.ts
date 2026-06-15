@@ -144,6 +144,7 @@ export async function getCurrentUser() {
       name: true,
       username: true,
       image: true,
+      email: true,
     },
   });
 }
@@ -210,11 +211,18 @@ export async function updateProfileImage(formData: FormData) {
     const fileName = `${userId}-${Date.now()}.${fileExt}`;
     const filePath = `profiles/${fileName}`;
 
+    // Firefox serializes FormData File objects without a reliable content-type,
+    // causing Supabase storage to reject the upload. Converting to a Buffer
+    // with an explicit contentType fixes this browser incompatibility.
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("gloo-images")
-      .upload(filePath, file, {
+      .upload(filePath, buffer, {
         cacheControl: "3600",
         upsert: true,
+        contentType: file.type || "image/jpeg",
       });
 
     if (uploadError) {

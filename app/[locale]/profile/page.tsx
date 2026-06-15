@@ -11,7 +11,7 @@ import GroupCard from "@/app/components/GroupCard";
 import Image from "next/image";
 import Link from "next/link";
 
-import { Settings, Users, LogOut, ChevronRight, BarChart3, Plus, User, X, Camera, Upload, MoreVertical, Trash2 } from "lucide-react";
+import { Settings, Users, LogOut, ChevronRight, Plus, User, X, Camera, Upload, MoreVertical, Trash2 } from "lucide-react";
 
 export default function ProfilePage() {
   const [isGuest, setIsGuest] = useState(false);
@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -55,8 +56,6 @@ export default function ProfilePage() {
 
   const settingsOptions = [
     { name: t("accountSection"), icon: <Users size={16} />, path: `/${locale}/profile/account` },
-    { name: t("myScores"), icon: <BarChart3 size={16} />, path: `/${locale}/game-center` },
-    { name: t("dataPolicy"), icon: <ChevronRight size={16} />, path: `/${locale}/privacy` },
   ];
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,6 +84,7 @@ export default function ProfilePage() {
     if (!selectedFile) return;
 
     setIsUploading(true);
+    setUploadError(null);
     const formData = new FormData();
     formData.append("image", selectedFile);
 
@@ -99,7 +99,7 @@ export default function ProfilePage() {
       setPreviewUrl(null);
       setIsModalOpen(false);
     } else {
-      console.error("Upload failed:", result?.error);
+      setUploadError(result?.error || "Upload failed. Please try again.");
     }
 
     setIsUploading(false);
@@ -291,6 +291,12 @@ export default function ProfilePage() {
               {t("updatePhoto")}
             </h3>
 
+            {uploadError && (
+              <div className="w-full mb-4 p-3 bg-red-600/10 border border-red-600/20 rounded-xl text-sm text-red-400 text-center">
+                {uploadError}
+              </div>
+            )}
+
             <label
               htmlFor="profile-upload"
               className="w-40 h-40 rounded-full border-2 border-dashed border-[#FF725E] flex flex-col items-center justify-center bg-white/5 mb-8 cursor-pointer hover:bg-[#FF725E]/5 transition-colors group overflow-hidden relative"
@@ -330,6 +336,7 @@ export default function ProfilePage() {
                 setIsModalOpen(false);
                 setSelectedFile(null);
                 setPreviewUrl(null);
+                setUploadError(null);
               }}
               className="text-gray-500 font-bold uppercase text-xs tracking-widest hover:text-white transition-colors"
             ></button>
