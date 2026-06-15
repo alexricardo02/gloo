@@ -7,22 +7,27 @@ import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase";
 
 export async function getGroupByUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  try {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("gloo_user_id")?.value;
 
-  if (!userId) return null;
+    if (!userId) return null;
 
-  const group = await prisma.group.findUnique({
-    where: { userId: userId },
-  });
+    const group = await prisma.group.findUnique({
+      where: { userId: userId },
+    });
 
-  if (!group) return null;
+    if (!group) return null;
 
-  return {
-    ...group,
-    createdAt: group.createdAt.toISOString(),
-    updatedAt: group.updatedAt.toISOString(),
-  };
+    return {
+      ...group,
+      createdAt: group.createdAt.toISOString(),
+      updatedAt: group.updatedAt.toISOString(),
+    };
+  } catch (error) {
+    console.error("Connection error in getGroupByUser:", error);
+    return null;
+  }
 }
 
 export async function createGroupAction(formData: FormData, locale: string) {
