@@ -167,7 +167,8 @@ export default function PrePartyPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-black overflow-hidden relative bg-black min-h-screen text-white font-sans selection:bg-[#FF725E] selection:text-black">
+    <div className="flex flex-col h-[100dvh] bg-black overflow-hidden relative text-white font-sans selection:bg-[#FF725E] selection:text-black">
+      
       <div className="relative z-50 bg-black px-6 pt-6 pb-3 flex justify-between items-center">
         <div>
           <h1 className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">
@@ -190,8 +191,8 @@ export default function PrePartyPage() {
         </button>
       </div>
 
-      <main className="h-screen w-full overflow-y-auto snap-y snap-mandatory scroll-smooth pb-24 relative">
-        {/* Block interactions for guests or users without a group so clicking opens paywall/modal instead of interacting with content */}
+      <main className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar relative">
+        
         {(hasNoGroup || isGuest) && (
           <div
             className="absolute inset-0 z-30 cursor-pointer"
@@ -202,10 +203,11 @@ export default function PrePartyPage() {
         {groups.map((group, index) => {
           const isLastElement = index === groups.length - 1;
           return (
+
             <div
               key={group.id}
               ref={isLastElement ? lastGroupElementRef : null}
-              className={`h-full w-full snap-center snap-always relative ${isGuest ? "blur-xl select-none" : ""}`}
+              className={`h-full w-full snap-center snap-always relative pb-24 ${isGuest ? "blur-xl select-none" : ""}`}
             >
               <GroupCard group={group} />
             </div>
@@ -213,7 +215,7 @@ export default function PrePartyPage() {
         })}
 
         {!loading && groups.length === 0 && (
-          <div className="h-screen w-full flex flex-col items-center justify-center p-8 text-center snap-center">
+          <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center snap-center pb-24">
             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
               <MapPin size={32} className="text-[#FF725E]" />
             </div>
