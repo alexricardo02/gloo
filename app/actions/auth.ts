@@ -134,19 +134,25 @@ export async function loginUser(formData: FormData, locale: string) {
 }
 
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
-  if (!userId) return null;
 
-  return await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      name: true,
-      username: true,
-      image: true,
-      email: true,
-    },
-  });
+  try {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("gloo_user_id")?.value;
+    if (!userId) return null;
+
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        name: true,
+        username: true,
+        image: true,
+        email: true,
+      },
+    });
+  } catch (error) {
+    console.error("Connection error in getCurrentUser:", error);
+    return null; 
+  }
 }
 
 export async function logOutAction(locale: string) {
