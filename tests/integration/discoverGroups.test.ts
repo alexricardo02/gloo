@@ -80,7 +80,7 @@ describe("Discovery Algorithm & Feed Integrity (Integration)", () => {
     // Standard Requirement 2: Geofencing bounds MUST be respected
     expect(feedIds).not.toContain(farUserId);
 
-    // Standard Requirement 3: Previously interacted groups MUST be excluded from discovery
+    // Standard Requirement 3: Previously interacted groups MUST NOT be excluded from discovery
     expect(feedIds).toContain(alreadyLikedUserId);
 
     // Standard Requirement 4: Valid, nearby, fresh users MUST be included
