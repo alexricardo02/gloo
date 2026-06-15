@@ -294,6 +294,7 @@ export default function ChatDetailPage() {
             <div className="relative shrink-0" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
+                data-testid="chat-options-btn"
                 className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
                 aria-label="More options"
               >
@@ -307,6 +308,7 @@ export default function ChatDetailPage() {
                       setMenuOpen(false);
                       setShowBlockConfirm(true);
                     }}
+                    data-testid="block-group-btn"
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
                   >
                     <Shield size={16} />
@@ -314,6 +316,7 @@ export default function ChatDetailPage() {
                   </button>
                   <button
                     onClick={handleReport}
+                    data-testid="report-group-btn"
                     disabled={isReporting}
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-yellow-400 hover:bg-white/5 transition-colors disabled:opacity-50"
                   >
@@ -358,6 +361,7 @@ export default function ChatDetailPage() {
               </button>
               <button
                 onClick={handleBlock}
+                data-testid="block-confirm-btn"
                 disabled={isBlocking}
                 className="flex-1 py-2.5 rounded-full bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
@@ -441,6 +445,7 @@ export default function ChatDetailPage() {
           <input
             ref={inputRef}
             type="text"
+            data-testid="chat-message-input"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -450,6 +455,7 @@ export default function ChatDetailPage() {
           />
           <button
             onClick={handleSend}
+            data-testid="chat-send-btn"
             disabled={!newMessage.trim() || isSending}
             className={`p-3 rounded-full transition-all shrink-0 ${
               newMessage.trim() && !isSending

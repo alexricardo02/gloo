@@ -180,6 +180,7 @@ export default function PrePartyPage() {
 
         <button
           onClick={() => setIsDistanceModalOpen(true)}
+          data-testid="radius-open-btn"
           className="flex items-center gap-2 bg-[#121212] border border-white/5 px-4 py-2 rounded-full hover:bg-[#1a1a1a] transition-colors"
         >
           <SlidersHorizontal size={14} className="text-[#FF725E]" />
@@ -239,7 +240,7 @@ export default function PrePartyPage() {
 
       {/* Modals handle radius adjustment, missing-group flow, and guest paywall */}
       {isDistanceModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center animate-in fade-in duration-200">
+        <div data-testid="radius-modal" className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center animate-in fade-in duration-200">
           <div className="bg-[#121212] w-full max-w-md rounded-t-[2.5rem] p-8 border-t border-white/10 animate-in slide-in-from-bottom-8 duration-300 pb-12">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black uppercase tracking-tight">
@@ -261,6 +262,7 @@ export default function PrePartyPage() {
               </div>
               <input
                 type="range"
+                data-testid="radius-slider"
                 min="1"
                 max="50"
                 value={tempDistance}
@@ -271,6 +273,7 @@ export default function PrePartyPage() {
 
             <button
               onClick={applyDistance}
+              data-testid="radius-apply-btn"
               className="w-full bg-[#FF725E] text-black font-black py-4 rounded-full uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform"
             >
               {t("modalButton")}
@@ -304,6 +307,7 @@ export default function PrePartyPage() {
 
             <Link
               href={`/${locale}/profile/create-group`}
+              data-testid="create-group-modal-link"
               className="w-full bg-[#FF725E] text-black font-black py-4 rounded-full uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg shadow-[#FF725E]/20 text-center"
             >
               {t("createGroupButton") || "Create Profile"}

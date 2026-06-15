@@ -141,7 +141,7 @@ export default function Home() {
 
         <div className="flex flex-col w-full max-w-sm space-y-4 flex-1 justify-end pb-12 relative z-10">
 
-          <div className="relative w-full" ref={dropdownRef}>
+          <div className="relative w-full" ref={dropdownRef} data-testid="language-dropdown">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="w-full bg-[#1A1A1A]/80 backdrop-blur-md border-2 border-[#8E44AD] text-white font-sans font-semibold py-4 px-4 rounded-2xl flex items-center justify-center space-x-2 focus:outline-none focus:ring-2 focus:ring-[#8E44AD] transition-all shadow-lg"
@@ -162,6 +162,7 @@ export default function Home() {
                   <li key={lang.code}>
                     <button
                       onClick={() => handleLanguageChange(lang)}
+                      data-testid={`language-option-${lang.code}`}
                       className="w-full text-center px-4 py-3 hover:bg-[#8E44AD] text-white font-sans font-medium transition-colors"
                     >
                       {lang.flag} {lang.label}
@@ -175,6 +176,7 @@ export default function Home() {
           <button
             onClick={handleGuestEntry}
             disabled={isPending}
+            data-testid="party-start-btn"
             className="w-full bg-[#FF5733] hover:bg-[#e64d2e] text-white font-bold py-4 rounded-2xl text-center transition-all transform active:scale-95 shadow-[0_0_20px_rgba(255,87,51,0.3)] disabled:opacity-60"
           >
             {t("buttonStart")}

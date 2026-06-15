@@ -84,6 +84,7 @@ export default function GamesPage() {
               <Link
                 href={`/${locale}/games/${game.id}`}
                 key={game.id}
+                data-testid={`game-card-${game.id}`}
                 className="relative w-full bg-[#111111] rounded-2xl overflow-hidden border border-white/5 hover:border-[#FF725E]/30 transition-all duration-300 p-5 text-left flex items-start gap-4 group hover:scale-[1.01] block" // Añadí 'block'
               >
                 <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center text-3xl shrink-0 group-hover:bg-[#FF725E]/10 transition-colors duration-300">
