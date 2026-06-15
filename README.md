@@ -79,7 +79,7 @@ Ensure you have the following software architectures installed on your host syst
 #### Step 2.1: Clone the Repository
 Clone the project repository from the remote server and navigate into the root workspace directory:
 ```bash 
-git clone [https://github.com/alexricardo02/gloo-app.git](https://github.com/alexricardo02/gloo-app.git)
+git clone https://github.com/alexricardo02/gloo-app.git
 ```
 ```bash 
 cd gloo-app
