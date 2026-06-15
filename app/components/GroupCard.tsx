@@ -71,12 +71,13 @@ export default function GroupCard({ group }: GroupCardProps) {
 
   return (
     <div
+      data-testid="group-card"
       className="relative h-full w-full rounded-[2.5rem] overflow-hidden shadow-2xl bg-[#1A1A1A]"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
 
-      <div className="absolute inset-0 overflow-hidden bg-black">
+      <div data-testid="group-photo-slider" className="absolute inset-0 overflow-hidden bg-black">
         {photos.map((photo: string, index: number) => (
           <div
             key={index}
@@ -171,6 +172,7 @@ export default function GroupCard({ group }: GroupCardProps) {
         </button>
         <button
           type="button"
+          data-testid="like-button"
           onClick={() => handleLike(group.id)}
           aria-pressed={liked}
           className={`p-4 rounded-full border border-white/20 bg-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:bg-white/20 transition-all duration-200 ${isAnimating ? "scale-95" : ""
@@ -184,6 +186,7 @@ export default function GroupCard({ group }: GroupCardProps) {
         </button>
         <button
           type="button"
+          data-testid="message-button"
           onClick={async () => {
             if (isOpeningChat) return;
             setIsOpeningChat(true);

@@ -125,7 +125,7 @@ export default function RegisterPage() {
           <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">{t("successTitle")}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4" data-testid="register-success">{t("successTitle")}</h2>
           <p className="text-gray-600 mb-8">{t("successCheckEmail")}</p>
           <Link href={`/${locale}/login`} className="w-full bg-[#FF725E] text-white rounded-full py-4 font-semibold hover:bg-[#ff5f49] transition-colors">
             {t("goToLogin")}
@@ -169,12 +169,12 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-xl w-full text-sm text-center font-medium mb-6">
+          <div data-testid="register-error-msg" className="bg-red-50 text-red-600 p-4 rounded-xl w-full text-sm text-center font-medium mb-6">
             {t(error)}
           </div>
         )}
 
-        <form action={handleSubmit} className="flex flex-col gap-4">
+        <form action={handleSubmit} className="flex flex-col gap-4" data-testid="register-form">
 
           <div className="flex gap-4">
             <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all w-full">
@@ -184,6 +184,7 @@ export default function RegisterPage() {
               <input
                 name="name"
                 type="text"
+                data-testid="register-name-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('namePlaceholder')}
@@ -207,6 +208,7 @@ export default function RegisterPage() {
             <input
               type="date"
               name="birthDate"
+              data-testid="register-dob-input"
               required
               max={maxDate}
               value={dob}
@@ -226,6 +228,7 @@ export default function RegisterPage() {
             <input
               name="email"
               type="email"
+              data-testid="register-email-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t('emailPlaceholder')}
@@ -242,6 +245,7 @@ export default function RegisterPage() {
               <input
                 name="username"
                 type="text"
+                data-testid="register-username-input"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
                 placeholder={t('usernamePlaceholder')}
@@ -284,6 +288,7 @@ export default function RegisterPage() {
               <input
                 name="password"
                 type={showPassword ? "text" : "password"}
+                data-testid="register-password-input"
                 value={password}
                 onChange={handlePasswordChange}
                 placeholder={t('passwordPlaceholder')}
@@ -350,6 +355,7 @@ export default function RegisterPage() {
           <div className="pt-4">
             <button
               type="submit"
+              data-testid="register-submit-btn"
               disabled={!agreed}
               className={`w-full font-black py-4 rounded-full text-sm uppercase tracking-widest transition-all ${agreed
                   ? "bg-[#FF725E] text-black hover:scale-[1.01] active:scale-[0.99] shadow-xl shadow-[#FF725E]/10 cursor-pointer"

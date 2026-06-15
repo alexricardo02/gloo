@@ -103,6 +103,7 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
             <button
               key={item.href}
               onClick={(e) => handleNavigation(e, item)}
+              data-testid={`nav-tab-${item.id}`}
               className="flex flex-col items-center justify-center flex-1 min-w-0 transition-all duration-200 relative group bg-transparent border-none cursor-pointer"
             >
               <div
@@ -114,7 +115,7 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
 
                 {isMessagesTab && unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF725E] text-black text-[10px] font-black flex items-center justify-center rounded-full border-2 border-black animate-in zoom-in">
+                  <div data-testid="unread-badge" className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF725E] text-black text-[10px] font-black flex items-center justify-center rounded-full border-2 border-black animate-in zoom-in">
                     {unreadCount}
                   </div>
                 )}

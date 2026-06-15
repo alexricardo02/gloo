@@ -320,7 +320,7 @@ export default function MapDisplay() {
 
   return (
     <div className="w-full h-full bg-[#0a0a0a] relative">
-      <MapContainer center={centerPosition} zoom={14} className="w-full h-full z-0" zoomControl={false} ref={mapRef}>
+      <MapContainer center={centerPosition} zoom={14} className="w-full h-full z-0" zoomControl={false} ref={mapRef} data-testid="map-container">
         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution='&copy; CARTO' />
 
         <Marker position={userPosition} icon={createMarkerIcon("USER")} zIndexOffset={1000}>
@@ -448,9 +448,9 @@ export default function MapDisplay() {
         })}
       </MapContainer>
 
-      <div className="absolute bottom-20 right-4 z-[1000]">
-        <button
+      <div className="absolute bottom-20 right-4 z-[1000]">          <button
           onClick={() => setIsSheetOpen(true)}
+          data-testid="share-location-btn"
           className={`h-12 px-5 rounded-full flex items-center gap-2 transition-all duration-300 shadow-2xl font-sans text-xs font-black uppercase tracking-wider ${myEvent
               ? "bg-pink-500 border border-white text-white animate-pulse"
               : "bg-[#111] border border-[#FF725E] text-[#FF725E] hover:scale-105 active:scale-95"

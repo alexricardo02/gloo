@@ -63,12 +63,12 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <p className="text-red-500 text-sm text-center font-medium mb-4">
+          <p data-testid="login-error-msg" className="text-red-500 text-sm text-center font-medium mb-4">
             {t(error)}
           </p>
         )}
 
-        <form action={handleSubmit} className="flex flex-col gap-4">
+        <form action={handleSubmit} className="flex flex-col gap-4" data-testid="login-form">
           <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -87,6 +87,7 @@ export default function LoginPage() {
             <input
               name="identifier"
               type="text"
+              data-testid="login-identifier-input"
               placeholder={t("emailOrUsernamePlaceholder")}
               required
               className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium"
@@ -111,6 +112,7 @@ export default function LoginPage() {
             <input
               name="password"
               type={showPassword ? "text" : "password"}
+              data-testid="login-password-input"
               placeholder={t("passwordPlaceholder")}
               required
               className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium"
@@ -153,6 +155,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
+            data-testid="login-submit-btn"
             className="w-full bg-black text-white font-bold py-4 rounded-full mt-4 hover:bg-gray-800 transition-colors active:scale-95 transform"
           >
             {t("loginButton")}

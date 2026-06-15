@@ -215,6 +215,7 @@ export default function PreferencesPage() {
 
           <input
             type="range"
+            data-testid="preferences-radius"
             min="1"
             max="50"
             value={maxDistance}
@@ -229,6 +230,7 @@ export default function PreferencesPage() {
 
         <button
           type="button"
+          data-testid="preferences-save"
           onClick={handleSave}
           disabled={loading || saved}
           className={`w-full font-black py-5 rounded-[1.5rem] text-sm uppercase tracking-[0.2em] transition-all ${saved

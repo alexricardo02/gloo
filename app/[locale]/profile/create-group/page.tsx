@@ -220,7 +220,7 @@ export default function CreateGroupPage() {
         </div>
       </div>
 
-      <form onSubmit={onSubmit} className="px-6 space-y-8">
+      <form onSubmit={onSubmit} className="px-6 space-y-8" data-testid="create-group-form">
 
 
         <div className="space-y-3">
@@ -233,6 +233,7 @@ export default function CreateGroupPage() {
           <input
             type="file"
             id="gallery-upload"
+            data-testid="group-photo-upload"
             accept="image/*"
             multiple
             className="hidden"
@@ -628,6 +629,7 @@ export default function CreateGroupPage() {
 
           <button
             type="submit"
+            data-testid="create-group-submit"
             disabled={!agreed || loading}
             className={`w-full font-black py-5 rounded-[1.5rem] text-sm uppercase tracking-[0.2em] transition-all ${agreed
                 ? "bg-[#FF725E] text-black hover:bg-[#ff8575]"
