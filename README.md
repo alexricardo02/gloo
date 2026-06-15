@@ -152,6 +152,33 @@ npm run dev
 Once initialized, open your web browser and navigate to:
 http://localhost:3000
 
+#### Running the End-to-End (E2E) Test Suite
+The project includes a comprehensive suite of End-to-End tests powered by **Playwright** to simulate and verify real user flows (Authentication, Group Discovery, Match, Real-time Chat, and Map location).
+
+Before running the E2E tests for the first time, ensure you install the required browser binaries:
+```bash
+npx playwright install
+```
+
+```bash
+npx prisma db seed
+```
+
+Execution Commands:
+
+To execute the E2E tests in the background (headless mode), run:
+
+```bash
+npx playwright test
+```
+
+To execute the E2E tests using the interactive UI (Highly recommended to visually inspect the automated browser interactions and state flows), run:
+
+```bash
+npx playwright test --ui
+```
+
+
 --- 
 
 ## Group Discovery
