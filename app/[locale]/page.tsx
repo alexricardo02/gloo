@@ -26,6 +26,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
           src="/images/logo2.png"
           alt="GLOO"
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-contain"
           priority
         />
@@ -125,6 +126,7 @@ export default function Home() {
               src="/images/logo2.png"
               alt="GLOO"
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-contain"
               priority
             />

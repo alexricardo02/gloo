@@ -107,7 +107,7 @@ DATABASE_URL="postgresql://party_admin:party_password123@localhost:5433/gloo_db?
 DIRECT_URL="postgresql://party_admin:party_password123@localhost:5433/gloo_db?schema=public"
 
 # Supabase Client Credentials (used as fallback mock placeholders for local runtime)
-NEXT_PUBLIC_SUPABASE_URL="[https://dummy-project.supabase.co](https://dummy-project.supabase.co)"
+NEXT_PUBLIC_SUPABASE_URL="https://dummy-project.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="dummy-anon-key-for-local-compilation-and-testing-purposes"
 ```
 
