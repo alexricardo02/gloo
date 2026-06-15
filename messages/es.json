@@ -253,7 +253,10 @@
     "genderMixed": "Mixto",
     "genderMale": "Hombres",
     "genderFemale": "Mujeres",
-    "genderDiverse": "Diverso"
+    "genderDiverse": "Diverso",
+    "noGroupAlert": "Por favor, crea un perfil de grupo primero.",
+    "saveError": "Error al guardar las preferencias.",
+    "geolocationError": "Geolocalización no soportada."
   },
   "Verify": {
     "title": "Verifica tu Cuenta",
@@ -307,7 +310,10 @@
     "pwdMinChars": "Mín 8 caracteres",
     "pwdUppercase": "1 Mayúscula",
     "pwdNumber": "1 Número",
-    "pwdSpecial": "1 Carácter especial"
+    "pwdSpecial": "1 Carácter especial",
+    "successTitle": "Revisa tu correo",
+    "goToLogin": "Ir a Iniciar sesión",
+    "usernameSpaceError": "El nombre de usuario no puede contener espacios."
   },
   "Profile": {
     "title": "Perfil",
@@ -341,7 +347,13 @@
     "updatePhoto": "Actualizar Foto",
     "tapToSelect": "Toca para seleccionar",
     "uploadNow": "Subir Ahora",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "deleteGroup": "Eliminar Grupo",
+    "deleteGroupTitle": "¿Eliminar Grupo?",
+    "deleteGroupDesc": "¿Estás seguro de que quieres eliminar tu grupo? Esta acción es permanente. Tus miembros, chats activos y el historial de fotos del grupo se eliminarán por completo.",
+    "deleteGroupConfirm": "Sí, Eliminar Grupo",
+    "deleting": "Eliminando...",
+    "defaultDescription": "¡Buscando una noche divertida!"
   },
   "AccountSettings": {
     "title": "Configuración de Cuenta",
@@ -397,18 +409,48 @@
     "saving": "Guardando...",
     "error": "Algo salió mal. Por favor intenta de nuevo.",
     "minAge": "La edad mínima debe ser al menos 18.",
-    "maxAge": "La edad máxima debe ser mayor que la edad mínima."
+    "maxAge": "La edad máxima debe ser mayor que la edad mínima.",
+    "editGroupTitle": "Editar tu Grupo",
+    "galleryLabel": "Galería del Grupo ({count}/6)",
+    "addPhoto": "Añadir",
+    "uploadHint": "¡Sube al menos una foto genial de tu equipo!",
+    "uploadHintMore": "¡Genial! Añade más para destacar.",
+    "photoRequired": "¡Foto Requerida!",
+    "photoRequiredDesc": "Debes subir al menos una foto de tu equipo para continuar. ¡Muestra tu vibra a la comunidad!",
+    "gotIt": "Entendido",
+    "updateProfile": "Actualizar Perfil",
+    "locationRequired": "Ubicación requerida para actualizar el grupo."
   },
   "Messages": {
     "emptyDesc": "Haz match con otros grupos en el carrusel para empezar una conversación.",
     "emptyTitle": "Aún no hay mensajes",
     "title": "Mensajes",
-    "searchPlaceholder": "Buscar"
+    "searchPlaceholder": "Buscar",
+    "tabChats": "Chats",
+    "tabLikes": "Likes",
+    "listView": "Lista",
+    "mapView": "Mapa",
+    "noLikesTitle": "Aún no hay likes",
+    "noLikesDesc": "Cuando a otros grupos les guste tu perfil, aparecerán aquí. Luego podrás enviarles un mensaje directamente.",
+    "blockedGroups": "Grupos Bloqueados",
+    "unblock": "Desbloquear",
+    "noBlockedGroups": "No hay grupos bloqueados",
+    "noBlockedGroupsDesc": "Los grupos que bloquees aparecerán aquí. Puedes desbloquearlos en cualquier momento.",
+    "groupUnblocked": "Grupo desbloqueado"
   },
   "Chat": {
     "backToMessages": "Volver a Mensajes",
     "emptyChat": "Aún no hay mensajes. ¡Saluda!",
-    "typeMessage": "Escribe un mensaje..."
+    "typeMessage": "Escribe un mensaje...",
+    "blockGroup": "Bloquear Grupo",
+    "reportGroup": "Reportar",
+    "confirmBlockTitle": "¿Bloquear Grupo?",
+    "confirmBlockDesc": "¿Estás seguro? Esto ocultará el chat y evitará más contacto.",
+    "blockConfirm": "Bloquear",
+    "cancel": "Cancelar",
+    "groupBlocked": "Grupo bloqueado",
+    "groupReported": "Reporte enviado",
+    "blockedChatError": "Esta conversación ya no está disponible."
   },
   "SearchGroups": {
     "modalButton": "Establecer Radio",
@@ -420,7 +462,9 @@
     "groupRequiredDesc": "Para hacer match, dar like, enviar mensajes o desbloquear más grupos cerca de ti, primero debes crear un perfil para tu propio grupo.",
     "createGroupButton": "Crear Perfil de Grupo",
     "title": "Descubrir",
-    "radius": "Radio"
+    "radius": "Radio",
+    "kmAroundYou": "km a tu alrededor",
+    "modalTitle": "Radio de Búsqueda"
   },
   "ForgotPassword": {
     "title": "Restablecer Contraseña",
