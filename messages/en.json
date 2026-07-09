@@ -500,7 +500,17 @@
     "confirmDeleteMsg2": "This action is irreversible. All data will be deleted from our servers.",
     "confirmDeleteButton": "Delete My Account",
     "deleting": "Deleting...",
-    "cancelButton": "Cancel"
+    "cancelButton": "Cancel",
+    "description": "Enter your email address and we will send you a link to reset your password.",
+    "emailPlaceholder": "Email Address",
+    "submitButton": "Send Reset Link",
+    "sending": "Sending...",
+    "backToLogin": "Back to Sign in",
+    "successTitle": "Check Your Email",
+    "successMessage": "If an account exists with that email, we've sent a password reset link.",
+    "checkSpam": "Please check your spam folder if you don't see the email in your inbox.",
+    "resetLinkSentTitle": "Reset link sent!",
+    "resetLinkSentDesc": "Check your email for the password reset link."
   },
   "CreateGroup": {
     "title": "Create Group",
