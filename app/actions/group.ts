@@ -188,7 +188,7 @@ export async function deleteGroupAction() {
         .map((photoUrl) => {
           const urlParts = photoUrl.split("/");
           const fileName = urlParts.pop();
-          return fileName ? `groups/${userId}/${fileName}` : null;
+          return fileName ? `groups/${fileName}` : null;
         })
         .filter((file): file is string => file !== null);
 
