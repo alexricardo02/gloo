@@ -7,8 +7,13 @@ import { redirect } from "next/navigation";
 export async function verifyAccountAction(token: string, locale: string) {
   if (!token) return { error: "invalidTokenError" };
 
-  const user = await prisma.user.findUnique({
-    where: { verificationToken: token },
+  const user = await prisma.user.findFirst({
+    where: { 
+      verificationToken: token,
+      verificationTokenExpiry: {
+        gt: new Date() 
+      }
+    },
   });
 
   if (!user) {
@@ -22,11 +27,18 @@ export async function verifyAccountAction(token: string, locale: string) {
       // email link from being reused to hijack the account later.
       isVerified: true,
       verificationToken: null,
+      verificationTokenExpiry: null,
     },
   });
 
   const cookieStore = await cookies();
-  cookieStore.set("gloo_user_id", user.id, { httpOnly: true, path: "/" });
+  cookieStore.set("gloo_user_id", user.id, { 
+    httpOnly: true, 
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax"
+  });
   // The user may have browsed as a guest before clicking the verification link.
   // Clearing the guest flag grants full authenticated access immediately,
   // so they don't need a separate login step after confirming their email.

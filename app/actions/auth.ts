@@ -23,6 +23,7 @@ export async function registerUser(formData: FormData, locale: string) {
   const birthDateRaw = formData.get("birthDate") as string;
   if (!birthDateRaw) return { error: "Date of birth is required" };
 
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalidEmailError" };
   const birthDate = new Date(birthDateRaw);
 
   const today = new Date();
@@ -72,6 +73,8 @@ export async function registerUser(formData: FormData, locale: string) {
 
     const verificationToken = crypto.randomUUID();
 
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
     await prisma.user.create({
       data: {
         email,
@@ -83,6 +86,7 @@ export async function registerUser(formData: FormData, locale: string) {
         // This prevents access with typo'd or stolen email addresse
         isVerified: false,
         verificationToken,
+        verificationTokenExpiry,
       },
     });
 
@@ -127,7 +131,13 @@ export async function loginUser(formData: FormData, locale: string) {
 
   // Create session with cookies
   const cookieStore = await cookies();
-  cookieStore.set("gloo_user_id", user.id, { httpOnly: true, path: "/" });
+  cookieStore.set("gloo_user_id", user.id, { 
+    httpOnly: true, 
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30, 
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax"
+  });
   cookieStore.delete("gloo_is_guest");
 
   redirect(`/${locale}/search-groups`);

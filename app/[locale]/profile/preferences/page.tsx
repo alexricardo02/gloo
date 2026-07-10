@@ -47,7 +47,7 @@ export default function PreferencesPage() {
     const formData = new FormData();
 
     formData.append("membersCount", String((existingGroup.membersCount as number) ?? 1));
-    formData.append("groupGender", (existingGroup.gender as string) ?? "ANY");
+    formData.append("groupGender", (existingGroup.gender as string) ?? "MIXED");
     formData.append("ageMin", String((existingGroup.ageMin as number) ?? 18));
     formData.append("ageMax", String((existingGroup.ageMax as number) ?? 30));
     formData.append("description", (existingGroup.description as string) ?? "");
