@@ -36,17 +36,22 @@ describe('Verify Server Actions (Unit Tests)', () => {
     });
 
     it('should return invalidTokenError if the token does not match any user', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null);
-
-      const result = await verifyAccountAction('fake-token', 'en');
-      
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { verificationToken: 'fake-token' } });
-      expect(result).toEqual({ error: 'invalidTokenError' });
-    });
+  vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null);
+  const result = await verifyAccountAction('fake-token', 'en');
+  expect(prisma.user.findUnique).toHaveBeenCalledWith({
+  where: {
+    verificationToken: 'fake-token',
+    verificationTokenExpiry: {
+      gt: expect.any(Date), 
+    },
+  },
+});
+  expect(result).toEqual({ error: 'invalidTokenError' });
+});
 
     it('should verify the user, set cookies, and redirect to search-groups on success', async () => {
       // Mock the user being found
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-123' } as any);
+  vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-123' } as any);
       
       const mockSet = vi.fn();
       const mockDelete = vi.fn();
@@ -57,7 +62,7 @@ describe('Verify Server Actions (Unit Tests)', () => {
       // Verify Prisma Update was called to clear the token and set isVerified
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-123' },
-        data: { isVerified: true, verificationToken: null },
+        data: { isVerified: true, verificationToken: null, verificationTokenExpiry: null },
       });
 
       // Verify Session Cookies

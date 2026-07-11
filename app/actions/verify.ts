@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 export async function verifyAccountAction(token: string, locale: string) {
   if (!token) return { error: "invalidTokenError" };
 
-  const user = await prisma.user.findFirst({
+  const user = await prisma.user.findUnique({
     where: { 
       verificationToken: token,
       verificationTokenExpiry: {
