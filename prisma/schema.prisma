@@ -21,6 +21,7 @@ model User {
   updatedAt           DateTime      @updatedAt
   isVerified          Boolean       @default(false)
   verificationToken   String?       @unique
+  verificationTokenExpiry DateTime?
   resetPasswordExpiry DateTime?
   resetPasswordToken  String?       @unique
   chatsInitiated      Chat[]        @relation("HostA")

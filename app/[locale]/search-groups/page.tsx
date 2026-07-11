@@ -180,7 +180,7 @@ export default function PrePartyPage() {
         </div>
 
         <button
-          onClick={() => setIsDistanceModalOpen(true)}
+          onClick={openDistanceModal}
           data-testid="radius-open-btn"
           className="flex items-center gap-2 bg-[#121212] border border-white/5 px-4 py-2 rounded-full hover:bg-[#1a1a1a] transition-colors"
         >
