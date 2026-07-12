@@ -12,7 +12,7 @@ const PROJECT_ROOT = path.join(__dirname, '../..');
 async function callE2eApi(baseURL: string, action: string, email: string, label?: string) {
   const res = await fetch(`${baseURL}/api/e2e`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-e2e-secret': process.env.E2E_TEST_SECRET! },
     body: JSON.stringify({ action, email, label }),
   });
   const data = await res.json();

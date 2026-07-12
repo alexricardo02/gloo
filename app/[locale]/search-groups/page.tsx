@@ -29,7 +29,7 @@ export default function PrePartyPage() {
 
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
+  const [cursor, setCursor] = useState<string | null>(null);
 
   const [isDistanceModalOpen, setIsDistanceModalOpen] = useState(false);
   const [tempDistance, setTempDistance] = useState(distance);
@@ -113,40 +113,20 @@ export default function PrePartyPage() {
     if (loading || (!hasMore && !reset)) return;
     setLoading(true);
 
-    const currentPage = reset ? 0 : page;
-
     try {
       const response = await getDiscoveryGroups({
-        page: currentPage,
+        cursor: reset ? undefined : cursor ?? undefined,
         distance: tempDistance,
       });
 
-      if (response.error === "Unauthorized") {
-        setGroups([]);
-        setLoading(false);
-        return;
-      }
+      if (response.error === "Unauthorized") { setGroups([]); setLoading(false); return; }
+
 
       if (response.groups) {
-        if (response.groups.length === 0) {
-          if (reset) setGroups([]);
-          setHasMore(false);
-        } else {
-          setGroups((prevGroups) =>
-            reset
-              ? (response.groups as DiscoveryGroup[])
-              : [...prevGroups, ...(response.groups as DiscoveryGroup[])],
-          );
-
-          setHasMore(response.groups.length === 10);
-
-          setPage(currentPage + 1);
-        }
-      } else {
-        console.error(response.error);
-      }
-    } catch (error) {
-      console.error("Failed to load groups:", error);
+      setGroups((prev) => reset ? response.groups : [...prev, ...response.groups]);
+      setHasMore(!!response.nextCursor);
+      setCursor(response.nextCursor ?? null);
+    }
     } finally {
       setLoading(false);
     }
@@ -162,7 +142,7 @@ export default function PrePartyPage() {
     localStorage.setItem("gloo_search_radius", tempDistance.toString());
 
     setIsDistanceModalOpen(false);
-    setPage(0);
+    setCursor(null);
     setHasMore(true);
   };
 

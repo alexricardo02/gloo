@@ -126,7 +126,7 @@ export default function GroupCard({ group }: GroupCardProps) {
         </h2>
         <div className="flex flex-wrap gap-2">
           <span className="bg-[#FF725E]/20 backdrop-blur-md border border-[#FF725E]/30 text-[#FF725E] px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-            {group.gender}
+            {t(group.gender)}
           </span>
           <span className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white">
             {group.membersCount} {t("members")}
