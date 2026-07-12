@@ -14,6 +14,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
   }
 
+  const secret = request.headers.get('x-e2e-secret');
+  if (secret !== process.env.E2E_TEST_SECRET) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { action, email, label } = body;

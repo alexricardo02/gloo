@@ -116,6 +116,10 @@ export async function createGroupAction(formData: FormData, locale: string) {
 
   const finalPhotos = [...keptPhotos, ...uploadedUrls];
 
+  if (finalPhotos.length === 0) {
+    throw new Error("At least one photo is required.");
+  }
+
   // upsert handles both initial group creation and subsequent edits in a single
   // atomic operation. A user can only have one group (1:1 DB relation), so
   // separate create/update paths would risk race conditions on concurrent requests.

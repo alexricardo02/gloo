@@ -52,11 +52,11 @@ async function getBlockedGroupIds(
  * @returns A structured array of group profiles authorized for the current user's feed.
  */
 export async function getDiscoveryGroups({
-  page = 0,
+  cursor,
   distance,
   isPartyMode = false,
 }: {
-  page: number;
+  cursor?: string;
   distance: number;
   isPartyMode?: boolean;
 }) {
@@ -66,15 +66,8 @@ export async function getDiscoveryGroups({
   if (!userId) return { error: "Unauthorized" };
 
   try {
-    const userGroup = await prisma.group.findUnique({
-      where: { userId },
-    });
-
-    if (
-      !userGroup ||
-      userGroup.latitude === null ||
-      userGroup.longitude === null
-    ) {
+    const userGroup = await prisma.group.findUnique({ where: { userId } });
+    if (!userGroup || userGroup.latitude === null || userGroup.longitude === null) {
       return { groups: [] };
     }
 
@@ -180,21 +173,27 @@ export async function getDiscoveryGroups({
       mutualLikeRecords.map((like) => like.fromGroupId),
     );
 
+    const startIndex = cursor
+    ? filteredGroups.findIndex((g) => g.id === cursor) + 1
+    : 0;
+
     const limit = 10;
-    const skip = page * limit;
 
-    const groups = filteredGroups
-      .filter((group) => !allBlockedGroupIds.has(group.id))
-      .slice(skip, skip + limit)
-      .map((group) => ({
-        ...group,
-        createdAt: group.createdAt.toISOString(),
-        updatedAt: group.updatedAt.toISOString(),
-        likedByCurrentUser: likedGroupIds.has(group.id),
-        isMutualLike: mutualLikeGroupIds.has(group.id),
-      }));
+    const pageSlice = filteredGroups
+    .filter((group) => !allBlockedGroupIds.has(group.id))
+    .slice(startIndex, startIndex + limit);
 
-    return { groups };
+    const nextCursor = pageSlice.length === limit ? pageSlice[pageSlice.length - 1].id : null;
+
+    const groups = pageSlice.map((group) => ({
+      ...group,
+      createdAt: group.createdAt.toISOString(),
+      updatedAt: group.updatedAt.toISOString(),
+      likedByCurrentUser: likedGroupIds.has(group.id),
+      isMutualLike: mutualLikeGroupIds.has(group.id),
+    }));
+
+    return { groups, nextCursor };
   } catch (error) {
     console.error("Critical error in getDiscoveryGroups:", error);
     return { error: "Failed to fetch groups" };

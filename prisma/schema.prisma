@@ -111,10 +111,10 @@ model Message {
   id        String   @id @default(cuid())
   text      String
   chatId    String
-  senderId  String
+  senderId  String?
   createdAt DateTime @default(now())
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  sender    User?    @relation(fields: [senderId], references: [id], onDelete: SetNull )
 
   @@index([chatId, createdAt(sort: Desc)])
 }
