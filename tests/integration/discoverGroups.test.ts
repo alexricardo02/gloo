@@ -71,7 +71,7 @@ describe("Discovery Algorithm & Feed Integrity (Integration)", () => {
     vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: mainUserId }) } as any);
 
     const distanceLimit = 20; // km
-    const feedResult = await getDiscoveryGroups({ page: 0, distance: distanceLimit });
+    const feedResult = await getDiscoveryGroups({ distance: distanceLimit });
     const feedIds = feedResult.groups?.map(g => g.userId) || [];
 
     // Standard Requirement 1: A user MUST NOT see their own group
