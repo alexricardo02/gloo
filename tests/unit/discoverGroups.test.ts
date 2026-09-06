@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { toggleLike } from '@/app/actions/discoverGroups';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
@@ -21,13 +21,49 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
 
+// ---------------------------------------------------------------------------
+// Mock Upstash so rate-limiting is testable without real Redis credentials.
+// A per-user counter mirrors the sliding-window(10) config in production.
+// ---------------------------------------------------------------------------
+const rateLimitCounters = new Map<string, number>();
+const RATE_LIMIT = 10;
+
+vi.mock('@upstash/redis', () => ({
+  Redis: class Redis {},
+}));
+
+vi.mock('@upstash/ratelimit', () => {
+  const slidingWindow = vi.fn().mockReturnValue('sliding-window-limiter');
+  class Ratelimit {
+    // Plain async function — NOT vi.fn() — so vi.clearAllMocks() cannot wipe it.
+    // The closure over rateLimitCounters gives per-user counting that resets
+    // cleanly in beforeEach via rateLimitCounters.clear().
+    async limit(key: string) {
+      const count = (rateLimitCounters.get(key) ?? 0) + 1;
+      rateLimitCounters.set(key, count);
+      return { success: count <= RATE_LIMIT };
+    }
+    static slidingWindow = slidingWindow;
+  }
+  return { Ratelimit };
+});
+
 describe('DiscoverGroups Server Actions', () => {
+  // The getRatelimiter() factory guards on env vars — stub them so the
+  // Ratelimit constructor (already mocked above) is actually invoked.
+  beforeAll(() => {
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://test.upstash.io');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'test-token');
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    if ((globalThis as any).__GLOO_LIKE_RATE_LIMITER) {
-      (globalThis as any).__GLOO_LIKE_RATE_LIMITER.clear();
-    }
+    rateLimitCounters.clear();
   });
 
   it('should return Unauthorized if user cookie is missing', async () => {

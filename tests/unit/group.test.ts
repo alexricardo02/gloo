@@ -25,6 +25,17 @@ vi.mock("@/lib/supabase", () => ({
   }
 }));
 
+// validateImage performs real magic-byte I/O which the test File polyfill can't
+// satisfy (content is plain text, not real PNG bytes). Mock it to return a
+// predictable ValidatedImage so upload-flow tests focus on the Supabase path.
+vi.mock('@/lib/validateImage', () => ({
+  validateImage: vi.fn().mockImplementation(async (file: File) => ({
+    buffer: Buffer.from('fake'),
+    mimeType: 'image/png',
+    safeExtension: 'png',
+  })),
+}));
+
 vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
