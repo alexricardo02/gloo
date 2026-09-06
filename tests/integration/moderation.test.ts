@@ -47,7 +47,7 @@ describe("Moderation & Security Flow (Integration)", () => {
     vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: userAId }) } as any);
 
     // Verify that BEFORE blocking, User B appears in User A's discovery feed
-    const preBlockFeed = await getDiscoveryGroups({ page: 0, distance: 10 });
+    const preBlockFeed = await getDiscoveryGroups({ distance: 10 });
     const isUserBPresentBefore = preBlockFeed.groups?.some(g => g.userId === userBId);
     expect(isUserBPresentBefore).toBe(true);
 
@@ -56,13 +56,13 @@ describe("Moderation & Security Flow (Integration)", () => {
     expect(blockResult.success).toBe(true);
 
     // Step 3: Verify that AFTER blocking, User B no longer appears
-    const postBlockFeedA = await getDiscoveryGroups({ page: 0, distance: 10 });
+    const postBlockFeedA = await getDiscoveryGroups({ distance: 10 });
     const isUserBPresentAfter = postBlockFeedA.groups?.some(g => g.userId === userBId);
     expect(isUserBPresentAfter).toBe(false);
 
     // Step 4: Bidirectional isolation (User B should not see User A either)
     vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: userBId }) } as any);
-    const postBlockFeedB = await getDiscoveryGroups({ page: 0, distance: 10 });
+    const postBlockFeedB = await getDiscoveryGroups({ distance: 10 });
     const isUserAPresentAfter = postBlockFeedB.groups?.some(g => g.userId === userAId);
     expect(isUserAPresentAfter).toBe(false);
   });

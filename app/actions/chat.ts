@@ -48,6 +48,13 @@ export async function sendMessage(chatId: string, text: string) {
   const trimmed = text.trim();
   if (!trimmed) return { error: "Message cannot be empty" };
 
+  // Hard cap at 2000 characters to prevent oversized DB writes and
+  // large payloads being returned to all participants on every fetch.
+  const MAX_MESSAGE_LENGTH = 2000;
+  if (trimmed.length > MAX_MESSAGE_LENGTH) {
+    return { error: "Message is too long. Maximum length is 2000 characters." };
+  }
+
   try {
     const chat = await prisma.chat.findUnique({
       where: { id: chatId },

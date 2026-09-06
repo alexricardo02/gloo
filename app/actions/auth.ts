@@ -355,9 +355,12 @@ export async function deleteAccountAction(locale: string) {
 }
 
 export async function requestPasswordReset(email: string, locale: string) {
-  const passwordRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!passwordRegex.test(email)) {
-    return { success: true };
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    // Return a validation error — this is a client-side input mistake,
+    // not a privacy-sensitive case. User enumeration protection only applies
+    // to valid-format emails that are simply not registered in the system.
+    return { error: "invalidEmailError" };
   }
 
   try {
