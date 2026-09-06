@@ -45,6 +45,75 @@ export default function CreateGroupPage() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // Image compression
+  // ---------------------------------------------------------------------------
+  // Pure helper: resize + re-encode a File via an off-screen canvas.
+  // Returns a new File (JPEG, quality 0.8, max-width 1600px).
+  // Falls back to the original File if the canvas API is unavailable or throws.
+  const compressImage = (file: File, maxWidth = 1600, quality = 0.8): Promise<File> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(file); // canvas unsupported — use original
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file); // encoding failed — use original
+              return;
+            }
+            const compressedName = file.name.replace(/\.[^.]+$/, ".jpg");
+            resolve(new File([blob], compressedName, { type: "image/jpeg" }));
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(file); // load failed — use original
+      };
+
+      img.src = objectUrl;
+    });
+
+  // ---------------------------------------------------------------------------
+  // File selection handler
+  // ---------------------------------------------------------------------------
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+
+    const selectedFiles = Array.from(e.target.files);
+    const availableSlots = 6 - (existingPhotos.length + photos.length);
+    if (availableSlots <= 0) return;
+
+    const filesToProcess = selectedFiles.slice(0, availableSlots);
+
+    // Compress each file in parallel; fall back to original on any per-file error.
+    const compressedFiles = await Promise.all(
+      filesToProcess.map((file) => compressImage(file).catch(() => file))
+    );
+
+    setPhotos((prev) => [...prev, ...compressedFiles]);
+  };
+
   // Load existing data if the user already has a group
   useEffect(() => {
     async function loadData() {
@@ -86,16 +155,7 @@ export default function CreateGroupPage() {
     loadData();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      const availableSlots = 6 - (existingPhotos.length + photos.length);
 
-      if (availableSlots > 0) {
-        setPhotos((prev) => [...prev, ...selectedFiles.slice(0, availableSlots)]);
-      }
-    }
-  };
 
   const removePhoto = (index: number) => {
     if (index < existingPhotos.length) {

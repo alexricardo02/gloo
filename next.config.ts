@@ -4,7 +4,7 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./i18n.ts');
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
-images: {
+  images: {
     remotePatterns: [
       {
         protocol: 'https',
@@ -17,6 +17,15 @@ images: {
         pathname: '/**',
       },
     ],
+  },
+  experimental: {
+    serverActions: {
+      // Camera photos can be 2–8 MB each; raise the limit so payloads reach
+      // server-side validation (magic-byte check + 5 MB cap) before being
+      // rejected. Client-side compression keeps actual transfers well below
+      // this ceiling.
+      bodySizeLimit: '10mb',
+    },
   },
 };
 

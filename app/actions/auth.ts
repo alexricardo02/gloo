@@ -91,14 +91,16 @@ export async function registerUser(formData: FormData, locale: string) {
       },
     });
 
-    // H-5 fix: the token must NEVER appear in any log line — it is a
-    // single-use credential equivalent to a password. Log only the recipient
-    // address so operations teams can verify delivery without gaining the
-    // ability to hijack the account.
-    //
-    // TODO: replace this block with Resend / SendGrid in production.
+    // DEV-ONLY: log the full verification link so developers can click it
+    // directly from the terminal. The token is intentionally exposed here —
+    // this is a known, accepted trade-off for local development convenience.
+    // TODO: replace this block with Resend / SendGrid in production and
+    //       re-apply the H-5 restriction (token must never appear in logs).
     if (process.env.NODE_ENV === "development") {
-      console.log(`[EMAIL SIMULATION] Verification email queued for: ${email}`);
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const verificationUrl = `${baseUrl}/${locale}/verify?token=${verificationToken}`;
+      console.log(`\n[EMAIL SIMULATION] Verification email for: ${email}`);
+      console.log(`[EMAIL SIMULATION] Click to verify → ${verificationUrl}\n`);
     }
 
     return { success: true, needsVerification: true };
@@ -401,13 +403,16 @@ export async function requestPasswordReset(email: string, locale: string) {
       },
     });
 
-    // H-5 fix: never log the reset token or the URL containing it.
-    // The token is a time-limited credential; logging it exposes it to anyone
-    // with access to server logs.
-    //
-    // TODO: replace with Resend / SendGrid in production.
+    // DEV-ONLY: log the full password reset link so developers can click it
+    // directly from the terminal. The token is intentionally exposed here —
+    // this is a known, accepted trade-off for local development convenience.
+    // TODO: replace with Resend / SendGrid in production and re-apply the
+    //       H-5 restriction (token must never appear in logs).
     if (process.env.NODE_ENV === "development") {
-      console.log(`[EMAIL SIMULATION] Password reset email queued for: ${email}`);
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const resetUrl = `${baseUrl}/${locale}/resetPassword?token=${resetToken}`;
+      console.log(`\n[EMAIL SIMULATION] Password reset email for: ${email}`);
+      console.log(`[EMAIL SIMULATION] Click to reset → ${resetUrl}\n`);
     }
 
     return { success: true };

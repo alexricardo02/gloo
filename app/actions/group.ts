@@ -96,20 +96,29 @@ export async function createGroupAction(formData: FormData, locale: string) {
     const fileName = `${userId}-group-${crypto.randomUUID()}.${validated.safeExtension}`;
     const filePath = `groups/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("gloo-images")
-      .upload(filePath, validated.buffer, {
-        cacheControl: "3600",
-        // upsert: false prevents accidental overwrite if two requests arrive
-        // simultaneously. Each photo gets a UUID-based filename so uploads
-        // from different sessions never collide even on the same account.
-        upsert: false,
-        contentType: validated.mimeType,
-      });
+    let uploadError;
+    try {
+      ({ error: uploadError } = await supabase.storage
+        .from("gloo-images")
+        .upload(filePath, validated.buffer, {
+          cacheControl: "3600",
+          // upsert: false prevents accidental overwrite if two requests arrive
+          // simultaneously. Each photo gets a UUID-based filename so uploads
+          // from different sessions never collide even on the same account.
+          upsert: false,
+          contentType: validated.mimeType,
+        }));
+    } catch (networkErr) {
+      // Network/DNS failures throw synchronously from the Supabase client.
+      // Log the full error server-side; surface only a generic message to the client.
+      console.error("Group photo upload error:", networkErr);
+      throw new Error("Photo upload failed. Please try again.");
+    }
 
     if (uploadError) {
+      // Supabase returned an API-level error (e.g. 4xx/5xx).
       console.error("Group photo upload error:", uploadError);
-      return null;
+      throw new Error("Photo upload failed. Please try again.");
     }
 
     const { data } = supabase.storage
@@ -119,15 +128,9 @@ export async function createGroupAction(formData: FormData, locale: string) {
     return data.publicUrl;
   });
 
-  const uploadedUrls = (await Promise.all(uploadPromises)).filter(
-    Boolean,
-  ) as string[];
+  const uploadedUrls = await Promise.all(uploadPromises);
 
   const finalPhotos = [...keptPhotos, ...uploadedUrls];
-
-  if (finalPhotos.length === 0) {
-    throw new Error("At least one photo is required.");
-  }
 
   // upsert handles both initial group creation and subsequent edits in a single
   // atomic operation. A user can only have one group (1:1 DB relation), so
