@@ -4,16 +4,58 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const MAX_LIKES_PER_WINDOW = 10;
+/**
+ * H-4 fix: replace the in-memory globalThis Map rate limiter.
+ *
+ * Root cause of the old approach:
+ *  - `globalThis` state resets on every serverless cold start → limit is never
+ *    actually enforced on Vercel / any scaled deployment.
+ *  - No cross-instance coordination → two pods serving different requests for
+ *    the same user never share state.
+ *  - Unbounded map growth → old entries are never evicted, causing a slow
+ *    memory leak.
+ *
+ * Fix: use @upstash/ratelimit with a sliding-window algorithm backed by
+ * Upstash Redis (already listed in package.json).
+ *
+ * Graceful fallback: if the Upstash env vars are not yet configured (local
+ * dev without Redis), rate limiting is skipped rather than crashing the action.
+ * Remove the fallback once Redis is provisioned in production.
+ */
 
-// globalThis persists across requests within the same Node.js process, making
-// this a zero-dependency in-memory rate limiter. It resets on server restart,
-// which is acceptable for an MVP — a Redis-backed limiter would be needed at scale.
-const likeRateLimit = ((globalThis as any).__GLOO_LIKE_RATE_LIMITER ||= new Map<
-  string,
-  { count: number; windowStart: number }
->());
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+// Build the limiter lazily so missing env vars are detected at call time
+// rather than at module evaluation (which would crash Next.js startup).
+let ratelimit: Ratelimit | null = null;
+
+function getRatelimiter(): Ratelimit | null {
+  if (ratelimit) return ratelimit;
+
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[rate-limit] Upstash env vars not set — like rate limiting is disabled. " +
+          "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to enable."
+      );
+    }
+    return null;
+  }
+
+  ratelimit = new Ratelimit({
+    redis: new Redis({ url, token }),
+    // Sliding window: 10 likes per 60-second window, per user.
+    limiter: Ratelimit.slidingWindow(10, "60 s"),
+    // Prefix keeps gloo keys isolated if the Redis instance is shared.
+    prefix: "gloo:likes",
+  });
+
+  return ratelimit;
+}
 
 async function getBlockedGroupIds(
   userId: string,
@@ -208,18 +250,16 @@ export async function toggleLike(toGroupId: string) {
   const userId = cookieStore.get("gloo_user_id")?.value;
   if (!userId) return { error: "Unauthorized" };
 
-  const now = Date.now();
-  const existingRate = likeRateLimit.get(userId);
-  if (existingRate && now - existingRate.windowStart < RATE_LIMIT_WINDOW_MS) {
-    if (existingRate.count >= MAX_LIKES_PER_WINDOW) {
+  // H-4 fix: enforce rate limit via Upstash Redis (cross-instance, survives restarts).
+  // If the limiter isn't configured (missing env vars in dev), we skip silently.
+  const limiter = getRatelimiter();
+  if (limiter) {
+    const { success } = await limiter.limit(userId);
+    if (!success) {
       return {
         error: "Rate limit exceeded. Please wait a moment before liking again.",
       };
     }
-    existingRate.count += 1;
-    likeRateLimit.set(userId, existingRate);
-  } else {
-    likeRateLimit.set(userId, { count: 1, windowStart: now });
   }
 
   const fromGroup = await prisma.group.findUnique({ where: { userId } });

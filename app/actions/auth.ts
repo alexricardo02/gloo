@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { validateImage } from "@/lib/validateImage";
 
 /**
  * Registers a new user and establishes their initial security boundaries.
@@ -90,9 +91,15 @@ export async function registerUser(formData: FormData, locale: string) {
       },
     });
 
-    console.log(
-      `[EMAIL SIMULATION] Verification link sent to ${email}: http://localhost:3000/${locale}/verify?token=${verificationToken}`,
-    );
+    // H-5 fix: the token must NEVER appear in any log line — it is a
+    // single-use credential equivalent to a password. Log only the recipient
+    // address so operations teams can verify delivery without gaining the
+    // ability to hijack the account.
+    //
+    // TODO: replace this block with Resend / SendGrid in production.
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[EMAIL SIMULATION] Verification email queued for: ${email}`);
+    }
 
     return { success: true, needsVerification: true };
   } catch (error) {
@@ -220,25 +227,31 @@ export async function updateProfileImage(formData: FormData) {
   if (!userId) return { error: "Unauthorized" };
 
   const file = formData.get("image") as File;
-  if (!file || file.size === 0) return { error: "No image provided" };
+
+  // H-2 fix: validate the image using magic bytes (not the client-supplied
+  // file.type or file.name, which are attacker-controlled strings).
+  // validateImage() also enforces the 5 MB size cap.
+  let validated;
+  try {
+    validated = await validateImage(file);
+  } catch (err) {
+    // Surface validation errors as user-friendly messages; do NOT propagate
+    // the raw error, which might contain internal details.
+    const message = err instanceof Error ? err.message : "Invalid image file.";
+    return { error: message };
+  }
 
   try {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    // Use the safe extension derived from magic bytes, not the original filename.
+    const fileName = `${userId}-${Date.now()}.${validated.safeExtension}`;
     const filePath = `profiles/${fileName}`;
 
-    // Firefox serializes FormData File objects without a reliable content-type,
-    // causing Supabase storage to reject the upload. Converting to a Buffer
-    // with an explicit contentType fixes this browser incompatibility.
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("gloo-images")
-      .upload(filePath, buffer, {
+      .upload(filePath, validated.buffer, {
         cacheControl: "3600",
         upsert: true,
-        contentType: file.type || "image/jpeg",
+        contentType: validated.mimeType,
       });
 
     if (uploadError) {
@@ -388,11 +401,14 @@ export async function requestPasswordReset(email: string, locale: string) {
       },
     });
 
-    // In production, send email via Resend/SendGrid
-    // For now, log to console
-    console.log(
-      `[EMAIL SIMULATION] Password reset link sent to ${email}: http://localhost:3000/${locale}/resetPassword?token=${resetToken}`,
-    );
+    // H-5 fix: never log the reset token or the URL containing it.
+    // The token is a time-limited credential; logging it exposes it to anyone
+    // with access to server logs.
+    //
+    // TODO: replace with Resend / SendGrid in production.
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[EMAIL SIMULATION] Password reset email queued for: ${email}`);
+    }
 
     return { success: true };
   } catch (error) {
