@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Gender } from "@prisma/client";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase";
+import { validateImage } from "@/lib/validateImage";
 
 export async function getGroupByUser() {
   try {
@@ -66,48 +67,56 @@ export async function createGroupAction(formData: FormData, locale: string) {
   const newPhotos: string[] = [];
   const uploadedFiles = formData.getAll("photos") as File[];
 
-  const hasValidNewPhotos = uploadedFiles.some(
-    (file) => file && typeof file === "object" && file.size > 0,
+  // H-2 fix: cap the number of photos to prevent unbounded uploads.
+  const MAX_PHOTOS = 6;
+  const validFiles = uploadedFiles.filter(
+    (file) => file && typeof file === "object" && file.size > 0
   );
 
-  if (keptPhotos.length === 0 && !hasValidNewPhotos) {
+  if (keptPhotos.length === 0 && validFiles.length === 0) {
     throw new Error("At least one photo is required.");
   }
 
-  const uploadPromises = uploadedFiles.map(async (file) => {
-    if (file && typeof file === "object" && file.size > 0) {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${userId}-group-${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `groups/${fileName}`;
+  if (keptPhotos.length + validFiles.length > MAX_PHOTOS) {
+    throw new Error(`A maximum of ${MAX_PHOTOS} photos are allowed.`);
+  }
 
-      // Firefox serializes FormData File objects without a reliable content-type.
-      // Converting to a Buffer with explicit contentType fixes browser incompatibility.
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const { error: uploadError } = await supabase.storage
-        .from("gloo-images")
-        .upload(filePath, buffer, {
-          cacheControl: "3600",
-          // upsert: false prevents accidental overwrite if two requests arrive
-          // simultaneously. Each photo gets a UUID-based filename so uploads
-          // from different sessions never collide even on the same account.
-          upsert: false,
-          contentType: file.type || "image/jpeg",
-        });
-
-      if (uploadError) {
-        console.error("Group photo upload error:", uploadError);
-        return null;
-      }
-
-      const { data } = supabase.storage
-        .from("gloo-images")
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
+  // H-2 fix: validate each file's magic bytes before uploading.
+  // validateImage() throws a user-safe string on failure.
+  const uploadPromises = validFiles.map(async (file) => {
+    let validated;
+    try {
+      validated = await validateImage(file);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Invalid image file.";
+      throw new Error(msg);
     }
-    return null;
+
+    // Use the safe extension from magic-byte detection, not file.name.
+    const fileName = `${userId}-group-${crypto.randomUUID()}.${validated.safeExtension}`;
+    const filePath = `groups/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("gloo-images")
+      .upload(filePath, validated.buffer, {
+        cacheControl: "3600",
+        // upsert: false prevents accidental overwrite if two requests arrive
+        // simultaneously. Each photo gets a UUID-based filename so uploads
+        // from different sessions never collide even on the same account.
+        upsert: false,
+        contentType: validated.mimeType,
+      });
+
+    if (uploadError) {
+      console.error("Group photo upload error:", uploadError);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from("gloo-images")
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
   });
 
   const uploadedUrls = (await Promise.all(uploadPromises)).filter(
