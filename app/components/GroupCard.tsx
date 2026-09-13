@@ -72,7 +72,7 @@ export default function GroupCard({ group }: GroupCardProps) {
   return (
     <div
       data-testid="group-card"
-      className="relative h-full w-full rounded-[2.5rem] overflow-hidden shadow-2xl bg-[#1A1A1A]"
+      className="relative h-full w-full rounded-[2.5rem] overflow-hidden shadow-2xl bg-card"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -93,6 +93,10 @@ export default function GroupCard({ group }: GroupCardProps) {
           </div>
         ))}
       </div>
+
+      {/* Gradient scrims for text contrast over photos (WCAG 4.5:1) */}
+      <div className="absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10 pointer-events-none" />
 
       <div className="absolute top-4 left-4 right-4 flex gap-1 z-30 pointer-events-none">
         {photos.map((_: string, index: number) => (
@@ -125,7 +129,7 @@ export default function GroupCard({ group }: GroupCardProps) {
           {group.user?.username || group.user?.name || "Group"}
         </h2>
         <div className="flex flex-wrap gap-2">
-          <span className="bg-[#FF725E]/20 backdrop-blur-md border border-[#FF725E]/30 text-[#FF725E] px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+          <span className="bg-secondary/20 backdrop-blur-md border border-secondary/30 text-secondary px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
             {t(group.gender)}
           </span>
           <span className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white">
@@ -140,7 +144,7 @@ export default function GroupCard({ group }: GroupCardProps) {
         </p>
       </div>
 
-      <div className="absolute bottom-0 right-0 p-4 pb-8 flex flex-col gap-4 items-end z-40 pointer-events-auto">
+      <div className="absolute bottom-0 right-0 p-4 pb-6 flex flex-col gap-3.5 items-end z-40 pointer-events-auto">
         <button
           type="button"
           onClick={async () => {
@@ -156,9 +160,9 @@ export default function GroupCard({ group }: GroupCardProps) {
               setIsReporting(false);
             }
           }}
-          className={`p-3 rounded-full border border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all duration-200 ${reportSent
-              ? "bg-green-500/20 border-green-500/30"
-              : "bg-white/5 hover:bg-white/20"
+          className={`w-11 h-11 rounded-full border border-white/20 shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer ${reportSent
+              ? "bg-green-500/20 border-green-500/30 text-green-400"
+              : "bg-card/80 backdrop-blur-md text-muted-foreground hover:text-white hover:bg-card"
             }`}
           aria-label="Report group"
         >
@@ -175,13 +179,14 @@ export default function GroupCard({ group }: GroupCardProps) {
           data-testid="like-button"
           onClick={() => handleLike(group.id)}
           aria-pressed={liked}
-          className={`p-4 rounded-full border border-white/20 bg-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:bg-white/20 transition-all duration-200 ${isAnimating ? "scale-95" : ""
+          aria-label={liked ? "Unlike group" : "Like group"}
+          className={`w-14 h-14 rounded-full border border-white/20 bg-card/80 backdrop-blur-md shadow-lg hover:bg-card flex items-center justify-center transition-all duration-200 cursor-pointer ${isAnimating ? "scale-95" : ""
             }`}
         >
           <Heart
             size={26}
-            fill={liked ? "#FF725E" : "none"}
-            className={liked ? "text-[#FF725E]" : "text-white"}
+            fill={liked ? "var(--color-secondary)" : "none"}
+            className={liked ? "text-secondary" : "text-white"}
           />
         </button>
         <button
@@ -204,12 +209,13 @@ export default function GroupCard({ group }: GroupCardProps) {
             }
           }}
           disabled={isOpeningChat}
-          className="p-4 bg-[#FF725E] rounded-full shadow-[0_0_20px_rgba(255,114,94,0.5)] hover:scale-110 transition-all disabled:opacity-70 disabled:scale-100"
+          aria-label="Send message"
+          className="w-14 h-14 bg-accent text-on-accent rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
         >
           {isOpeningChat ? (
-            <Loader2 className="text-black animate-spin" size={26} />
+            <Loader2 className="text-on-accent animate-spin" size={26} />
           ) : (
-            <MessageCircle className="text-black" fill="black" size={26} />
+            <MessageCircle className="text-on-accent" fill="currentColor" size={26} />
           )}
         </button>
       </div>

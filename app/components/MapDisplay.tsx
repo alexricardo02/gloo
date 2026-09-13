@@ -165,21 +165,19 @@ export default function MapDisplay() {
 
   // Custom DivIcon generator to render clean Tailwind circles instead of default image flags
   const createMarkerIcon = (type: "BAR" | "CLUB" | "USER" | "PARTY") => {
-    let colorClass = "bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)]";
-    let extraClasses = "transition-all duration-300 transform hover:scale-125";
+    let colorClass = "bg-accent shadow-[0_0_12px_rgba(37,99,235,0.6)]";
 
     if (type === "CLUB") {
-      colorClass = "bg-[#FF725E] shadow-[0_0_15px_rgba(255,114,94,0.7)]";
+      colorClass = "bg-primary shadow-[0_0_15px_rgba(124,58,237,0.7)]";
     } else if (type === "BAR") {
       colorClass = "bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.7)]";
     } else if (type === "PARTY") {
-      colorClass = "bg-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.9)]";
-      extraClasses += " animate-pulse";
+      colorClass = "bg-secondary shadow-[0_0_20px_rgba(236,72,153,0.9)] animate-pulse";
     }
 
     return L.divIcon({
       className: "custom-leaflet-marker",
-      html: `<div class="w-5 h-5 rounded-full border-2 border-black ${colorClass} transition-all duration-300 transform hover:scale-125"></div>`,
+      html: `<div class="w-5 h-5 rounded-full border-2 border-background ${colorClass} transition-all duration-300 transform hover:scale-125"></div>`,
       iconSize: [20, 20],
       iconAnchor: [10, 10],
     });
@@ -325,11 +323,11 @@ export default function MapDisplay() {
 
         <Marker position={userPosition} icon={createMarkerIcon("USER")} zIndexOffset={1000}>
           <Popup>
-            <div className="p-1 text-black font-sans">
-              <p className="font-black text-xs uppercase tracking-wider text-blue-600">
+            <div className="p-1 text-foreground font-sans">
+              <p className="font-black text-xs uppercase tracking-wider text-accent">
                 {t("yourLocation")}
               </p>
-              <h3 className="font-bold text-sm mt-0.5 capitalize">
+              <h3 className="font-bold text-sm mt-0.5 capitalize text-foreground">
                 {locationName}
               </h3>
             </div>
@@ -341,26 +339,26 @@ export default function MapDisplay() {
           return (
             <Marker key={venue.id} position={[venue.latitude, venue.longitude]} icon={createMarkerIcon(venue.type as "BAR" | "CLUB")}>
               <Popup>
-                <div className="w-64 p-2 text-black font-sans flex flex-col max-h-72">
-                  <div className="border-b border-gray-100 pb-2 mb-2">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-white ${venue.type === "CLUB" ? "bg-[#FF725E]" : "bg-amber-500"}`}>{venue.type}</span>
-                    <h3 className="font-black text-base mt-1 tracking-tight text-gray-900">{venue.name}</h3>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5"><Users size={12} /><span>{t("groupsAttending", { count: totalGroups })}</span></div>
+                <div className="w-64 p-2 text-foreground font-sans flex flex-col max-h-72">
+                  <div className="border-b border-border pb-2 mb-2">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${venue.type === "CLUB" ? "bg-primary text-on-primary" : "bg-amber-500 text-black"}`}>{venue.type}</span>
+                    <h3 className="font-black text-base mt-1 tracking-tight text-foreground">{venue.name}</h3>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5"><Users size={12} /><span>{t("groupsAttending", { count: totalGroups })}</span></div>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-2 pr-1 my-1 max-h-32 scrollbar-thin">
-                    {totalGroups === 0 ? <p className="text-xs text-gray-400 italic py-2 text-center">{t("noGroups")}</p> : venue.attendees.map((attendance) => (
-                      <div key={attendance.id} className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-xl border border-gray-100">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden relative flex-shrink-0">
-                          {attendance.group.photos?.[0] ? <img src={attendance.group.photos[0]} alt="Group" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-300" />}
+                    {totalGroups === 0 ? <p className="text-xs text-muted-foreground italic py-2 text-center">{t("noGroups")}</p> : venue.attendees.map((attendance) => (
+                      <div key={attendance.id} className="flex items-center gap-2 p-1.5 bg-muted/50 rounded-xl border border-border">
+                        <div className="w-8 h-8 rounded-full bg-muted overflow-hidden relative flex-shrink-0">
+                          {attendance.group.photos?.[0] ? <img src={attendance.group.photos[0]} alt="Group" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-muted" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-800 truncate">{attendance.group.user?.name || "Group"}</p>
-                          <p className="text-[10px] text-gray-500">{attendance.group.membersCount} members</p>
+                          <p className="text-xs font-bold text-foreground truncate">{attendance.group.user?.name || "Group"}</p>
+                          <p className="text-[10px] text-muted-foreground">{attendance.group.membersCount} members</p>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <button onClick={() => handleRsvpToggle(venue.id)} disabled={loadingActionId === venue.id} className="w-full mt-3 bg-black text-white text-xs font-black uppercase tracking-widest py-2.5 rounded-xl transition-all active:scale-95 hover:bg-gray-900 flex items-center justify-center gap-1.5 disabled:opacity-50">
+                  <button onClick={() => handleRsvpToggle(venue.id)} disabled={loadingActionId === venue.id} className="w-full mt-3 bg-accent text-on-accent text-xs font-black uppercase tracking-widest py-3 rounded-xl transition-all active:scale-95 hover:opacity-90 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 min-h-[44px]">
                     {loadingActionId === venue.id ? <span className="animate-pulse">{t("processing")}</span> : <><Check size={14} /> {t("toggleRsvp")}</>}
                   </button>
                 </div>
@@ -382,22 +380,22 @@ export default function MapDisplay() {
           return (
             <Marker key={party.id} position={[party.latitude, party.longitude]} icon={createMarkerIcon("PARTY")} zIndexOffset={500}>
               <Popup>
-                <div className="w-64 p-2 text-black font-sans flex flex-col">
-                  <div className="border-b border-gray-100 pb-2 mb-2">
-                    <span className="bg-pink-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mb-1 inline-block">{t("partyLabel")}</span>
-                    <h3 className="font-black text-lg leading-tight mt-1">Host: {party.owner.name}</h3>
-                    {party.owner.group && <p className="text-xs font-bold text-gray-600 mb-2">{party.owner.group.membersCount} members</p>}
-                    <div className="bg-gray-100 text-[10px] font-bold text-gray-500 px-2 py-1 rounded mb-1 flex items-center gap-1">{party.locationName}</div>
+                <div className="w-64 p-2 text-foreground font-sans flex flex-col">
+                  <div className="border-b border-border pb-2 mb-2">
+                    <span className="bg-secondary text-on-secondary text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mb-1 inline-block">{t("partyLabel")}</span>
+                    <h3 className="font-black text-lg leading-tight mt-1 text-foreground">Host: {party.owner.name}</h3>
+                    {party.owner.group && <p className="text-xs font-bold text-muted-foreground mb-2">{party.owner.group.membersCount} members</p>}
+                    <div className="bg-muted text-[10px] font-bold text-muted-foreground px-2 py-1 rounded mb-1 flex items-center gap-1">{party.locationName}</div>
                   </div>
 
                   {(isHost || isAccepted) && acceptedAttendees.length > 0 && (
                     <div className="mb-2">
-                      <p className="text-[10px] font-bold uppercase text-gray-500 mb-1">{t("confirmedGuests")}</p>
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">{t("confirmedGuests")}</p>
                       <div className="overflow-y-auto max-h-24 space-y-1.5 scrollbar-thin">
                         {acceptedAttendees.map(att => (
-                          <div key={att.id} className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-xl border border-gray-100">
-                            <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden"><img src={att.group.photos?.[0]} className="w-full h-full object-cover" /></div>
-                            <div className="text-xs font-bold truncate flex-1">{att.group.user.name}</div>
+                          <div key={att.id} className="flex items-center gap-2 p-1.5 bg-muted/50 rounded-xl border border-border">
+                            <div className="w-6 h-6 rounded-full bg-muted overflow-hidden"><img src={att.group.photos?.[0]} className="w-full h-full object-cover" /></div>
+                            <div className="text-xs font-bold truncate flex-1 text-foreground">{att.group.user.name}</div>
                           </div>
                         ))}
                       </div>
@@ -405,18 +403,18 @@ export default function MapDisplay() {
                   )}
 
                   {isHost && pendingAttendees.length > 0 && (
-                    <div className="mt-2 border-t border-pink-100 pt-2">
-                      <p className="text-[10px] font-bold uppercase text-pink-500 mb-1 animate-pulse">{t("pendingRequests")} ({pendingAttendees.length})</p>
+                    <div className="mt-2 border-t border-border pt-2">
+                      <p className="text-[10px] font-bold uppercase text-secondary mb-1 animate-pulse">{t("pendingRequests")} ({pendingAttendees.length})</p>
                       <div className="overflow-y-auto max-h-28 space-y-1.5 scrollbar-thin">
                         {pendingAttendees.map(req => (
-                          <div key={req.id} className="flex items-center justify-between p-1.5 bg-pink-50/50 rounded-xl border border-pink-100">
+                          <div key={req.id} className="flex items-center justify-between p-1.5 bg-secondary/10 rounded-xl border border-secondary/20">
                             <div className="flex items-center gap-2 overflow-hidden">
-                              <div className="w-6 h-6 rounded-full bg-gray-200 overflow-hidden shrink-0"><img src={req.group.photos?.[0]} className="w-full h-full object-cover" /></div>
-                              <div className="text-xs font-bold truncate text-gray-800">{req.group.user.name}</div>
+                              <div className="w-6 h-6 rounded-full bg-muted overflow-hidden shrink-0"><img src={req.group.photos?.[0]} className="w-full h-full object-cover" /></div>
+                              <div className="text-xs font-bold truncate text-foreground">{req.group.user.name}</div>
                             </div>
                             <div className="flex gap-1 shrink-0">
-                              <button onClick={() => handleRespondRequest(req.id, true)} className="bg-white p-1 rounded hover:bg-green-50 text-green-600 shadow-sm border border-gray-100"><Check size={14} strokeWidth={3} /></button>
-                              <button onClick={() => handleRespondRequest(req.id, false)} className="bg-white p-1 rounded hover:bg-red-50 text-red-600 shadow-sm border border-gray-100"><X size={14} strokeWidth={3} /></button>
+                              <button onClick={() => handleRespondRequest(req.id, true)} aria-label="Accept attendance" className="bg-green-600 hover:bg-green-500 text-white min-w-[36px] min-h-[36px] p-2 rounded-lg flex items-center justify-center cursor-pointer shadow-sm"><Check size={14} strokeWidth={3} /></button>
+                              <button onClick={() => handleRespondRequest(req.id, false)} aria-label="Reject attendance" className="bg-destructive hover:opacity-90 text-on-destructive min-w-[36px] min-h-[36px] p-2 rounded-lg flex items-center justify-center cursor-pointer shadow-sm"><X size={14} strokeWidth={3} /></button>
                             </div>
                           </div>
                         ))}
@@ -427,15 +425,15 @@ export default function MapDisplay() {
                   {!isHost && (
                     <div className="mt-2">
                       {isAccepted ? (
-                        <button onClick={() => handleOpenChat(party.ownerId)} disabled={isProcessingParty} className="w-full bg-pink-500 hover:bg-pink-600 text-white text-xs font-black uppercase tracking-widest py-2.5 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95">
+                        <button onClick={() => handleOpenChat(party.ownerId)} disabled={isProcessingParty} className="w-full bg-accent hover:opacity-90 text-on-accent text-xs font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer min-h-[44px]">
                           {isProcessingParty ? t("opening") : <><MessageCircle size={14} /> {t("chatInfo")}</>}
                         </button>
                       ) : isPending ? (
-                        <button disabled className="w-full bg-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-widest py-2.5 rounded-xl flex items-center justify-center gap-1.5 border border-gray-300">
+                        <button disabled className="w-full bg-muted text-muted-foreground text-[10px] font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-1.5 border border-border min-h-[44px]">
                           <Clock size={14} /> {t("requestPending")}
                         </button>
                       ) : (
-                        <button onClick={() => handleRequestAccess(party.id)} disabled={loadingActionId === party.id} className="w-full bg-black hover:bg-gray-900 text-pink-400 text-xs font-black uppercase tracking-widest py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-transform active:scale-95 shadow-md">
+                        <button onClick={() => handleRequestAccess(party.id)} disabled={loadingActionId === party.id} className="w-full bg-secondary hover:opacity-90 text-on-secondary text-xs font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-1.5 transition-transform active:scale-95 shadow-md cursor-pointer min-h-[44px]">
                           {loadingActionId === party.id ? t("sending") : t("requestAccess")}
                         </button>
                       )}
@@ -448,12 +446,13 @@ export default function MapDisplay() {
         })}
       </MapContainer>
 
-      <div className="absolute bottom-20 right-4 z-[1000]">          <button
+      <div className="absolute bottom-24 right-4 z-[1000]">
+        <button
           onClick={() => setIsSheetOpen(true)}
           data-testid="share-location-btn"
-          className={`h-12 px-5 rounded-full flex items-center gap-2 transition-all duration-300 shadow-2xl font-sans text-xs font-black uppercase tracking-wider ${myEvent
-              ? "bg-pink-500 border border-white text-white animate-pulse"
-              : "bg-[#111] border border-[#FF725E] text-[#FF725E] hover:scale-105 active:scale-95"
+          className={`h-12 px-5 rounded-full flex items-center gap-2 transition-all duration-300 shadow-2xl font-sans text-xs font-black uppercase tracking-wider cursor-pointer ${myEvent
+              ? "bg-secondary border border-white text-on-secondary animate-pulse"
+              : "bg-card/90 backdrop-blur-md border border-primary text-primary hover:bg-card hover:scale-105 active:scale-95"
             }`}
         >
           {myEvent ? (
@@ -473,34 +472,34 @@ export default function MapDisplay() {
       {isSheetOpen && (
         <div className="absolute inset-0 z-[2000] flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSheetOpen(false)} />
-          <div className="relative bg-[#111] border-t border-white/10 rounded-t-3xl p-6 pb-10 animate-in slide-in-from-bottom shadow-2xl">
+          <div className="relative bg-card border-t border-border rounded-t-3xl p-6 pb-10 animate-in slide-in-from-bottom shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black uppercase tracking-widest text-white flex items-center gap-2"><Flame className="text-[#FF725E]" /> {t("partyLabel")}</h2>
-              <button onClick={() => setIsSheetOpen(false)} className="text-gray-400 hover:text-white bg-white/5 p-1 rounded-full"><X size={20} /></button>
+              <h2 className="text-xl font-black uppercase tracking-widest text-foreground flex items-center gap-2"><Flame className="text-secondary" /> {t("partyLabel")}</h2>
+              <button onClick={() => setIsSheetOpen(false)} className="text-muted-foreground hover:text-foreground bg-muted p-1.5 rounded-full cursor-pointer"><X size={20} /></button>
             </div>
 
             {myEvent ? (
               <div className="space-y-6">
-                <div className="bg-pink-500/10 border border-pink-500/20 p-4 rounded-2xl flex flex-col items-center">
-                  <p className="text-xs uppercase font-bold text-pink-500 mb-1">{t("timeRemaining")}</p>
-                  <p className="text-4xl font-black text-white tabular-nums tracking-tighter">{timeLeft}</p>
-                  <p className="text-[10px] text-gray-400 mt-2 text-center">{t("privacyNote")}</p>
+                <div className="bg-secondary/10 border border-secondary/20 p-4 rounded-2xl flex flex-col items-center">
+                  <p className="text-xs uppercase font-bold text-secondary mb-1">{t("timeRemaining")}</p>
+                  <p className="text-4xl font-black text-foreground tabular-nums tracking-tighter">{timeLeft}</p>
+                  <p className="text-[10px] text-muted-foreground mt-2 text-center">{t("privacyNote")}</p>
                 </div>
-                <button onClick={handleStopParty} disabled={isProcessingParty} className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-4 rounded-xl uppercase tracking-widest flex justify-center items-center gap-2">
+                <button onClick={handleStopParty} disabled={isProcessingParty} className="w-full bg-destructive hover:opacity-90 text-on-destructive font-black py-4 rounded-xl uppercase tracking-widest flex justify-center items-center gap-2 cursor-pointer min-h-[44px]">
                   {isProcessingParty ? t("processing") : t("stopParty")}
                 </button>
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-sm text-gray-400 leading-relaxed mb-4">Share your location to invite other groups to your pre-party. Move the map to the desired location before creating.</p>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">Share your location to invite other groups to your pre-party. Move the map to the desired location before creating.</p>
                 <div>
-                  <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">{t("descriptionLabel")}</label>
-                  <input type="text" value={partyDescription} onChange={(e) => setPartyDescription(e.target.value)} placeholder={t("descriptionPlaceholder")} className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-pink-500 transition-colors placeholder:text-gray-700" />
+                  <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">{t("descriptionLabel")}</label>
+                  <input type="text" value={partyDescription} onChange={(e) => setPartyDescription(e.target.value)} placeholder={t("descriptionPlaceholder")} className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50" />
                 </div>
-                <div className="bg-[#1a1a1a] p-3 rounded-xl border border-white/5 flex items-start gap-3 mt-4">
-                  <p className="text-xs text-gray-400 leading-tight"><strong className="text-white">{t("privacySafeLabel")}</strong> We will mark the current center of your map, but your exact street/house number will be <span className="text-pink-400 font-bold">hidden</span> until you chat with a match.</p>
+                <div className="bg-muted/50 p-3 rounded-xl border border-border flex items-start gap-3 mt-4">
+                  <p className="text-xs text-muted-foreground leading-tight"><strong className="text-foreground">{t("privacySafeLabel")}</strong> We will mark the current center of your map, but your exact street/house number will be <span className="text-secondary font-bold">hidden</span> until you chat with a match.</p>
                 </div>
-                <button onClick={handleStartParty} disabled={isProcessingParty} className="w-full bg-pink-500 hover:bg-pink-600 text-white font-black py-4 rounded-xl uppercase tracking-widest mt-6 shadow-[0_0_20px_rgba(236,72,153,0.3)] active:scale-95 transition-all flex justify-center items-center">
+                <button onClick={handleStartParty} disabled={isProcessingParty} className="w-full bg-accent hover:opacity-90 text-on-accent font-black py-4 rounded-xl uppercase tracking-widest mt-6 shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95 transition-all flex justify-center items-center cursor-pointer min-h-[48px]">
                   {isProcessingParty ? t("processing") : t("shareLocation")}
                 </button>
               </div>

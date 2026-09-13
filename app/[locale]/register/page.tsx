@@ -120,14 +120,14 @@ export default function RegisterPage() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
-        <div className="w-full max-w-md bg-white rounded-[2.5rem] p-8 shadow-xl flex flex-col items-center text-center">
-          <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans">
+        <div className="w-full max-w-md bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full flex items-center justify-center mb-6">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4" data-testid="register-success">{t("successTitle")}</h2>
-          <p className="text-gray-600 mb-8">{t("successCheckEmail")}</p>
-          <Link href={`/${locale}/login`} className="w-full bg-[#FF725E] text-white rounded-full py-4 font-semibold hover:bg-[#ff5f49] transition-colors">
+          <h2 className="text-2xl font-bold text-foreground mb-4" data-testid="register-success">{t("successTitle")}</h2>
+          <p className="text-muted-foreground mb-8">{t("successCheckEmail")}</p>
+          <Link href={`/${locale}/login`} className="w-full bg-accent text-on-accent rounded-full py-4 font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-accent/20">
             {t("goToLogin")}
           </Link>
         </div>
@@ -136,8 +136,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans py-12">
-      <div className="w-full max-w-md bg-white rounded-[2.5rem] px-8 pb-8 pt-6 shadow-xl flex flex-col">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans py-12">
+      <div className="w-full max-w-md bg-card border border-border rounded-[2.5rem] px-8 pb-8 pt-6 shadow-2xl flex flex-col">
 
         <div className="flex items-center mb-6">
           <button
@@ -145,7 +145,7 @@ export default function RegisterPage() {
               sessionStorage.removeItem("gloo_register_data");
               router.push(`/${locale}/login`);
             }}
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
+            className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
             aria-label="Go to Dashboard"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
@@ -155,13 +155,13 @@ export default function RegisterPage() {
         </div>
 
         <div className="mb-8 relative z-0">
-          <h1 className="text-3xl font-extrabold text-black mb-2">{t('title')}</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-3xl font-extrabold text-foreground mb-2">{t('title')}</h1>
+          <p className="text-sm text-muted-foreground">
             {t('alreadyHaveAccount')}
             <Link
               href={`/${locale}/login`}
               onClick={() => sessionStorage.removeItem("gloo_register_data")}
-              className="text-black font-bold hover:underline ml-1"
+              className="text-primary font-bold hover:underline ml-1"
             >
               {t('signIn')}
             </Link>
@@ -169,7 +169,7 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div data-testid="register-error-msg" className="bg-red-50 text-red-600 p-4 rounded-xl w-full text-sm text-center font-medium mb-6">
+          <div data-testid="register-error-msg" className="bg-destructive/10 text-destructive border border-destructive/20 p-4 rounded-xl w-full text-sm text-center font-medium mb-6">
             {t(error)}
           </div>
         )}
@@ -177,8 +177,8 @@ export default function RegisterPage() {
         <form action={handleSubmit} className="flex flex-col gap-4" data-testid="register-form">
 
           <div className="flex gap-4">
-            <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all w-full">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
+            <div className="relative flex items-center bg-background border border-border rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all w-full">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-muted-foreground shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
               </svg>
               <input
@@ -189,18 +189,18 @@ export default function RegisterPage() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('namePlaceholder')}
                 required
-                className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium"
+                className="bg-transparent outline-none w-full ml-3 text-foreground placeholder:text-muted-foreground/50 font-medium"
               />
             </div>
           </div>
 
-          <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all w-full overflow-hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
+          <div className="relative flex items-center bg-background border border-border rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all w-full overflow-hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-muted-foreground shrink-0">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
             </svg>
 
             {!dob && !isDobFocused && (
-              <span className="absolute left-[3.25rem] text-gray-400 font-medium pointer-events-none">
+              <span className="absolute left-[3.25rem] text-muted-foreground/50 font-medium pointer-events-none">
                 {t('dobPlaceholder')}
               </span>
             )}
@@ -216,13 +216,13 @@ export default function RegisterPage() {
               onBlur={() => setIsDobFocused(false)}
               onChange={(e) => setDob(e.target.value)}
               className={`bg-transparent outline-none w-full ml-3 font-medium cursor-pointer relative z-10 
-                ${(dob || isDobFocused) ? 'text-gray-800' : 'text-transparent'} 
+                ${(dob || isDobFocused) ? 'text-foreground' : 'text-transparent'} 
                 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
             />
           </div>
 
-          <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
+          <div className="relative flex items-center bg-background border border-border rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-muted-foreground shrink-0">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
             </svg>
             <input
@@ -233,13 +233,13 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t('emailPlaceholder')}
               required
-              className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium"
+              className="bg-transparent outline-none w-full ml-3 text-foreground placeholder:text-muted-foreground/50 font-medium"
             />
           </div>
 
           <div className="flex flex-col w-full gap-1">
-            <div className={`relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 transition-all w-full ${isUsernameAvailable === false ? 'ring-2 ring-red-500/50' : isUsernameAvailable === true ? 'ring-2 ring-green-500/50' : 'focus-within:ring-black/20'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
+            <div className={`relative flex items-center bg-background border rounded-2xl px-4 py-4 focus-within:ring-2 transition-all w-full ${isUsernameAvailable === false ? 'border-destructive ring-2 ring-destructive/30' : isUsernameAvailable === true ? 'border-green-500 ring-2 ring-green-500/30' : 'border-border focus-within:ring-primary focus-within:border-primary'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-muted-foreground shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
               </svg>
               <input
@@ -250,39 +250,38 @@ export default function RegisterPage() {
                 onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
                 placeholder={t('usernamePlaceholder')}
                 required
-                className="bg-transparent outline-none w-full ml-2 text-gray-800 placeholder-gray-400 font-medium pr-8"
+                className="bg-transparent outline-none w-full ml-2 text-foreground placeholder:text-muted-foreground/50 font-medium pr-8"
               />
-
 
               <div className="absolute right-4 flex items-center justify-center">
                 {isCheckingUsername && (
-                  <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin"></div>
                 )}
                 {!isCheckingUsername && isUsernameAvailable === true && (
                   <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                 )}
                 {!isCheckingUsername && isUsernameAvailable === false && (
-                  <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  <svg className="w-5 h-5 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 )}
               </div>
             </div>
 
             <div className="ml-3 h-4">
               {!isCheckingUsername && isUsernameAvailable === false && username.length >= 3 && (
-                <span className="text-[11px] text-red-500 font-bold">{t('usernameTakenError')}</span>
+                <span className="text-[11px] text-destructive font-bold">{t('usernameTakenError')}</span>
               )}
               {!isCheckingUsername && isUsernameAvailable === true && username.length >= 3 && (
-                <span className="text-[11px] text-green-600 font-bold">{t('usernameAvailable')}</span>
+                <span className="text-[11px] text-green-500 font-bold">{t('usernameAvailable')}</span>
               )}
               {username.length > 0 && username.length < 3 && (
-                <span className="text-[11px] text-gray-400 font-medium">{t('usernameTooShort')}</span>
+                <span className="text-[11px] text-muted-foreground font-medium">{t('usernameTooShort')}</span>
               )}
             </div>
           </div>
 
           <div className="flex flex-col w-full gap-1">
-            <div className={`relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 transition-all ${password.length > 0 && isPasswordStrong ? 'ring-2 ring-green-500/50' : 'focus-within:ring-black/20'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-500 shrink-0">
+            <div className={`relative flex items-center bg-background border rounded-2xl px-4 py-4 focus-within:ring-2 transition-all ${password.length > 0 && isPasswordStrong ? 'border-green-500 ring-2 ring-green-500/30' : 'border-border focus-within:ring-primary focus-within:border-primary'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-muted-foreground shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
               </svg>
               <input
@@ -293,12 +292,12 @@ export default function RegisterPage() {
                 onChange={handlePasswordChange}
                 placeholder={t('passwordPlaceholder')}
                 required
-                className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium pr-8"
+                className="bg-transparent outline-none w-full ml-3 text-foreground placeholder:text-muted-foreground/50 font-medium pr-8"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="absolute right-4 text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 shrink-0">
@@ -316,22 +315,22 @@ export default function RegisterPage() {
             {password.length > 0 && (
               <div className="flex flex-col gap-1.5 px-3 mt-1">
                 <div className="flex gap-2">
-                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.length ? 'bg-green-500' : 'bg-gray-200'}`}></div>
-                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.uppercase ? 'bg-green-500' : 'bg-gray-200'}`}></div>
-                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.number ? 'bg-green-500' : 'bg-gray-200'}`}></div>
-                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.special ? 'bg-green-500' : 'bg-gray-200'}`}></div>
+                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.length ? 'bg-green-500' : 'bg-muted'}`}></div>
+                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.uppercase ? 'bg-green-500' : 'bg-muted'}`}></div>
+                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.number ? 'bg-green-500' : 'bg-muted'}`}></div>
+                  <div className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${pwdCriteria.special ? 'bg-green-500' : 'bg-muted'}`}></div>
                 </div>
-                <div className="grid grid-cols-2 gap-1 text-[11px] text-gray-400 font-semibold mt-1">
-                  <span className={`transition-colors duration-300 ${pwdCriteria.length ? "text-green-600" : ""}`}>
+                <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground font-semibold mt-1">
+                  <span className={`transition-colors duration-300 ${pwdCriteria.length ? "text-green-500" : ""}`}>
                     {pwdCriteria.length ? "✓" : "○"} {t('pwdMinChars')}
                   </span>
-                  <span className={`transition-colors duration-300 ${pwdCriteria.uppercase ? "text-green-600" : ""}`}>
+                  <span className={`transition-colors duration-300 ${pwdCriteria.uppercase ? "text-green-500" : ""}`}>
                     {pwdCriteria.uppercase ? "✓" : "○"} {t('pwdUppercase')}
                   </span>
-                  <span className={`transition-colors duration-300 ${pwdCriteria.number ? "text-green-600" : ""}`}>
+                  <span className={`transition-colors duration-300 ${pwdCriteria.number ? "text-green-500" : ""}`}>
                     {pwdCriteria.number ? "✓" : "○"} {t('pwdNumber')}
                   </span>
-                  <span className={`transition-colors duration-300 ${pwdCriteria.special ? "text-green-600" : ""}`}>
+                  <span className={`transition-colors duration-300 ${pwdCriteria.special ? "text-green-500" : ""}`}>
                     {pwdCriteria.special ? "✓" : "○"} {t('pwdSpecial')}
                   </span>
                 </div>
@@ -345,10 +344,10 @@ export default function RegisterPage() {
               id="terms"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-1 w-5 h-5 rounded border-gray-300 text-black accent-black focus:ring-black cursor-pointer"
+              className="mt-1 w-5 h-5 rounded border-border text-primary accent-primary focus:ring-primary cursor-pointer"
             />
-            <label htmlFor="terms" className="text-sm text-gray-600 font-medium leading-tight cursor-pointer">
-              {t('agreePrefix')}<Link href="/termsOfService" className="text-black font-bold hover:underline">{t('termsOfService')}</Link> {t('and')} <Link href="/privacyPolicy" className="text-black font-bold hover:underline">{t('privacyPolicy')}</Link>.
+            <label htmlFor="terms" className="text-sm text-muted-foreground font-medium leading-tight cursor-pointer">
+              {t('agreePrefix')}<Link href="/termsOfService" className="text-foreground font-bold hover:underline">{t('termsOfService')}</Link> {t('and')} <Link href="/privacyPolicy" className="text-foreground font-bold hover:underline">{t('privacyPolicy')}</Link>.
             </label>
           </div>
 
@@ -357,9 +356,9 @@ export default function RegisterPage() {
               type="submit"
               data-testid="register-submit-btn"
               disabled={!agreed}
-              className={`w-full font-black py-4 rounded-full text-sm uppercase tracking-widest transition-all ${agreed
-                  ? "bg-[#FF725E] text-black hover:scale-[1.01] active:scale-[0.99] shadow-xl shadow-[#FF725E]/10 cursor-pointer"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed opacity-70"
+              className={`w-full font-black py-4 rounded-full text-sm uppercase tracking-widest transition-all min-h-[48px] ${agreed
+                  ? "bg-accent hover:opacity-90 text-on-accent hover:scale-[1.01] active:scale-[0.99] shadow-xl shadow-accent/20 cursor-pointer"
+                  : "bg-muted text-muted-foreground cursor-not-allowed opacity-70"
                 }`}
             >
               {t("createAccountButton")}
@@ -368,13 +367,13 @@ export default function RegisterPage() {
         </form>
 
         <div className="flex items-center my-6">
-          <hr className="flex-grow border-gray-200" />
-          <span className="px-4 text-gray-400 text-sm">{t('orSignUpWith')}</span>
-          <hr className="flex-grow border-gray-200" />
+          <hr className="flex-grow border-border" />
+          <span className="px-4 text-muted-foreground text-sm">{t('orSignUpWith')}</span>
+          <hr className="flex-grow border-border" />
         </div>
 
         <div className="flex justify-center gap-4">
-          <button className="w-14 h-14 bg-[#F7F7F7] rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+          <button className="w-14 h-14 bg-background border border-border rounded-2xl flex items-center justify-center hover:bg-muted transition-colors cursor-pointer">
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -382,15 +381,15 @@ export default function RegisterPage() {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
             </svg>
           </button>
-          <button className="w-14 h-14 bg-[#F7F7F7] rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors">
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="black" xmlns="http://www.w3.org/2000/svg">
+          <button className="w-14 h-14 bg-background border border-border rounded-2xl flex items-center justify-center hover:bg-muted transition-colors cursor-pointer">
+            <svg className="w-6 h-6 text-foreground" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.126 3.822 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.665-1.48 3.666-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2.025-.156-4.013 1.09-4.63 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.56-1.702z" />
             </svg>
           </button>
         </div>
 
         <div className="mt-6">
-          <SocialLinks variant="light" />
+          <SocialLinks variant="dark" />
         </div>
       </div>
     </div>
