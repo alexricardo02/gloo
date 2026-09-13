@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { createGroupAction, getGroupByUser } from "@/app/actions/group";
@@ -253,7 +254,8 @@ export default function CreateGroupPage() {
         <button
           type="button"
           onClick={() => router.back()}
-          className="p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+          className="p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+          aria-label="Back"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -275,9 +277,14 @@ export default function CreateGroupPage() {
           {isEditing ? t("editGroupTitle") : t("title")}
         </h1>
 
-        <div className="w-10 h-10 flex items-center justify-center text-gray-500">
-          ⓘ
-        </div>
+        <Link
+          href={`/${locale}/search-groups`}
+          data-testid="skip-create-group-btn"
+          className="min-h-[44px] px-3.5 py-2 text-xs font-bold text-gray-400 hover:text-white transition-colors flex items-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 cursor-pointer"
+        >
+          <span>{t("skipForNow")}</span>
+          <X className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       <form onSubmit={onSubmit} className="px-6 space-y-8" data-testid="create-group-form">
@@ -706,6 +713,17 @@ export default function CreateGroupPage() {
                 ? t("updateProfile")
                 : t("createGroupButton")}
           </button>
+
+          {!isEditing && (
+            <div className="text-center pt-2">
+              <Link
+                href={`/${locale}/search-groups`}
+                className="text-xs font-bold text-gray-400 hover:text-white hover:underline transition-colors py-2 inline-flex items-center justify-center min-h-[44px]"
+              >
+                {t("skipForNow")} — {t("createLater")}
+              </Link>
+            </div>
+          )}
         </div>
       </form>
 

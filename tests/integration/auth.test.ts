@@ -8,6 +8,7 @@ import {
   resetPassword,
   deleteAccountAction,
 } from "@/app/actions/auth";
+import { verifyAccountAction } from "@/app/actions/verify";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 
@@ -607,6 +608,92 @@ describe("Auth Actions (Integration)", () => {
 
       const result = await deleteAccountAction("en");
       expect(result).toEqual({ error: "Unauthorized" });
+    });
+  });
+
+  // ── Registration Redirection & Session Creation ──────────────────────────────
+
+  describe("Registration Redirection & Activation", () => {
+    it("should redirect user to /profile/create-group upon email verification activation", async () => {
+      const email = testEmail("regredirect");
+      const username = testUsername("regredirect");
+
+      // 1. User registers
+      const regResult = await registerUser(
+        createFormData({
+          name: "Redirect Integration",
+          email,
+          username,
+          password: "ValidPass123!",
+          birthDate: adultBirthDate(),
+        }),
+        "en"
+      );
+
+      expect(regResult).toEqual({ success: true, needsVerification: true });
+
+      // 2. Query user to get generated verificationToken
+      const user = await prisma.user.findUnique({ where: { email } });
+      expect(user).not.toBeNull();
+      expect(user!.isVerified).toBe(false);
+      expect(user!.verificationToken).not.toBeNull();
+
+      const token = user!.verificationToken!;
+
+      // 3. Simulate email confirmation link click
+      const mockSet = vi.fn();
+      const mockDelete = vi.fn();
+      vi.mocked(cookies).mockResolvedValue({
+        set: mockSet,
+        delete: mockDelete,
+        get: vi.fn(),
+      } as any);
+
+      try {
+        await verifyAccountAction(token, "en");
+        expect.unreachable("Expected redirect to throw NEXT_REDIRECT");
+      } catch (e: any) {
+        expect(e.message).toContain("NEXT_REDIRECT:/en/profile/create-group");
+      }
+
+      // 4. Assert user is now verified in database
+      const activatedUser = await prisma.user.findUnique({ where: { email } });
+      expect(activatedUser!.isVerified).toBe(true);
+      expect(activatedUser!.verificationToken).toBeNull();
+
+      // 5. Assert session cookie was created
+      expect(mockSet).toHaveBeenCalledWith("gloo_user_id", user!.id, expect.any(Object));
+      expect(mockDelete).toHaveBeenCalledWith("gloo_is_guest");
+    });
+
+    it("should preserve dynamic locale in redirection target (de locale)", async () => {
+      const email = testEmail("delocale");
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name: "German User",
+          username: testUsername("delocale"),
+          password: await bcrypt.hash("ValidPass123!", 10),
+          birthDate: new Date("2000-01-01"),
+          isVerified: false,
+          verificationToken: `token-${uid()}`,
+          verificationTokenExpiry: new Date(Date.now() + 1000 * 60 * 60),
+        },
+      });
+
+      const mockSet = vi.fn();
+      vi.mocked(cookies).mockResolvedValue({
+        set: mockSet,
+        delete: vi.fn(),
+        get: vi.fn(),
+      } as any);
+
+      try {
+        await verifyAccountAction(user.verificationToken!, "de");
+        expect.unreachable("Expected redirect to throw");
+      } catch (e: any) {
+        expect(e.message).toContain("NEXT_REDIRECT:/de/profile/create-group");
+      }
     });
   });
 });

@@ -6,23 +6,23 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Color Palette ─────────────────────────────────────────────────────── */
-  --color-primary: #7C3AED;
-  --color-on-primary: #FFFFFF;
-  --color-secondary: #EC4899;
+  /* ── Color Palette: Gloo Nightlife (Black, Gray & Coral Orange) ─── */
+  --color-primary: #FF725E;
+  --color-on-primary: #000000;
+  --color-secondary: #FF8F7E;
   --color-on-secondary: #000000;
-  --color-accent: #2563EB;
-  --color-on-accent: #FFFFFF;
-  --color-background: #0F172A;
-  --color-foreground: #F8FAFC;
-  --color-card: #111827;
-  --color-card-foreground: #F8FAFC;
-  --color-muted: #1E293B;
-  --color-muted-foreground: #CBD5E1;
-  --color-border: #334155;
-  --color-destructive: #DC2626;
+  --color-accent: #FF725E;
+  --color-on-accent: #000000;
+  --color-background: #000000;
+  --color-foreground: #FFFFFF;
+  --color-card: #121212;
+  --color-card-foreground: #FFFFFF;
+  --color-muted: #1A1A1A;
+  --color-muted-foreground: #9CA3AF;
+  --color-border: #27272A;
+  --color-destructive: #EF4444;
   --color-on-destructive: #FFFFFF;
-  --color-ring: #7C3AED;
+  --color-ring: #FF725E;
 
   /* ── Spacing Scale ─────────────────────────────────────────────────────── */
   --space-xs: 0.25rem;   /* 4px  – Tight gaps */

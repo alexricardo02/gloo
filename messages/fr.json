@@ -419,7 +419,9 @@
     "photoRequiredDesc": "Vous devez télécharger au moins une photo de votre groupe pour continuer. Montrez votre style à la communauté !",
     "gotIt": "Compris",
     "updateProfile": "Mettre à jour le profil",
-    "locationRequired": "Emplacement requis pour mettre à jour le groupe."
+    "locationRequired": "Emplacement requis pour mettre à jour le groupe.",
+    "skipForNow": "Passer pour l'instant",
+    "createLater": "Vous pouvez créer ou rejoindre un groupe à tout moment depuis votre profil."
   },
   "Messages": {
     "emptyDesc": "Matchez avec d'autres groupes dans le carrousel pour commencer à discuter.",
@@ -551,5 +553,15 @@
     "opening": "Ouverture...",
     "chatInfo": "Chat / Info",
     "sending": "Envoi..."
+  },
+  "GeolocationModal": {
+    "title": "Accès à la localisation requis",
+    "message": "Nous avons besoin de votre position pour afficher les groupes, lieux et événements autour de vous.",
+    "permissionDenied": "L'accès à la localisation a été refusé. Veuillez autoriser la localisation dans les paramètres de votre navigateur ou appareil.",
+    "positionUnavailable": "Votre position est actuellement indisponible. Veuillez vérifier votre GPS ou votre connexion réseau.",
+    "timeout": "La demande de localisation a expiré. Veuillez réessayer.",
+    "troubleshooting": "Pour activer la localisation : Vérifiez les paramètres de votre navigateur ou de votre système et autorisez l'accès à la localisation pour Gloo.",
+    "retry": "Réessayer",
+    "dismiss": "Continuer quand même"
   }
 }

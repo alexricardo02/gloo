@@ -139,7 +139,7 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
           onClick={handleOpenChat}
           disabled={isOpeningChat}
           aria-label="Open chat"
-          className="min-w-[44px] min-h-[44px] bg-accent text-on-accent rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
+          className="min-w-[44px] min-h-[44px] bg-accent text-on-accent rounded-full shadow-[0_0_15px_rgba(255,114,94,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
         >
           {isOpeningChat ? (
             <Loader2 className="text-on-accent animate-spin" size={18} />

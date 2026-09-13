@@ -535,7 +535,9 @@
     "photoRequiredDesc": "Du musst mindestens ein Foto hochladen, um fortzufahren. Zeig der Community euren Vibe!",
     "gotIt": "Verstanden",
     "updateProfile": "Profil aktualisieren",
-    "locationRequired": "Standort erforderlich, um die Gruppe zu aktualisieren."
+    "locationRequired": "Standort erforderlich, um die Gruppe zu aktualisieren.",
+    "skipForNow": "Vorerst überspringen",
+    "createLater": "Du kannst jederzeit in deinem Profil eine Gruppe erstellen oder beitreten."
   },
   "Messages": {
     "emptyDesc": "Matche mit anderen Gruppen im Karussell, um einen Chat zu starten.",
@@ -695,5 +697,15 @@
     "invalidToken": "Dieser Bestätigungslink ist ungültig oder wurde bereits verwendet.",
     "verifying": "Wird verifiziert...",
     "button": "Hier klicken zur Verifizierung"
+  },
+  "GeolocationModal": {
+    "title": "Standortzugriff erforderlich",
+    "message": "Wir benötigen deinen Standort, um Gruppen, Locations und Events in deiner Nähe anzuzeigen.",
+    "permissionDenied": "Der Zugriff auf den Standort wurde verweigert. Bitte aktiviere die Standortberechtigungen in deinen Browser- oder Geräteeinstellungen.",
+    "positionUnavailable": "Dein Standort ist derzeit nicht verfügbar. Bitte überprüfe dein GPS oder deine Netzwerkverbindung.",
+    "timeout": "Die Standortabfrage hat zu lange gedauert. Bitte versuche es erneut.",
+    "troubleshooting": "So aktivierst du den Standort: Öffne die Website-Einstellungen deines Browsers oder die Datenschutzeinstellungen deines Betriebssystems und erlaube den Standortzugriff für Gloo.",
+    "retry": "Erneut versuchen",
+    "dismiss": "Trotzdem fortfahren"
   }
 }

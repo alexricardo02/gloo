@@ -107,6 +107,9 @@ export default function RegisterPage() {
     } else if (result?.success && result?.needsVerification) {
       sessionStorage.removeItem("gloo_register_data");
       setIsSuccess(true);
+    } else if (result?.success) {
+      sessionStorage.removeItem("gloo_register_data");
+      router.push(`/${locale}/profile/create-group`);
     }
   }
 
