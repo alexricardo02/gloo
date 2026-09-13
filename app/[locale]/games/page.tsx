@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Navigation from "@/app/components/Navigation";
 import { Gamepad2, Sparkles, Trophy, Flame } from "lucide-react";
 import Link from "next/link";
+import PageHeader from "@/app/components/PageHeader";
 
 export default function GamesPage() {
   const t = useTranslations("Games");
@@ -68,14 +69,10 @@ export default function GamesPage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans pb-32">
       
-      <header className="fixed top-0 left-0 right-0 bg-card/90 backdrop-blur-md z-30 pt-12 pb-6 px-6 border-b border-border text-center">
-        <h1 className="text-3xl font-black italic uppercase tracking-tight text-foreground mb-1">
-          {t("title") || "Gloo Games"}
-        </h1>
-        <p className="text-muted-foreground text-xs tracking-wide">
-          {t("subtitle") || "Choose a game to jumpstart your pre-party"}
-        </p>
-      </header>
+      <PageHeader
+        title={t("title") || "Gloo Games"}
+        subtitle={t("subtitle") || "Choose a game to jumpstart your pre-party"}
+      />
 
       <main className="pt-36 px-4 max-w-md mx-auto">
         <div className="flex flex-col gap-3">

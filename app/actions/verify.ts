@@ -44,5 +44,5 @@ export async function verifyAccountAction(token: string, locale: string) {
   // so they don't need a separate login step after confirming their email.
   cookieStore.delete("gloo_is_guest");
 
-  redirect(`/${locale}/search-groups`);
+  redirect(`/${locale}/profile/create-group`);
 }

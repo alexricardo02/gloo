@@ -210,7 +210,7 @@ export default function GroupCard({ group }: GroupCardProps) {
           }}
           disabled={isOpeningChat}
           aria-label="Send message"
-          className="w-14 h-14 bg-accent text-on-accent rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
+          className="w-14 h-14 bg-accent text-on-accent rounded-full shadow-[0_0_20px_rgba(255,114,94,0.5)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
         >
           {isOpeningChat ? (
             <Loader2 className="text-on-accent animate-spin" size={26} />

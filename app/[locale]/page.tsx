@@ -84,6 +84,28 @@ export default function Home() {
     }
   }, []);
 
+  // Early prompt for geolocation to cache coordinates for map & discovery
+  useEffect(() => {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          try {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            localStorage.setItem("gloo_user_lat", String(lat));
+            localStorage.setItem("gloo_user_lng", String(lng));
+          } catch {
+            // Silently ignore storage errors (e.g. private browsing storage limits)
+          }
+        },
+        () => {
+          // Silently handle denial/error on welcome page
+        },
+        { timeout: 10000, maximumAge: 60000 }
+      );
+    }
+  }, []);
+
 
   const handleLanguageChange = (lang: { code: string; label: string }) => {
     setIsOpen(false);
@@ -181,7 +203,7 @@ export default function Home() {
             onClick={handleGuestEntry}
             disabled={isPending}
             data-testid="party-start-btn"
-            className="w-full bg-accent hover:opacity-90 text-on-accent font-bold py-4 rounded-2xl text-center transition-all transform active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.4)] disabled:opacity-60 cursor-pointer"
+            className="w-full bg-accent hover:opacity-90 text-on-accent font-bold py-4 rounded-2xl text-center transition-all transform active:scale-95 shadow-[0_0_20px_rgba(255,114,94,0.4)] disabled:opacity-60 cursor-pointer"
           >
             {t("buttonStart")}
           </button>

@@ -12,6 +12,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import crypto from 'crypto';
 import { resetPassword } from "@/app/actions/auth";
+import { verifyAccountAction } from "@/app/actions/verify";
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -339,6 +340,72 @@ describe('Auth Server Actions (Unit Tests)', () => {
       // Ensures no creation attempt was made to the DB
       expect(prisma.user.create).not.toHaveBeenCalled();
     });
-});
+  });
+
+  describe("Registration Redirection Flow", () => {
+    it("should preserve email verification requirement and return needsVerification", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed_pw' as never);
+
+      const formData = createFormData({
+        email: 'redirect-test@test.com',
+        password: 'ValidPassword123!',
+        username: 'redirect_user',
+        name: 'Redirect User',
+        birthDate: getAdultDate(),
+      });
+
+      const result = await registerUser(formData, 'en');
+
+      expect(result).toEqual({ success: true, needsVerification: true });
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          email: 'redirect-test@test.com',
+          isVerified: false,
+        }),
+      });
+    });
+
+    it("should redirect newly verified user to /profile/create-group upon activation", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'user-post-reg-123',
+        isVerified: false,
+      } as any);
+
+      const mockSet = vi.fn();
+      const mockDelete = vi.fn();
+      vi.mocked(cookies).mockResolvedValue({ set: mockSet, delete: mockDelete } as any);
+
+      await verifyAccountAction('valid-activation-token', 'en');
+
+      // User activation
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-post-reg-123' },
+        data: { isVerified: true, verificationToken: null, verificationTokenExpiry: null },
+      });
+
+      // Session established
+      expect(mockSet).toHaveBeenCalledWith('gloo_user_id', 'user-post-reg-123', expect.any(Object));
+      expect(mockDelete).toHaveBeenCalledWith('gloo_is_guest');
+
+      // Critical requirement: must redirect directly to /en/profile/create-group
+      expect(redirect).toHaveBeenCalledWith('/en/profile/create-group');
+    });
+
+    it("should redirect with dynamic locale to /{locale}/profile/create-group (es locale)", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+        id: 'user-es-456',
+        isVerified: false,
+      } as any);
+
+      const mockSet = vi.fn();
+      const mockDelete = vi.fn();
+      vi.mocked(cookies).mockResolvedValue({ set: mockSet, delete: mockDelete } as any);
+
+      await verifyAccountAction('valid-token-es', 'es');
+
+      expect(redirect).toHaveBeenCalledWith('/es/profile/create-group');
+    });
+  });
 
 });

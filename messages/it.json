@@ -171,7 +171,9 @@
     "termsText": "Accetto i <terms>Termini di Servizio</terms> e le <guidelines>Linee Guida della Community</guidelines>.",
     "createProfile": "Crea Profilo",
     "saving": "Salvataggio...",
-    "error": "Qualcosa è andato storto. Riprova."
+    "error": "Qualcosa è andato storto. Riprova.",
+    "skipForNow": "Salta per ora",
+    "createLater": "Puoi creare o unirti a un gruppo in qualsiasi momento dal tuo profilo."
   },
   "Messages": {
     "emptyDesc": "Fai match con altri gruppi nel carosello per iniziare una conversazione.",
@@ -252,5 +254,15 @@
     "section2Content": "I tuoi dati vengono utilizzati esclusivamente per fornire e migliorare i nostri servizi, abbinarti a gruppi pertinenti e garantire un ambiente sicuro per la nostra community.",
     "section3Title": "3. Condivisione dei Dati",
     "section3Content": "Non vendiamo i tuoi dati personali. Condividiamo le informazioni con terze parti solo quando necessario per fornire i nostri servizi o conformarci a obblighi legali."
+  },
+  "GeolocationModal": {
+    "title": "Accesso alla posizione necessario",
+    "message": "Abbiamo bisogno della tua posizione per mostrarti gruppi, locali ed eventi nelle vicinanze.",
+    "permissionDenied": "L'autorizzazione alla posizione è stata negata. Abilita i permessi di localizzazione nelle impostazioni del browser o del dispositivo.",
+    "positionUnavailable": "La tua posizione non è al momento disponibile. Verifica il GPS o la connessione di rete.",
+    "timeout": "La richiesta di geolocalizzazione è scaduta. Riprova.",
+    "troubleshooting": "Per attivare la geolocalizzazione: Controlla le impostazioni del browser o del sistema operativo e consenti l'accesso alla posizione per Gloo.",
+    "retry": "Riprova",
+    "dismiss": "Continua comunque"
   }
 }

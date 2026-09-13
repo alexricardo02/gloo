@@ -419,7 +419,9 @@
     "photoRequiredDesc": "Debes subir al menos una foto de tu equipo para continuar. ¡Muestra tu vibra a la comunidad!",
     "gotIt": "Entendido",
     "updateProfile": "Actualizar Perfil",
-    "locationRequired": "Ubicación requerida para actualizar el grupo."
+    "locationRequired": "Ubicación requerida para actualizar el grupo.",
+    "skipForNow": "Saltar por ahora",
+    "createLater": "Puedes crear o unirte a un grupo en cualquier momento desde tu perfil."
   },
   "Messages": {
     "emptyDesc": "Haz match con otros grupos en el carrusel para empezar una conversación.",
@@ -551,5 +553,15 @@
     "opening": "Abriendo...",
     "chatInfo": "Chat / Info",
     "sending": "Enviando..."
+  },
+  "GeolocationModal": {
+    "title": "Acceso a la ubicación necesario",
+    "message": "Necesitamos tu ubicación para mostrarte grupos, lugares y eventos a tu alrededor.",
+    "permissionDenied": "El permiso de ubicación fue denegado. Activa los permisos de ubicación en la configuración de tu navegador o dispositivo.",
+    "positionUnavailable": "Tu ubicación no está disponible en este momento. Por favor verifica tu GPS o conexión a internet.",
+    "timeout": "La solicitud de ubicación expiró. Por favor inténtalo de nuevo.",
+    "troubleshooting": "Para activar los servicios de ubicación: Revisa la configuración de tu navegador o del sistema operativo y permite el acceso a la ubicación para Gloo.",
+    "retry": "Reintentar",
+    "dismiss": "Continuar de todos modos"
   }
 }

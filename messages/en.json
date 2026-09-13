@@ -551,7 +551,9 @@
     "photoRequiredDesc": "You must upload at least one photo of your crew to continue. Show your vibe to the community!",
     "gotIt": "Got it",
     "updateProfile": "Update Profile",
-    "locationRequired": "Location required to update group."
+    "locationRequired": "Location required to update group.",
+    "skipForNow": "Skip for now",
+    "createLater": "You can create or join a group anytime from your profile."
   },
   "Messages": {
     "emptyDesc": "Match with other groups in the carousel to start a conversation.",
@@ -711,5 +713,15 @@
     "invalidToken": "This verification link is invalid or has already been used.",
     "verifying": "Verifying...",
     "button": "Click here to Verify"
+  },
+  "GeolocationModal": {
+    "title": "Location Access Needed",
+    "message": "We need your location to show groups, venues, and events happening around you.",
+    "permissionDenied": "Location permission was denied. Please enable location permissions in your browser or device settings to explore nearby.",
+    "positionUnavailable": "Your location is currently unavailable. Please check your GPS or network connection.",
+    "timeout": "The request to get your location timed out. Please try again.",
+    "troubleshooting": "To enable location services: Check your browser's site settings or your operating system's privacy settings and allow location access for Gloo.",
+    "retry": "Try Again",
+    "dismiss": "Continue Anyway"
   }
 }

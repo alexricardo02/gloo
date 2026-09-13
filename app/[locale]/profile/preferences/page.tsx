@@ -113,43 +113,43 @@ export default function PreferencesPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans pb-24">
+    <div className="min-h-screen bg-background text-foreground font-sans pb-24">
       <div className="px-6 pt-12 pb-6 flex items-center gap-4">
         <button
           type="button"
           onClick={() => router.back()}
-          className="p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+          aria-label="Back"
+          className="w-11 h-11 flex items-center justify-center rounded-full bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
         >
           <ArrowLeft size={22} />
         </button>
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal size={20} className="text-[#FF725E]" />
-          <h1 className="text-xl font-black uppercase tracking-tight">{t("title")}</h1>
+        <div className="flex items-center gap-2.5">
+          <SlidersHorizontal size={20} className="text-primary" />
+          <h1 className="text-xl font-black uppercase tracking-tight text-foreground">{t("title")}</h1>
         </div>
       </div>
 
       <div className="px-6 space-y-6">
-
-        <div className="bg-[#FF725E]/10 border border-[#FF725E]/20 rounded-2xl px-5 py-4">
-          <p className="text-[11px] text-[#FF725E] font-bold uppercase tracking-widest mb-1">{t("howItWorksTitle")}</p>
-          <p className="text-xs text-gray-400 leading-relaxed">
+        <div className="bg-primary/10 border border-primary/20 rounded-3xl px-5 py-4">
+          <p className="text-xs text-primary font-black uppercase tracking-wider mb-1">{t("howItWorksTitle")}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
             {t("howItWorksDesc")}
           </p>
         </div>
 
-        <div className="bg-[#121212] rounded-[2rem] p-6 space-y-4 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
+        <div className="bg-card border border-border rounded-3xl p-6 space-y-4 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-1 h-4 bg-[#FF725E]/40 rounded-full" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">{t("lookingFor")}</h3>
+            <div className="w-1 h-4 bg-primary rounded-full" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-foreground">{t("lookingFor")}</h3>
           </div>
 
-          <div className="flex bg-black/40 p-1 rounded-xl gap-1">
+          <div className="flex bg-muted/60 border border-border p-1 rounded-2xl gap-1">
             {genderOptions.map((g) => (
               <label
                 key={g.value}
                 data-checked={searchGender === g.value}
-                className="flex-1 text-center py-2.5 rounded-lg cursor-pointer text-gray-500 transition-all
-                           data-[checked=true]:bg-[#FF725E] data-[checked=true]:text-black"
+                className="flex-1 min-h-[44px] flex items-center justify-center text-center py-2.5 rounded-xl cursor-pointer text-muted-foreground transition-all
+                           data-[checked=true]:bg-primary data-[checked=true]:text-on-primary font-bold"
               >
                 <input
                   type="radio"
@@ -159,25 +159,25 @@ export default function PreferencesPage() {
                   checked={searchGender === g.value}
                   onChange={() => setSearchGender(g.value)}
                 />
-                <span className="text-[11px] font-semibold tracking-wide">{g.label}</span>
+                <span className="text-xs tracking-wide">{g.label}</span>
               </label>
             ))}
           </div>
         </div>
 
-        <div className="bg-[#121212] rounded-[2rem] p-6 space-y-6 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
+        <div className="bg-card border border-border rounded-3xl p-6 space-y-6 shadow-sm">
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 bg-[#FFD54F] rounded-full" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">{t("ageRange")}</h3>
-            <span className="ml-auto text-white bg-[#222] px-3 py-1 rounded-full border border-[#333] text-[11px] font-bold">
+            <div className="w-1 h-4 bg-amber-400 rounded-full" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-foreground">{t("ageRange")}</h3>
+            <span className="ml-auto text-foreground bg-muted px-3 py-1 rounded-full border border-border text-xs font-bold">
               {searchAgeMin} — {searchAgeMax}
             </span>
           </div>
 
           <div className="relative h-8 flex items-center pt-2">
-            <div className="absolute w-full h-1 bg-[#333] rounded-lg"></div>
+            <div className="absolute w-full h-1 bg-muted rounded-lg"></div>
             <div
-              className="absolute h-1 bg-[#FF725E] rounded-lg"
+              className="absolute h-1 bg-primary rounded-lg"
               style={{
                 left: `${((searchAgeMin - 18) / 32) * 100}%`,
                 right: `${100 - ((searchAgeMax - 18) / 32) * 100}%`
@@ -190,7 +190,7 @@ export default function PreferencesPage() {
               max="50"
               value={searchAgeMin}
               onChange={(e) => setSearchAgeMin(Math.min(Number(e.target.value), searchAgeMax - 1))}
-              className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
+              className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-none cursor-pointer"
             />
 
             <input
@@ -199,16 +199,16 @@ export default function PreferencesPage() {
               max="50"
               value={searchAgeMax}
               onChange={(e) => setSearchAgeMax(Math.max(Number(e.target.value), searchAgeMin + 1))}
-              className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
+              className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-none cursor-pointer"
             />
           </div>
         </div>
 
-        <div className="bg-[#121212] rounded-[2rem] p-6 space-y-4 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
+        <div className="bg-card border border-border rounded-3xl p-6 space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 bg-[#4FC3F7] rounded-full" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">{t("maxDistance")}</h3>
-            <span className="ml-auto text-white bg-[#222] px-3 py-1 rounded-full border border-[#333] text-[11px] font-bold">
+            <div className="w-1 h-4 bg-sky-400 rounded-full" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-foreground">{t("maxDistance")}</h3>
+            <span className="ml-auto text-foreground bg-muted px-3 py-1 rounded-full border border-border text-xs font-bold">
               {maxDistance} km
             </span>
           </div>
@@ -220,9 +220,9 @@ export default function PreferencesPage() {
             max="50"
             value={maxDistance}
             onChange={(e) => setMaxDistance(Number(e.target.value))}
-            className="w-full accent-[#FF725E] h-1 bg-[#333] rounded-lg appearance-none"
+            className="w-full accent-primary h-1 bg-muted rounded-lg appearance-none cursor-pointer"
           />
-          <div className="flex justify-between text-[10px] text-gray-600">
+          <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
             <span>1 km</span>
             <span>50 km</span>
           </div>
@@ -233,11 +233,11 @@ export default function PreferencesPage() {
           data-testid="preferences-save"
           onClick={handleSave}
           disabled={loading || saved}
-          className={`w-full font-black py-5 rounded-[1.5rem] text-sm uppercase tracking-[0.2em] transition-all ${saved
-              ? "bg-green-500 text-black"
+          className={`w-full min-h-[52px] font-black py-4 rounded-full text-xs uppercase tracking-widest transition-all cursor-pointer ${saved
+              ? "bg-green-500 text-black shadow-md"
               : loading
-                ? "bg-[#333] text-gray-500"
-                : "bg-[#FF725E] text-black hover:bg-[#ff8575]"
+                ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                : "bg-primary text-on-primary hover:opacity-90 shadow-[0_0_20px_rgba(255,114,94,0.4)] active:scale-95"
             }`}
         >
           {saved ? t("saved") : loading ? t("saving") : t("apply")}

@@ -241,10 +241,11 @@ export default function ChatDetailPage() {
   };
 
   // ── Loading state ──
+  // ── Loading state ──
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#FF725E]" size={30} />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     );
   }
@@ -252,12 +253,12 @@ export default function ChatDetailPage() {
   // ── Fatal error state ──
   if (error && !partner) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-center">
-        <AlertCircle size={40} className="text-red-400 mb-4" />
-        <p className="text-white font-bold mb-4">{error}</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center">
+        <AlertCircle size={40} className="text-destructive mb-4" />
+        <p className="text-foreground font-bold mb-4">{error}</p>
         <button
           onClick={() => router.push(`/${locale}/messages`)}
-          className="px-6 py-3 bg-white/10 rounded-full text-sm font-bold hover:bg-white/20 transition-colors"
+          className="min-h-[44px] px-6 py-3 bg-card border border-border rounded-full text-sm font-bold text-foreground hover:bg-muted transition-colors cursor-pointer"
         >
           {t("backToMessages") || "Back to Messages"}
         </button>
@@ -266,26 +267,26 @@ export default function ChatDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-      <div className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md z-30 pt-12 pb-3 px-4 border-b border-white/5">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
+      <div className="fixed top-0 left-0 right-0 bg-background/90 backdrop-blur-md z-30 pt-12 pb-3 px-4 border-b border-border">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(`/${locale}/messages`)}
-            className="p-1.5 rounded-full hover:bg-white/10 transition-colors shrink-0"
+            className="w-11 h-11 rounded-full flex items-center justify-center hover:bg-muted text-foreground transition-colors shrink-0 cursor-pointer"
             aria-label="Back"
           >
             <ArrowLeft size={22} />
           </button>
           {partner && (
             <>
-              <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-muted border border-border shrink-0">
                 <img
                   src={partner.image}
                   alt={partner.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <h2 className="text-base font-bold truncate flex-1">{partner.name}</h2>
+              <h2 className="text-base font-bold truncate flex-1 text-foreground">{partner.name}</h2>
             </>
           )}
 
@@ -295,35 +296,35 @@ export default function ChatDetailPage() {
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 data-testid="chat-options-btn"
-                className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                className="w-11 h-11 rounded-full flex items-center justify-center hover:bg-muted text-foreground transition-colors cursor-pointer"
                 aria-label="More options"
               >
                 <MoreVertical size={20} />
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   <button
                     onClick={() => {
                       setMenuOpen(false);
                       setShowBlockConfirm(true);
                     }}
                     data-testid="block-group-btn"
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
+                    className="w-full min-h-[44px] flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-muted transition-colors cursor-pointer text-left"
                   >
-                    <Shield size={16} />
+                    <Shield size={18} />
                     {t("blockGroup") || "Block Group"}
                   </button>
                   <button
                     onClick={handleReport}
                     data-testid="report-group-btn"
                     disabled={isReporting}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-yellow-400 hover:bg-white/5 transition-colors disabled:opacity-50"
+                    className="w-full min-h-[44px] flex items-center gap-3 px-4 py-3 text-sm text-amber-500 hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer text-left"
                   >
                     {isReporting ? (
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 size={18} className="animate-spin" />
                     ) : (
-                      <Flag size={16} />
+                      <Flag size={18} />
                     )}
                     {t("reportGroup") || "Report"}
                   </button>
@@ -336,26 +337,27 @@ export default function ChatDetailPage() {
 
       {/* ST0-88: Block confirm dialog */}
       {showBlockConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-3xl p-6 mx-4 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">
+              <h3 className="text-lg font-black uppercase tracking-tight text-foreground">
                 {t("confirmBlockTitle") || "Block Group?"}
               </h3>
               <button
                 onClick={() => setShowBlockConfirm(false)}
-                className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Close"
+                className="w-11 h-11 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
               {t("confirmBlockDesc") || "Are you sure? This will hide the chat and prevent further contact."}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowBlockConfirm(false)}
-                className="flex-1 py-2.5 rounded-full border border-white/10 text-sm font-bold hover:bg-white/5 transition-colors"
+                className="flex-1 min-h-[44px] py-2.5 rounded-full border border-border bg-card text-sm font-bold text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
                 {t("cancel") || "Cancel"}
               </button>
@@ -363,12 +365,12 @@ export default function ChatDetailPage() {
                 onClick={handleBlock}
                 data-testid="block-confirm-btn"
                 disabled={isBlocking}
-                className="flex-1 py-2.5 rounded-full bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 min-h-[44px] py-2.5 rounded-full bg-destructive text-white text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isBlocking ? (
-                  <Loader2 size={14} className="animate-spin" />
+                  <Loader2 size={16} className="animate-spin" />
                 ) : (
-                  <Shield size={14} />
+                  <Shield size={16} />
                 )}
                 {t("blockConfirm") || "Block"}
               </button>
@@ -377,15 +379,15 @@ export default function ChatDetailPage() {
         </div>
       )}
 
-      <div className="flex-1 pt-24 pb-24 px-4 overflow-y-auto">
+      <div className="flex-1 pt-24 pb-28 px-4 overflow-y-auto">
         {messages.length === 0 && (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500 text-sm">
+          <div className="flex items-center justify-center h-full min-h-[200px]">
+            <p className="text-muted-foreground text-sm">
               {t("emptyChat") || "No messages yet. Say hello!"}
             </p>
           </div>
         )}
-        <div className="flex flex-col gap-2 max-w-lg mx-auto">
+        <div className="flex flex-col gap-2.5 max-w-lg mx-auto">
           {messages.map((msg) => {
             const isOwn = msg.senderId === userId;
             return (
@@ -394,27 +396,27 @@ export default function ChatDetailPage() {
                 className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
+                  className={`max-w-[78%] px-4 py-3 rounded-2xl ${
                     isOwn
-                      ? "bg-[#FF725E] text-black rounded-br-md"
-                      : "bg-[#1A1A1A] text-white rounded-bl-md"
+                      ? "bg-primary text-on-primary font-medium rounded-br-sm shadow-sm"
+                      : "bg-card text-foreground border border-border rounded-bl-sm shadow-sm"
                   }`}
                 >
                   <p className="text-sm leading-relaxed">{msg.text}</p>
                   <div
-                    className={`flex items-center gap-1 mt-0.5 ${
+                    className={`flex items-center gap-1 mt-1 ${
                       isOwn ? "justify-end" : "justify-start"
                     }`}
                   >
                     <span
                       className={`text-[10px] ${
-                        isOwn ? "text-black/60" : "text-gray-500"
+                        isOwn ? "text-black/70 font-semibold" : "text-muted-foreground"
                       }`}
                     >
                       {formatTime(msg.createdAt)}
                     </span>
                     {isOwn && (
-                      <CheckCheck size={12} className="text-black/60" />
+                      <CheckCheck size={14} className="text-black/70" />
                     )}
                   </div>
                 </div>
@@ -428,19 +430,19 @@ export default function ChatDetailPage() {
       {/* ── Error toast (ST0-73) ── */}
       {error && (
         <div className="fixed bottom-24 left-4 right-4 z-40 flex justify-center pointer-events-none">
-          <div className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 animate-in slide-in-from-bottom-2 shadow-lg ${
+          <div className={`px-4 py-2.5 rounded-full text-sm font-medium flex items-center gap-2 animate-in slide-in-from-bottom-2 shadow-lg ${
             toastType === "success"
-              ? "bg-yellow-500/90 text-black"
-              : "bg-red-500/90 text-white"
+              ? "bg-amber-500 text-black font-bold"
+              : "bg-destructive text-white"
           }`}>
-            <AlertCircle size={14} />
+            <AlertCircle size={16} />
             {error}
           </div>
         </div>
       )}
 
       {/* ── Input bar (ST0-70: send button disabled when empty) ── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 px-4 py-3 z-30">
+      <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t border-border px-4 py-3 z-30 safe-bottom">
         <div className="flex items-center gap-3 max-w-lg mx-auto">
           <input
             ref={inputRef}
@@ -451,23 +453,23 @@ export default function ChatDetailPage() {
             onKeyDown={handleKeyDown}
             placeholder={t("typeMessage") || "Type a message..."}
             disabled={isSending}
-            className="flex-1 bg-[#1A1A1A] text-white text-sm rounded-full px-5 py-3 border border-white/10 focus:outline-none focus:border-[#FF725E]/50 transition-colors placeholder:text-gray-500 disabled:opacity-50"
+            className="flex-1 min-h-[48px] bg-card text-foreground text-sm rounded-full px-5 py-3 border border-border focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted-foreground disabled:opacity-50"
           />
           <button
             onClick={handleSend}
             data-testid="chat-send-btn"
             disabled={!newMessage.trim() || isSending}
-            className={`p-3 rounded-full transition-all shrink-0 ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer ${
               newMessage.trim() && !isSending
-                ? "bg-[#FF725E] text-black shadow-[0_0_15px_rgba(255,114,94,0.3)] hover:scale-105 active:scale-95"
-                : "bg-[#1A1A1A] text-gray-600 cursor-not-allowed"
+                ? "bg-primary text-on-primary shadow-[0_0_15px_rgba(255,114,94,0.4)] hover:scale-105 active:scale-95"
+                : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
             }`}
             aria-label="Send"
           >
             {isSending ? (
-              <Loader2 size={20} className="animate-spin" />
+              <Loader2 size={20} className="animate-spin text-on-primary" />
             ) : (
-              <Send size={20} />
+              <Send size={20} className={newMessage.trim() ? "text-on-primary" : "text-muted-foreground"} />
             )}
           </button>
         </div>

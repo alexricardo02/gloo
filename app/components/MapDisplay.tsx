@@ -11,7 +11,7 @@ import {
   startPreParty, stopPreParty, getMapSession, requestEventAttendance,
   respondToEventRequest, getOrCreateChatWithUser
 } from "../actions/map";
-import { Check, Users, Flame, X, Clock, MessageCircle } from "lucide-react";
+import { Check, Users, Flame, X, Clock, MessageCircle, MapPinOff, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import GuestPaywall from "./GuestPaywall";
 
@@ -71,6 +71,7 @@ interface PrePartyEvent {
 
 export default function MapDisplay() {
   const t = useTranslations("Map");
+  const tGeo = useTranslations("GeolocationModal");
   const locale = useLocale();
   const router = useRouter();
   const mapRef = useRef<L.Map | null>(null);
@@ -92,6 +93,10 @@ export default function MapDisplay() {
 
   const [isGuest, setIsGuest] = useState(false);
 
+  // Geolocation error & modal state
+  const [showGeoModal, setShowGeoModal] = useState(false);
+  const [geoError, setGeoError] = useState<number | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   const loadMapData = async () => {
     if (isGuest) {
@@ -107,8 +112,95 @@ export default function MapDisplay() {
     setMyEvent(myActive as PrePartyEvent | null);
   };
 
+  const requestLocation = () => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setGeoError(2);
+      setShowGeoModal(true);
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        setIsLocating(false);
+        setGeoError(null);
+        setShowGeoModal(false);
+
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setUserPosition([lat, lng]);
+
+        try {
+          localStorage.setItem("gloo_user_lat", String(lat));
+          localStorage.setItem("gloo_user_lng", String(lng));
+        } catch {
+          // ignore storage error
+        }
+
+        if (mapRef.current) {
+          mapRef.current.flyTo([lat, lng], 14, { animate: true });
+        }
+
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await res.json();
+
+          if (data && data.address) {
+            const name = data.address.suburb || data.address.city || data.address.town || data.address.village || "Actual Location";
+            setLocationName(name);
+          }
+        } catch (err) {
+          console.error("Error translating location:", err);
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        console.error("Geolocation error:", error);
+        // Fallback cleanly to default coordinates
+        setUserPosition(centerPosition);
+        if (mapRef.current) {
+          mapRef.current.flyTo(centerPosition, 14, { animate: true });
+        }
+        setGeoError(error.code);
+        setShowGeoModal(true);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
+  const getGeoErrorMessage = () => {
+    switch (geoError) {
+      case 1:
+        return tGeo("permissionDenied");
+      case 2:
+        return tGeo("positionUnavailable");
+      case 3:
+        return tGeo("timeout");
+      default:
+        return tGeo("message");
+    }
+  };
+
   useEffect(() => {
     loadMapData();
+
+    if (typeof window !== "undefined") {
+      try {
+        const cachedLat = localStorage.getItem("gloo_user_lat");
+        const cachedLng = localStorage.getItem("gloo_user_lng");
+        if (cachedLat && cachedLng) {
+          const lat = parseFloat(cachedLat);
+          const lng = parseFloat(cachedLng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setUserPosition([lat, lng]);
+          }
+        }
+      } catch {
+        // ignore storage error
+      }
+    }
+
+    requestLocation();
   }, []);
 
   useEffect(() => {
@@ -165,14 +257,14 @@ export default function MapDisplay() {
 
   // Custom DivIcon generator to render clean Tailwind circles instead of default image flags
   const createMarkerIcon = (type: "BAR" | "CLUB" | "USER" | "PARTY") => {
-    let colorClass = "bg-accent shadow-[0_0_12px_rgba(37,99,235,0.6)]";
+    let colorClass = "bg-primary shadow-[0_0_12px_rgba(255,114,94,0.6)]";
 
     if (type === "CLUB") {
-      colorClass = "bg-primary shadow-[0_0_15px_rgba(124,58,237,0.7)]";
+      colorClass = "bg-primary shadow-[0_0_15px_rgba(255,114,94,0.7)]";
     } else if (type === "BAR") {
       colorClass = "bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.7)]";
     } else if (type === "PARTY") {
-      colorClass = "bg-secondary shadow-[0_0_20px_rgba(236,72,153,0.9)] animate-pulse";
+      colorClass = "bg-secondary shadow-[0_0_20px_rgba(255,143,126,0.9)] animate-pulse";
     }
 
     return L.divIcon({
@@ -182,38 +274,6 @@ export default function MapDisplay() {
       iconAnchor: [10, 10],
     });
   };
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setUserPosition([lat, lng]);
-
-          if (mapRef.current) {
-            mapRef.current.flyTo([lat, lng], 14, { animate: true });
-          }
-
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-            const data = await res.json();
-
-            if (data && data.address) {
-              const name = data.address.suburb || data.address.city || data.address.town || data.address.village || "Actual Location";
-              setLocationName(name);
-            }
-          } catch (err) {
-            console.error("Error translating location:", err);
-          }
-        },
-        (error) => {
-          console.error("Geolocation error:", error);
-        },
-        { enableHighAccuracy: true }
-      );
-    }
-  }, []);
 
   const handleRsvpToggle = async (venueId: string) => {
     setLoadingActionId(venueId);
@@ -499,11 +559,75 @@ export default function MapDisplay() {
                 <div className="bg-muted/50 p-3 rounded-xl border border-border flex items-start gap-3 mt-4">
                   <p className="text-xs text-muted-foreground leading-tight"><strong className="text-foreground">{t("privacySafeLabel")}</strong> We will mark the current center of your map, but your exact street/house number will be <span className="text-secondary font-bold">hidden</span> until you chat with a match.</p>
                 </div>
-                <button onClick={handleStartParty} disabled={isProcessingParty} className="w-full bg-accent hover:opacity-90 text-on-accent font-black py-4 rounded-xl uppercase tracking-widest mt-6 shadow-[0_0_20px_rgba(37,99,235,0.4)] active:scale-95 transition-all flex justify-center items-center cursor-pointer min-h-[48px]">
+                <button onClick={handleStartParty} disabled={isProcessingParty} className="w-full bg-accent hover:opacity-90 text-on-accent font-black py-4 rounded-xl uppercase tracking-widest mt-6 shadow-[0_0_20px_rgba(255,114,94,0.4)] active:scale-95 transition-all flex justify-center items-center cursor-pointer min-h-[48px]">
                   {isProcessingParty ? t("processing") : t("shareLocation")}
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {showGeoModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="geo-modal-title"
+          aria-describedby="geo-modal-desc"
+          className="fixed inset-0 z-[2500] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in"
+        >
+          <div
+            data-testid="geo-error-modal"
+            className="w-full max-w-md bg-card border border-border rounded-3xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-200"
+          >
+            <button
+              type="button"
+              onClick={() => setShowGeoModal(false)}
+              className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-14 h-14 rounded-2xl bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-center mb-4">
+              <MapPinOff size={28} />
+            </div>
+
+            <h3 id="geo-modal-title" className="text-lg font-black uppercase tracking-wide text-foreground mb-2">
+              {tGeo("title")}
+            </h3>
+
+            <p id="geo-modal-desc" className="text-sm text-foreground/80 leading-relaxed mb-4">
+              {getGeoErrorMessage()}
+            </p>
+
+            <div className="bg-muted/50 border border-border rounded-xl p-3.5 mb-6">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <strong className="text-foreground block mb-1">Troubleshooting:</strong>
+                {tGeo("troubleshooting")}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                data-testid="retry-geolocation-btn"
+                onClick={requestLocation}
+                disabled={isLocating}
+                className="w-full bg-accent text-on-accent font-black py-3.5 rounded-xl uppercase tracking-wider text-xs flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all cursor-pointer min-h-[44px] disabled:opacity-50"
+              >
+                <RefreshCw size={15} className={isLocating ? "animate-spin" : ""} />
+                <span>{isLocating ? t("processing") : tGeo("retry")}</span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="dismiss-geolocation-btn"
+                onClick={() => setShowGeoModal(false)}
+                className="w-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground font-bold py-3 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer min-h-[44px]"
+              >
+                {tGeo("dismiss")}
+              </button>
+            </div>
           </div>
         </div>
       )}

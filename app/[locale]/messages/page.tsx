@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import Navigation from "@/app/components/Navigation";
 import LikedMeCard from "@/app/components/LikedMeCard";
+import PageHeader from "@/app/components/PageHeader";
 import { Search, MoreVertical, CheckCheck, Loader2, Heart, Map, List, Shield, Flag, X } from "lucide-react";
 import Image from "next/image";
 import { getActiveChats } from "@/app/actions/chat";
@@ -224,42 +225,43 @@ export default function MessagesPage() {
   const likesCount = likedGroups.length;
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans pb-32">
-      <div className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md z-30 pt-12 pb-4 px-6 border-b border-white/5">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-black italic uppercase tracking-tight">{t("title")}</h1>
+    <div className="min-h-screen bg-background text-foreground font-sans pb-32">
+      <PageHeader
+        title={t("title")}
+        actions={
           <div className="relative header-menu-container">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+              aria-label="Options"
+              className="w-11 h-11 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted text-foreground transition-colors cursor-pointer"
             >
               <MoreVertical size={20} />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
                     setBlockedModalOpen(true);
                     loadBlockedGroups();
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                 >
-                  <Shield size={16} />
+                  <Shield size={18} className="text-primary" />
                   {t("blockedGroups") || "Blocked Groups"}
                 </button>
               </div>
             )}
           </div>
-        </div>
-
+        }
+      >
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab("chats")}
             data-testid="messages-tab-chats"
-            className={`flex-1 py-2.5 rounded-full text-sm font-black uppercase tracking-wider transition-all ${activeTab === "chats"
-                ? "bg-[#FF725E] text-black"
-                : "bg-white/5 text-gray-400 hover:text-white"
+            className={`flex-1 min-h-[44px] py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${activeTab === "chats"
+                ? "bg-primary text-on-primary shadow-sm"
+                : "bg-card text-muted-foreground border border-border hover:text-foreground hover:bg-muted"
               }`}
           >
             {t("tabChats") || "Chats"}
@@ -267,9 +269,9 @@ export default function MessagesPage() {
           <button
             onClick={() => setActiveTab("likes")}
             data-testid="messages-tab-likes"
-            className={`flex-1 py-2.5 rounded-full text-sm font-black uppercase tracking-wider transition-all relative ${activeTab === "likes"
-                ? "bg-[#FF725E] text-black"
-                : "bg-white/5 text-gray-400 hover:text-white"
+            className={`flex-1 min-h-[44px] py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all relative cursor-pointer ${activeTab === "likes"
+                ? "bg-primary text-on-primary shadow-sm"
+                : "bg-card text-muted-foreground border border-border hover:text-foreground hover:bg-muted"
               }`}
           >
             <span className="flex items-center justify-center gap-1.5">
@@ -277,7 +279,7 @@ export default function MessagesPage() {
               {t("tabLikes") || "Likes"}
             </span>
             {likesCount > 0 && activeTab !== "likes" && (
-              <span className="absolute -top-1.5 -right-1.5 bg-[#FF725E] text-black text-[9px] font-black min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+              <span className="absolute -top-1.5 -right-1.5 bg-primary text-on-primary text-[10px] font-black min-w-[20px] h-5 rounded-full flex items-center justify-center px-1 border-2 border-background">
                 {likesCount}
               </span>
             )}
@@ -285,26 +287,26 @@ export default function MessagesPage() {
         </div>
 
         {activeTab === "likes" && filteredLikedGroups.length > 0 && (
-          <div className="flex justify-end mb-2">
-            <div className="flex bg-white/5 rounded-full p-0.5">
+          <div className="flex justify-end mb-3">
+            <div className="flex bg-card rounded-full p-1 border border-border">
               <button
                 onClick={() => setViewMode("list")}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${viewMode === "list"
-                    ? "bg-[#FF725E] text-black"
-                    : "text-gray-400 hover:text-white"
+                className={`px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${viewMode === "list"
+                    ? "bg-primary text-on-primary font-black"
+                    : "text-muted-foreground hover:text-foreground"
                   }`}
               >
-                <List size={12} />
+                <List size={14} />
                 {t("listView") || "List"}
               </button>
               <button
                 onClick={() => setViewMode("map")}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${viewMode === "map"
-                    ? "bg-[#FF725E] text-black"
-                    : "text-gray-400 hover:text-white"
+                className={`px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${viewMode === "map"
+                    ? "bg-primary text-on-primary font-black"
+                    : "text-muted-foreground hover:text-foreground"
                   }`}
               >
-                <Map size={12} />
+                <Map size={14} />
                 {t("mapView") || "Map"}
               </button>
             </div>
@@ -313,24 +315,24 @@ export default function MessagesPage() {
 
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search size={18} className="text-gray-500" />
+            <Search size={18} className="text-muted-foreground" />
           </div>
           <input
             type="text"
             placeholder={t("searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111111] text-sm text-white rounded-full py-3 pl-11 pr-4 border border-white/10 focus:outline-none focus:border-[#FF725E]/50 transition-colors placeholder:text-gray-600"
+            className="w-full min-h-[48px] bg-card text-sm text-foreground rounded-full py-3 pl-11 pr-4 border border-border focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted-foreground"
           />
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="pt-72 px-4">
+      <div className={`px-4 ${activeTab === "likes" && filteredLikedGroups.length > 0 ? "pt-72" : "pt-64"}`}>
         {activeTab === "chats" && (
           <>
             {isLoadingChats && (
               <div className="flex justify-center items-center py-20">
-                <Loader2 className="animate-spin text-[#FF725E]" size={30} />
+                <Loader2 className="animate-spin text-primary" size={32} />
               </div>
             )}
 
@@ -340,10 +342,10 @@ export default function MessagesPage() {
                   <button
                     key={chat.id}
                     onClick={() => router.push(`/${locale}/messages/${chat.id}`)}
-                    className="w-full flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-colors text-left group"
+                    className="w-full min-h-[72px] flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/40 transition-colors text-left group cursor-pointer"
                   >
                     <div className="relative shrink-0">
-                      <div className="w-14 h-14 rounded-full overflow-hidden border border-white/10 relative bg-zinc-900">
+                      <div className="w-14 h-14 rounded-full overflow-hidden border border-border relative bg-muted">
                         <Image
                           src={chat.image}
                           alt={chat.name}
@@ -352,27 +354,27 @@ export default function MessagesPage() {
                         />
                       </div>
                       {chat.unread > 0 && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF725E] rounded-full border-2 border-black" />
+                        <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-primary text-on-primary rounded-full border-2 border-background text-[10px] font-black flex items-center justify-center" />
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0 border-b border-white/5 pb-3 group-last:border-0">
+                    <div className="flex-1 min-w-0 border-b border-border/50 pb-3 group-last:border-0">
                       <div className="flex justify-between items-center mb-1 pr-2">
                         <div className="flex items-center gap-2">
                           <h3
-                            className={`text-base truncate ${chat.unread > 0 ? "font-black text-white" : "font-bold text-gray-200"
+                            className={`text-base truncate ${chat.unread > 0 ? "font-black text-foreground" : "font-bold text-foreground/90"
                               }`}
                           >
                             {chat.name}
                           </h3>
                           {chat.isMatch && (
-                            <span className="text-[10px] uppercase tracking-[0.18em] bg-[#FF725E]/15 text-[#FF725E] px-2 py-0.5 rounded-full font-black">
+                            <span className="text-[10px] uppercase tracking-[0.18em] bg-primary/15 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-black">
                               Match
                             </span>
                           )}
                         </div>
                         <span
-                          className={`text-[10px] shrink-0 ml-2 ${chat.unread > 0 ? "text-[#FF725E] font-bold" : "text-gray-500 font-medium"
+                          className={`text-xs shrink-0 ml-2 ${chat.unread > 0 ? "text-primary font-black" : "text-muted-foreground font-medium"
                             }`}
                         >
                           {formatMessageTime(chat.time)}
@@ -380,17 +382,17 @@ export default function MessagesPage() {
                       </div>
                       <div className="flex justify-between items-center">
                         <p
-                          className={`text-sm line-clamp-1 flex-1 pr-4 ${chat.unread > 0 ? "text-white font-semibold" : "text-gray-400"
+                          className={`text-sm line-clamp-1 flex-1 pr-4 ${chat.unread > 0 ? "text-foreground font-medium" : "text-muted-foreground"
                             }`}
                         >
                           {chat.lastMessage}
                         </p>
                         {chat.unread > 0 ? (
-                          <div className="bg-[#FF725E] text-black text-[10px] font-black min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center">
+                          <div className="bg-primary text-on-primary text-[10px] font-black min-w-[22px] h-[22px] px-1.5 rounded-full flex items-center justify-center">
                             {chat.unread}
                           </div>
                         ) : (
-                          <CheckCheck size={14} className="text-blue-500 shrink-0" />
+                          <CheckCheck size={16} className="text-muted-foreground shrink-0" />
                         )}
                       </div>
                     </div>
@@ -400,13 +402,13 @@ export default function MessagesPage() {
 
             {!isLoadingChats && chats.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-20 px-10 text-center animate-in fade-in">
-                <div className="w-20 h-20 bg-[#111111] rounded-full flex items-center justify-center mb-4 border border-white/5">
-                  <Search size={30} className="text-[#FF725E]/50" />
+                <div className="w-20 h-20 bg-card rounded-full flex items-center justify-center mb-4 border border-border">
+                  <Search size={30} className="text-primary/70" />
                 </div>
-                <h2 className="text-xl font-bold mb-2 uppercase italic tracking-tight">
+                <h2 className="text-xl font-black mb-2 uppercase tracking-tight text-foreground">
                   {t("emptyTitle")}
                 </h2>
-                <p className="text-sm text-gray-400 leading-relaxed">{t("emptyDesc")}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-[280px]">{t("emptyDesc")}</p>
               </div>
             )}
           </>
@@ -416,12 +418,12 @@ export default function MessagesPage() {
           <>
             {isLoadingLikes && (
               <div className="flex justify-center items-center py-20">
-                <Loader2 className="animate-spin text-[#FF725E]" size={30} />
+                <Loader2 className="animate-spin text-primary" size={32} />
               </div>
             )}
 
             {!isLoadingLikes && viewMode === "map" && MapComponent && (
-              <div className="rounded-2xl overflow-hidden h-[60vh] border border-white/10">
+              <div className="rounded-3xl overflow-hidden h-[60vh] border border-border">
                 <MapComponent groups={filteredLikedGroups} />
               </div>
             )}
@@ -436,13 +438,13 @@ export default function MessagesPage() {
 
             {!isLoadingLikes && likedGroups.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-20 px-10 text-center animate-in fade-in">
-                <div className="w-20 h-20 bg-[#111111] rounded-full flex items-center justify-center mb-4 border border-white/5">
-                  <Heart size={30} className="text-[#FF725E]/50" />
+                <div className="w-20 h-20 bg-card rounded-full flex items-center justify-center mb-4 border border-border">
+                  <Heart size={30} className="text-primary/70" />
                 </div>
-                <h2 className="text-xl font-bold mb-2 uppercase italic tracking-tight">
+                <h2 className="text-xl font-black mb-2 uppercase tracking-tight text-foreground">
                   {t("noLikesTitle") || "No likes yet"}
                 </h2>
-                <p className="text-sm text-gray-400 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-[280px]">
                   {t("noLikesDesc") || "When other groups like your profile, they will appear here."}
                 </p>
               </div>
@@ -452,31 +454,32 @@ export default function MessagesPage() {
       </div>
 
       {blockedModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-6 mx-4 max-w-md w-full max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-3xl p-6 mx-4 max-w-md w-full max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">
+              <h3 className="text-lg font-black uppercase tracking-tight text-foreground">
                 {t("blockedGroups") || "Blocked Groups"}
               </h3>
               <button
                 onClick={() => setBlockedModalOpen(false)}
-                className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Close"
+                className="w-11 h-11 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
             {isLoadingBlocked ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-[#FF725E]" size={30} />
+                <Loader2 className="animate-spin text-primary" size={32} />
               </div>
             ) : blockedGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Shield size={36} className="text-gray-600 mb-3" />
-                <p className="text-sm text-gray-400">
+                <Shield size={36} className="text-muted-foreground mb-3" />
+                <p className="text-sm text-foreground font-semibold">
                   {t("noBlockedGroups") || "No blocked groups"}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {t("noBlockedGroupsDesc") || "Groups you block will appear here."}
                 </p>
               </div>
@@ -485,9 +488,9 @@ export default function MessagesPage() {
                 {blockedGroups.map((group: any) => (
                   <div
                     key={group.blockedGroupId}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-white/5"
+                    className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 border border-border"
                   >
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
+                    <div className="w-11 h-11 rounded-full overflow-hidden bg-muted border border-border shrink-0">
                       <img
                         src={group.photos?.[0] || group.user?.image || "/images/bg-fallback.jpg"}
                         alt={group.user?.name || "Group"}
@@ -495,20 +498,20 @@ export default function MessagesPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate">
+                      <p className="text-sm font-bold truncate text-foreground">
                         {group.user?.username || group.user?.name || "Unknown"}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {group.membersCount} {group.membersCount === 1 ? "Member" : "Members"} · {group.gender}
                       </p>
                     </div>
                     <button
                       onClick={() => handleUnblock(group.blockedGroupId)}
                       disabled={unblockingId === group.blockedGroupId}
-                      className="px-3 py-1.5 rounded-full bg-white/10 text-xs font-bold hover:bg-white/20 transition-colors disabled:opacity-50 shrink-0"
+                      className="min-h-[44px] px-4 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50 shrink-0 cursor-pointer flex items-center justify-center"
                     >
                       {unblockingId === group.blockedGroupId ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <Loader2 size={16} className="animate-spin" />
                       ) : (
                         t("unblock") || "Unblock"
                       )}

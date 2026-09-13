@@ -49,7 +49,7 @@ describe('Verify Server Actions (Unit Tests)', () => {
   expect(result).toEqual({ error: 'invalidTokenError' });
 });
 
-    it('should verify the user, set cookies, and redirect to search-groups on success', async () => {
+    it('should verify the user, set cookies, and redirect to profile/create-group on success', async () => {
       // Mock the user being found
   vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: 'user-123' } as any);
       
@@ -70,7 +70,7 @@ describe('Verify Server Actions (Unit Tests)', () => {
       expect(mockDelete).toHaveBeenCalledWith('gloo_is_guest');
       
       // Verify Redirect
-      expect(redirect).toHaveBeenCalledWith('/en/search-groups');
+      expect(redirect).toHaveBeenCalledWith('/en/profile/create-group');
     });
   });
 });

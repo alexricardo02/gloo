@@ -17,6 +17,7 @@ import {
   Lock,
 } from "lucide-react";
 import GuestPaywall from "@/app/components/GuestPaywall";
+import PageHeader from "@/app/components/PageHeader";
 
 export default function PrePartyPage() {
   const locale = useLocale();
@@ -147,29 +148,24 @@ export default function PrePartyPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-background overflow-hidden relative text-foreground font-sans selection:bg-primary selection:text-on-primary">
+    <div className="flex flex-col h-[100dvh] bg-background overflow-hidden relative text-foreground font-sans selection:bg-primary selection:text-on-primary pt-[116px]">
       
-      <div className="relative z-50 bg-background/90 backdrop-blur-md border-b border-border px-6 pt-6 pb-3 flex justify-between items-center">
-        <div>
-          <h1 className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">
-            {t("title") || "Discover"}
-          </h1>
-          <p className="text-[11px] text-muted-foreground/80 font-bold mt-0.5">
-            {isReady ? `${distance} km` : "— km"} {t("kmAroundYou")}
-          </p>
-        </div>
-
-        <button
-          onClick={openDistanceModal}
-          data-testid="radius-open-btn"
-          className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-full hover:bg-muted transition-colors cursor-pointer"
-        >
-          <SlidersHorizontal size={14} className="text-primary" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-foreground">
-            Radius
-          </span>
-        </button>
-      </div>
+      <PageHeader
+        title={t("title") || "Discover"}
+        subtitle={`${isReady ? `${distance} km` : "— km"} ${t("kmAroundYou")}`}
+        actions={
+          <button
+            onClick={openDistanceModal}
+            data-testid="radius-open-btn"
+            className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-full hover:bg-muted transition-colors cursor-pointer"
+          >
+            <SlidersHorizontal size={14} className="text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-wider text-foreground">
+              Radius
+            </span>
+          </button>
+        }
+      />
 
       <main className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar relative">
         
