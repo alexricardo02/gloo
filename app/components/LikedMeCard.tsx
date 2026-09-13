@@ -83,37 +83,37 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
   };
 
   return (
-    <div className="w-full bg-[#111111] border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:border-[#FF725E]/30 transition-all">
-      <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 bg-[#1A1A1A]">
+    <div className="w-full bg-card border border-border rounded-2xl p-4 flex items-center gap-4 hover:border-secondary/40 transition-all">
+      <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-border flex-shrink-0 bg-muted">
         <img
           src={photo}
           alt={displayName}
           className="w-full h-full object-cover"
         />
         {group.isMutualLike && (
-          <div className="absolute -top-1 -right-1 bg-[#FF725E] text-black text-[8px] font-black px-1.5 py-0.5 rounded-full">
+          <div className="absolute -top-1 -right-1 bg-secondary text-on-secondary text-[8px] font-black px-1.5 py-0.5 rounded-full">
             MATCH
           </div>
         )}
       </div>
 
       <div className="flex-1 min-w-0">
-        <h3 className="font-extrabold text-white text-sm truncate">
+        <h3 className="font-extrabold text-foreground text-sm truncate">
           {displayName}
         </h3>
         <div className="flex flex-wrap items-center gap-1.5 mt-1">
-          <span className="text-[10px] text-[#FF725E] bg-[#FF725E]/10 px-2 py-0.5 rounded-full font-bold uppercase">
+          <span className="text-[10px] text-secondary bg-secondary/15 px-2 py-0.5 rounded-full font-bold uppercase">
             {group.gender}
           </span>
-          <span className="text-[10px] text-gray-400 font-bold">
+          <span className="text-[10px] text-muted-foreground font-bold">
             {group.membersCount} Members
           </span>
-          <span className="text-[10px] text-gray-400 font-bold">
+          <span className="text-[10px] text-muted-foreground font-bold">
             {group.ageMin}–{group.ageMax}
           </span>
         </div>
         {group.description && (
-          <p className="text-xs text-gray-500 line-clamp-1 mt-1">
+          <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
             {group.description}
           </p>
         )}
@@ -124,25 +124,27 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
           type="button"
           onClick={handleLike}
           aria-pressed={liked}
-          className={`p-2.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-200 ${isAnimating ? "scale-95" : ""
+          aria-label={liked ? "Unlike group" : "Like group"}
+          className={`min-w-[44px] min-h-[44px] rounded-full border border-border bg-muted/50 hover:bg-muted flex items-center justify-center transition-all duration-200 cursor-pointer ${isAnimating ? "scale-95" : ""
             }`}
         >
           <Heart
             size={18}
-            fill={liked ? "#FF725E" : "none"}
-            className={liked ? "text-[#FF725E]" : "text-gray-400"}
+            fill={liked ? "var(--color-secondary)" : "none"}
+            className={liked ? "text-secondary" : "text-muted-foreground"}
           />
         </button>
         <button
           type="button"
           onClick={handleOpenChat}
           disabled={isOpeningChat}
-          className="p-2.5 bg-[#FF725E] rounded-full shadow-[0_0_15px_rgba(255,114,94,0.3)] hover:scale-110 transition-all disabled:opacity-70 disabled:scale-100"
+          aria-label="Open chat"
+          className="min-w-[44px] min-h-[44px] bg-accent text-on-accent rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
         >
           {isOpeningChat ? (
-            <Loader2 className="text-black animate-spin" size={18} />
+            <Loader2 className="text-on-accent animate-spin" size={18} />
           ) : (
-            <MessageCircle className="text-black" fill="black" size={18} />
+            <MessageCircle className="text-on-accent" fill="currentColor" size={18} />
           )}
         </button>
       </div>

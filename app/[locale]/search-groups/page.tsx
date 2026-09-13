@@ -147,14 +147,14 @@ export default function PrePartyPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-black overflow-hidden relative text-white font-sans selection:bg-[#FF725E] selection:text-black">
+    <div className="flex flex-col h-[100dvh] bg-background overflow-hidden relative text-foreground font-sans selection:bg-primary selection:text-on-primary">
       
-      <div className="relative z-50 bg-black px-6 pt-6 pb-3 flex justify-between items-center">
+      <div className="relative z-50 bg-background/90 backdrop-blur-md border-b border-border px-6 pt-6 pb-3 flex justify-between items-center">
         <div>
-          <h1 className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">
+          <h1 className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">
             {t("title") || "Discover"}
           </h1>
-          <p className="text-[11px] text-gray-500 font-bold mt-0.5">
+          <p className="text-[11px] text-muted-foreground/80 font-bold mt-0.5">
             {isReady ? `${distance} km` : "— km"} {t("kmAroundYou")}
           </p>
         </div>
@@ -162,10 +162,10 @@ export default function PrePartyPage() {
         <button
           onClick={openDistanceModal}
           data-testid="radius-open-btn"
-          className="flex items-center gap-2 bg-[#121212] border border-white/5 px-4 py-2 rounded-full hover:bg-[#1a1a1a] transition-colors"
+          className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-full hover:bg-muted transition-colors cursor-pointer"
         >
-          <SlidersHorizontal size={14} className="text-[#FF725E]" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-white">
+          <SlidersHorizontal size={14} className="text-primary" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-foreground">
             Radius
           </span>
         </button>
@@ -196,18 +196,18 @@ export default function PrePartyPage() {
 
         {!loading && groups.length === 0 && (
           <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center snap-center pb-24">
-            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
-              <MapPin size={32} className="text-[#FF725E]" />
+            <div className="w-20 h-20 bg-card rounded-full border border-border flex items-center justify-center mb-6">
+              <MapPin size={32} className="text-primary" />
             </div>
             <h2 className="text-2xl font-black uppercase tracking-tight mb-2">
               {t("emptyTitle")}
             </h2>
-            <p className="text-gray-400 text-sm leading-relaxed max-w-[280px]">
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-[280px]">
               {t("emptyDesc")}
             </p>
             <Link
               href={`/${locale}/profile/create-group`}
-              className="mt-8 px-8 py-3 rounded-full bg-white/10 text-xs font-bold uppercase tracking-widest hover:bg-white/20 transition-colors inline-block text-center"
+              className="mt-8 px-8 py-3 rounded-full bg-primary text-on-primary text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity inline-block text-center"
             >
               {t("preferences")}
             </Link>
@@ -223,21 +223,21 @@ export default function PrePartyPage() {
       {/* Modals handle radius adjustment, missing-group flow, and guest paywall */}
       {isDistanceModalOpen && (
         <div data-testid="radius-modal" className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center animate-in fade-in duration-200">
-          <div className="bg-[#121212] w-full max-w-md rounded-t-[2.5rem] p-8 border-t border-white/10 animate-in slide-in-from-bottom-8 duration-300 pb-12">
+          <div className="bg-card w-full max-w-md rounded-t-[2.5rem] p-8 border-t border-border animate-in slide-in-from-bottom-8 duration-300 pb-12">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black uppercase tracking-tight">
                 {t("modalTitle")}
               </h3>
               <button
                 onClick={() => setIsDistanceModalOpen(false)}
-                className="p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+                className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
             <div className="mb-10">
-              <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-[#FF725E] mb-4">
+              <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-primary mb-4">
                 <span>1 KM</span>
                 <span>{tempDistance} KM</span>
                 <span>50 KM</span>
@@ -249,14 +249,14 @@ export default function PrePartyPage() {
                 max="50"
                 value={tempDistance}
                 onChange={(e) => setTempDistance(Number(e.target.value))}
-                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#FF725E]"
+                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
               />
             </div>
 
             <button
               onClick={applyDistance}
               data-testid="radius-apply-btn"
-              className="w-full bg-[#FF725E] text-black font-black py-4 rounded-full uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform"
+              className="w-full bg-accent text-on-accent font-black py-4 rounded-full uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer"
             >
               {t("modalButton")}
             </button>
@@ -266,15 +266,15 @@ export default function PrePartyPage() {
 
       {isBlockModalOpen && !isGuest && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative bg-[#121212] border border-white/10 w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+          <div className="relative bg-card border border-border w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
             <button
               onClick={() => setIsBlockModalOpen(false)}
-              className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors"
+              className="absolute top-6 right-6 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X size={24} />
             </button>
 
-            <div className="w-16 h-16 bg-[#FF725E]/10 rounded-2xl flex items-center justify-center text-[#FF725E] mb-6 border border-[#FF725E]/20">
+            <div className="w-16 h-16 bg-secondary/10 rounded-2xl flex items-center justify-center text-secondary mb-6 border border-secondary/20">
               <Users size={28} />
             </div>
 
@@ -282,7 +282,7 @@ export default function PrePartyPage() {
               {t("groupRequiredTitle") || "Group Required"}
             </h3>
 
-            <p className="text-sm text-gray-400 mb-8 leading-relaxed">
+            <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
               {t("groupRequiredDesc") ||
                 "To match, like, send messages, or unlock more groups near you, you must create a profile for your own group first."}
             </p>
@@ -290,7 +290,7 @@ export default function PrePartyPage() {
             <Link
               href={`/${locale}/profile/create-group`}
               data-testid="create-group-modal-link"
-              className="w-full bg-[#FF725E] text-black font-black py-4 rounded-full uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg shadow-[#FF725E]/20 text-center"
+              className="w-full bg-accent text-on-accent font-black py-4 rounded-full uppercase tracking-widest text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg shadow-accent/20 text-center"
             >
               {t("createGroupButton") || "Create Profile"}
             </Link>

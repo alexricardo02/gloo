@@ -22,12 +22,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-md bg-white rounded-[2.5rem] p-8 shadow-xl flex flex-col">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans">
+      <div className="w-full max-w-md bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl flex flex-col">
         <div className="flex items-center mb-6">
           <button
             onClick={() => router.push(`/${locale}/search-groups`)}
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
+            className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
             aria-label="Go back"
           >
             <svg
@@ -48,14 +48,14 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-4 mb-8">
-          <h1 className="text-3xl font-extrabold text-black mb-2">
+          <h1 className="text-3xl font-extrabold text-foreground mb-2">
             {t("title")}
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             {t("newUser")}{" "}
             <Link
               href={`/${locale}/register`}
-              className="text-black font-bold hover:underline"
+              className="text-primary font-bold hover:underline"
             >
               {t("createAccount")}
             </Link>
@@ -63,20 +63,20 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <p data-testid="login-error-msg" className="text-red-500 text-sm text-center font-medium mb-4">
+          <p data-testid="login-error-msg" className="text-destructive text-sm text-center font-medium mb-4">
             {t(error)}
           </p>
         )}
 
         <form action={handleSubmit} className="flex flex-col gap-4" data-testid="login-form">
-          <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all">
+          <div className="relative flex items-center bg-background border border-border rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={1.5}
               stroke="currentColor"
-              className="w-6 h-6 text-gray-500"
+              className="w-6 h-6 text-muted-foreground"
             >
               <path
                 strokeLinecap="round"
@@ -90,18 +90,18 @@ export default function LoginPage() {
               data-testid="login-identifier-input"
               placeholder={t("emailOrUsernamePlaceholder")}
               required
-              className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium"
+              className="bg-transparent outline-none w-full ml-3 text-foreground placeholder:text-muted-foreground/50 font-medium"
             />
           </div>
 
-          <div className="relative flex items-center bg-[#F7F7F7] rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-black/20 transition-all">
+          <div className="relative flex items-center bg-background border border-border rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={1.5}
               stroke="currentColor"
-              className="w-6 h-6 text-gray-500"
+              className="w-6 h-6 text-muted-foreground"
             >
               <path
                 strokeLinecap="round"
@@ -115,12 +115,12 @@ export default function LoginPage() {
               data-testid="login-password-input"
               placeholder={t("passwordPlaceholder")}
               required
-              className="bg-transparent outline-none w-full ml-3 text-gray-800 placeholder-gray-400 font-medium"
+              className="bg-transparent outline-none w-full ml-3 text-foreground placeholder:text-muted-foreground/50 font-medium"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600 focus:outline-none"
+              className="text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -147,7 +147,7 @@ export default function LoginPage() {
           <div className="flex justify-start">
             <Link
               href={`/${locale}/forgotPassword`}
-              className="text-sm font-bold text-gray-800 hover:underline"
+              className="text-sm font-bold text-muted-foreground hover:text-foreground hover:underline"
             >
               {t("forgotPassword")}
             </Link>
@@ -156,24 +156,24 @@ export default function LoginPage() {
           <button
             type="submit"
             data-testid="login-submit-btn"
-            className="w-full bg-black text-white font-bold py-4 rounded-full mt-4 hover:bg-gray-800 transition-colors active:scale-95 transform"
+            className="w-full bg-accent hover:opacity-90 text-on-accent font-bold py-4 rounded-full mt-4 transition-all active:scale-95 transform cursor-pointer shadow-lg shadow-accent/20 min-h-[48px]"
           >
             {t("loginButton")}
           </button>
         </form>
 
         <div className="flex items-center my-8">
-          <hr className="flex-grow border-gray-200" />
-          <span className="px-4 text-gray-400 text-sm">{t("or")}</span>
-          <hr className="flex-grow border-gray-200" />
+          <hr className="flex-grow border-border" />
+          <span className="px-4 text-muted-foreground text-sm">{t("or")}</span>
+          <hr className="flex-grow border-border" />
         </div>
 
         <div className="text-center">
-          <p className="text-xs font-bold text-gray-800 mb-6">
+          <p className="text-xs font-bold text-muted-foreground mb-6">
             {t("socialJoin")}
           </p>
           <div className="flex justify-center gap-4">
-            <button className="w-14 h-14 bg-[#F7F7F7] rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+            <button className="w-14 h-14 bg-background border border-border rounded-2xl flex items-center justify-center hover:bg-muted transition-colors cursor-pointer">
               <svg
                 className="w-6 h-6"
                 viewBox="0 0 24 24"
@@ -198,7 +198,7 @@ export default function LoginPage() {
                 />
               </svg>
             </button>
-            <button className="w-14 h-14 bg-[#F7F7F7] rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+            <button className="w-14 h-14 bg-background border border-border rounded-2xl flex items-center justify-center hover:bg-muted transition-colors cursor-pointer">
               <svg
                 className="w-6 h-6"
                 viewBox="0 0 24 24"
@@ -211,11 +211,11 @@ export default function LoginPage() {
                 />
               </svg>
             </button>
-            <button className="w-14 h-14 bg-[#F7F7F7] rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors">
+            <button className="w-14 h-14 bg-background border border-border rounded-2xl flex items-center justify-center hover:bg-muted transition-colors cursor-pointer">
               <svg
-                className="w-6 h-6"
+                className="w-6 h-6 text-foreground"
                 viewBox="0 0 24 24"
-                fill="black"
+                fill="currentColor"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.126 3.822 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.665-1.48 3.666-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2.025-.156-4.013 1.09-4.63 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.56-1.702z" />
@@ -224,18 +224,18 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-6">
-            <SocialLinks variant="light" />
+            <SocialLinks variant="dark" />
           </div>
         </div>
 
         <div className="mt-16 text-center">
-          <p className="text-xs text-gray-500 font-medium">
+          <p className="text-xs text-muted-foreground font-medium">
             {t("termsPrefix")} <br />
-            <Link href="#" className="text-gray-800 font-bold hover:underline">
+            <Link href="#" className="text-foreground font-bold hover:underline">
               {t("termsOfService")}
             </Link>{" "}
             {t("and")}{" "}
-            <Link href="#" className="text-gray-800 font-bold hover:underline">
+            <Link href="#" className="text-foreground font-bold hover:underline">
               {t("privacyPolicy")}
             </Link>
             .

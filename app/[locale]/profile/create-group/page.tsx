@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { createGroupAction, getGroupByUser } from "@/app/actions/group";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Lock } from "lucide-react";
 
 export default function CreateGroupPage() {
   const router = useRouter();
@@ -329,10 +329,10 @@ export default function CreateGroupPage() {
                   <label
                     key={index}
                     htmlFor="gallery-upload"
-                    className="flex flex-col items-center justify-center aspect-square w-full rounded-2xl border-2 border-dashed border-[#FF725E] bg-[#FF725E]/5 cursor-pointer hover:bg-[#FF725E]/10 transition-all group shadow-inner"
+                    className="flex flex-col items-center justify-center aspect-square w-full rounded-2xl border-2 border-dashed border-primary bg-primary/5 cursor-pointer hover:bg-primary/10 transition-all group shadow-inner"
                   >
-                    <Plus size={24} className="text-[#FF725E] group-hover:scale-110 transition-transform duration-200" />
-                    <span className="text-[10px] font-black uppercase text-[#FF725E] mt-1 tracking-wider">{t("addPhoto")}</span>
+                    <Plus size={24} className="text-primary group-hover:scale-110 transition-transform duration-200" />
+                    <span className="text-[10px] font-black uppercase text-primary mt-1 tracking-wider">{t("addPhoto")}</span>
                   </label>
                 );
               }
@@ -340,49 +340,51 @@ export default function CreateGroupPage() {
               return (
                 <div
                   key={index}
-                  className="flex items-center justify-center aspect-square w-full rounded-2xl border border-white/5 bg-[#0A0A0A] text-gray-800"
+                  className="flex items-center justify-center aspect-square w-full rounded-2xl border border-border bg-card text-muted-foreground"
                 >
                   <Plus size={20} className="opacity-20" />
                 </div>
               );
             })}
           </div>
-          <p className="text-[9px] text-center text-[#FF725E] font-bold uppercase tracking-widest mt-2">
+          <p className="text-[9px] text-center text-primary font-bold uppercase tracking-widest mt-2">
             {displayPhotos.length === 0 ? t("uploadHint") : t("uploadHintMore")}
           </p>
         </div>
 
-        <div className="bg-[#121212] rounded-[2rem] p-6 space-y-8 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
+        <div className="bg-card border border-border rounded-[2rem] p-6 space-y-8 shadow-xl">
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 bg-[#FF725E]/40 rounded-full"></div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
+            <div className="w-1 h-4 bg-primary rounded-full"></div>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">
               {t("groupDetails")}
             </h3>
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="font-bold text-sm">{t("members")}</span>
+            <span className="font-bold text-sm text-foreground">{t("members")}</span>
 
-            <div className="flex items-center gap-4 bg-black/40 p-1 rounded-full">
+            <div className="flex items-center gap-3 bg-background border border-border p-1.5 rounded-full">
               <button
                 type="button"
                 onClick={() => setMembersCount(Math.max(1, membersCount - 1))}
-                className="w-8 h-8 bg-[#FF725E]/10 text-[#FF725E] rounded-full 
-                           flex items-center justify-center font-black hover:bg-[#FF725E]/20"
+                aria-label="Decrease members"
+                className="w-11 h-11 bg-primary/15 text-primary rounded-full 
+                           flex items-center justify-center font-black hover:bg-primary/25 text-lg cursor-pointer transition-colors"
               >
                 –
               </button>
 
-              <span className="text-sm font-bold w-4 text-center text-white">
+              <span className="text-base font-bold w-6 text-center text-foreground">
                 {membersCount}
               </span>
 
               <button
                 type="button"
                 onClick={() => setMembersCount(membersCount + 1)}
-                className="w-8 h-8 bg-[#FF725E] text-white rounded-full 
+                aria-label="Increase members"
+                className="w-11 h-11 bg-primary text-on-primary rounded-full 
                            flex items-center justify-center font-black 
-                           shadow-[0_2px_0_#E85C4A] hover:bg-[#ff8575]"
+                           shadow-md hover:opacity-90 text-lg cursor-pointer transition-opacity"
               >
                 +
               </button>
@@ -390,18 +392,18 @@ export default function CreateGroupPage() {
           </div>
 
           <div className="space-y-3">
-            <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+            <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
               {t("memberGender")}
             </span>
 
-            <div className="flex bg-black/40 p-1 rounded-xl gap-1">
+            <div className="flex bg-background border border-border p-1 rounded-xl gap-1">
               {["MIXED", "MALE", "FEMALE", "DIVERSE"].map((g) => (
                 <label
                   key={g}
                   data-checked={groupGender === g}
-                  className="flex-1 text-center py-2 rounded-lg cursor-pointer 
-                             text-gray-500 transition-all hover:scale-105
-                             data-[checked=true]:bg-[#FF725E] data-[checked=true]:text-black"
+                  className="flex-1 text-center py-2.5 rounded-lg cursor-pointer 
+                             text-muted-foreground transition-all hover:scale-105
+                             data-[checked=true]:bg-primary data-[checked=true]:text-on-primary font-bold"
                 >
                   <input
                     type="radio"
@@ -429,9 +431,9 @@ export default function CreateGroupPage() {
             </div>
 
             <div className="relative h-8 flex items-center pt-2">
-              <div className="absolute w-full h-1 bg-[#333] rounded-lg"></div>
+              <div className="absolute w-full h-1 bg-muted rounded-lg"></div>
               <div
-                className="absolute h-1 bg-[#FF725E] rounded-lg"
+                className="absolute h-1 bg-primary rounded-lg"
                 style={{
                   left: `${((ageMin - 18) / 32) * 100}%`,
                   right: `${100 - ((ageMax - 18) / 32) * 100}%`
@@ -445,7 +447,7 @@ export default function CreateGroupPage() {
                 max="50"
                 value={ageMin}
                 onChange={(e) => setAgeMin(Math.min(Number(e.target.value), ageMax - 1))}
-                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-none"
               />
 
               <input
@@ -455,35 +457,35 @@ export default function CreateGroupPage() {
                 max="50"
                 value={ageMax}
                 onChange={(e) => setAgeMax(Math.max(Number(e.target.value), ageMin + 1))}
-                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-none"
               />
             </div>
           </div>
         </div>
 
 
-        <div className="bg-[#121212] rounded-[2rem] p-6 space-y-8 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
+        <div className="bg-card border border-border rounded-[2rem] p-6 space-y-8 shadow-xl">
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 bg-[#FFD54F] rounded-full"></div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
+            <div className="w-1 h-4 bg-secondary rounded-full"></div>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">
               {t("searchPreferences")}
             </h3>
           </div>
 
 
           <div className="space-y-3">
-            <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+            <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
               {t("searchGender")}
             </span>
 
-            <div className="flex bg-black/40 p-1 rounded-xl gap-1">
+            <div className="flex bg-background border border-border p-1 rounded-xl gap-1">
               {["MIXED", "MALE", "FEMALE", "DIVERSE"].map((g) => (
                 <label
                   key={g}
                   data-checked={searchGender === g}
-                  className="flex-1 text-center py-2 rounded-lg cursor-pointer 
-                             text-gray-500 transition-all hover:scale-105
-                             data-[checked=true]:bg-[#FF725E] data-[checked=true]:text-black"
+                  className="flex-1 text-center py-2.5 rounded-lg cursor-pointer 
+                             text-muted-foreground transition-all hover:scale-105
+                             data-[checked=true]:bg-secondary data-[checked=true]:text-on-secondary font-bold"
                 >
                   <input
                     type="radio"
@@ -503,9 +505,9 @@ export default function CreateGroupPage() {
 
 
           <div className="space-y-4">
-            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               <span>{t("preferredAgeRange")}</span>
-              <span className="text-white bg-[#222] px-3 py-1 rounded-full border border-[#333]">
+              <span className="text-foreground bg-muted px-3 py-1 rounded-full border border-border">
                 {searchAgeMin} — {searchAgeMax}
               </span>
             </div>
@@ -513,10 +515,10 @@ export default function CreateGroupPage() {
 
             <div className="relative h-8 flex items-center pt-2">
 
-              <div className="absolute w-full h-1 bg-[#333] rounded-lg"></div>
+              <div className="absolute w-full h-1 bg-muted rounded-lg"></div>
 
               <div
-                className="absolute h-1 bg-[#FF725E] rounded-lg"
+                className="absolute h-1 bg-secondary rounded-lg"
                 style={{
                   left: `${((searchAgeMin - 18) / 32) * 100}%`,
                   right: `${100 - ((searchAgeMax - 18) / 32) * 100}%`
@@ -530,7 +532,7 @@ export default function CreateGroupPage() {
                 max="50"
                 value={searchAgeMin}
                 onChange={(e) => setSearchAgeMin(Math.min(Number(e.target.value), searchAgeMax - 1))}
-                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-secondary [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-secondary [&::-moz-range-thumb]:border-none"
               />
 
               <input
@@ -540,15 +542,15 @@ export default function CreateGroupPage() {
                 max="50"
                 value={searchAgeMax}
                 onChange={(e) => setSearchAgeMax(Math.max(Number(e.target.value), searchAgeMin + 1))}
-                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#FF725E] [&::-moz-range-thumb]:border-none"
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-secondary [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-secondary [&::-moz-range-thumb]:border-none"
               />
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               <span>{t("maxDistance")}</span>
-              <span className="text-white bg-[#222] px-3 py-1 rounded-full border border-[#333]">
+              <span className="text-foreground bg-muted px-3 py-1 rounded-full border border-border">
                 {maxDistance} km
               </span>
             </div>
@@ -560,16 +562,18 @@ export default function CreateGroupPage() {
               max="50"
               value={maxDistance}
               onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="w-full accent-[#FF725E] h-1 bg-[#333] rounded-lg appearance-none"
+              className="w-full accent-secondary h-1 bg-muted rounded-lg appearance-none cursor-pointer"
             />
           </div>
 
-          <div className="flex justify-between items-center bg-black/20 p-4 rounded-2xl border border-white/5">
+          <div className="flex justify-between items-center bg-background p-4 rounded-2xl border border-border">
             <div className="flex items-center gap-3">
-              <span className="text-xl">🔒</span>
+              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                <Lock size={18} />
+              </div>
               <div>
-                <p className="text-sm font-bold">{t("publicProfile")}</p>
-                <p className="text-[10px] text-gray-500">{t("visibleToAll")}</p>
+                <p className="text-sm font-bold text-foreground">{t("publicProfile")}</p>
+                <p className="text-[10px] text-muted-foreground">{t("visibleToAll")}</p>
               </div>
             </div>
 
@@ -581,19 +585,19 @@ export default function CreateGroupPage() {
                 defaultChecked
               />
               <div
-                className="w-10 h-5 bg-gray-700 rounded-full peer-checked:bg-[#FF725E] 
+                className="w-10 h-5 bg-muted rounded-full peer-checked:bg-primary 
                               after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
-                              after:bg-white after:h-4 after:w-4 after:rounded-full after:transition-all 
-                              peer-checked:after:translate-x-5"
+                              after:bg-foreground after:h-4 after:w-4 after:rounded-full after:transition-all 
+                              peer-checked:after:translate-x-5 cursor-pointer"
               ></div>
             </label>
           </div>
         </div>
 
-        <div className="bg-[#121212] rounded-[2rem] p-6 space-y-6 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
+        <div className="bg-card border border-border rounded-[2rem] p-6 space-y-6 shadow-xl">
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 bg-[#FF55A5] rounded-full"></div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
+            <div className="w-1 h-4 bg-secondary rounded-full"></div>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">
               {t("instagramProfiles")}
             </h3>
           </div>
@@ -644,9 +648,9 @@ export default function CreateGroupPage() {
               placeholder={t("descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-[#121212] border border-white/5 rounded-[1.5rem] p-5 text-sm text-white placeholder:text-gray-700 h-32 focus:outline-none focus:border-[#FF725E] transition-all"
+              className="w-full bg-card border border-border rounded-[1.5rem] p-5 text-sm text-foreground placeholder:text-muted-foreground/50 h-32 focus:outline-none focus:border-primary transition-all"
             />
-            <span className="absolute bottom-3 right-5 text-[10px] text-gray-500">
+            <span className="absolute bottom-3 right-5 text-[10px] text-muted-foreground">
               {description.length}/200
             </span>
           </div>
@@ -658,17 +662,17 @@ export default function CreateGroupPage() {
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-1 accent-[#FF725E]"
+              className="mt-1 accent-primary cursor-pointer"
             />
 
-            <p className="text-[10px] text-gray-500 leading-relaxed">
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
               {t.rich("termsText", {
                 terms: (chunks) => (
                   <a
                     href="https://gloo.app/terms"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#FF725E] hover:underline"
+                    className="text-primary hover:underline"
                   >
                     {chunks}
                   </a>
@@ -678,7 +682,7 @@ export default function CreateGroupPage() {
                     href="https://gloo.app/guidelines"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#FF725E] hover:underline"
+                    className="text-primary hover:underline"
                   >
                     {chunks}
                   </a>
@@ -691,9 +695,9 @@ export default function CreateGroupPage() {
             type="submit"
             data-testid="create-group-submit"
             disabled={!agreed || loading}
-            className={`w-full font-black py-5 rounded-[1.5rem] text-sm uppercase tracking-[0.2em] transition-all ${agreed
-                ? "bg-[#FF725E] text-black hover:bg-[#ff8575]"
-                : "bg-[#333333] text-gray-500 opacity-50"
+            className={`w-full font-black py-5 rounded-[1.5rem] text-sm uppercase tracking-[0.2em] transition-all min-h-[48px] ${agreed
+                ? "bg-accent text-on-accent hover:opacity-90 active:scale-[0.99] shadow-lg shadow-accent/20 cursor-pointer"
+                : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
               }`}
           >
             {loading
@@ -707,26 +711,26 @@ export default function CreateGroupPage() {
 
       {showPhotoAlert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#121212] border border-white/10 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(255,114,94,0.15)] flex flex-col items-center text-center space-y-4">
+          <div className="bg-card border border-border rounded-[2rem] p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center space-y-4">
 
-            <div className="w-16 h-16 bg-[#FF725E]/10 rounded-full flex items-center justify-center text-[#FF725E] mb-2">
+            <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center text-secondary mb-2 border border-secondary/20">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
 
-            <h2 className="text-lg font-black uppercase tracking-wider text-white">
+            <h2 className="text-lg font-black uppercase tracking-wider text-foreground">
               {t("photoRequired")}
             </h2>
 
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               {t("photoRequiredDesc")}
             </p>
 
             <button
               type="button"
               onClick={() => setShowPhotoAlert(false)}
-              className="w-full mt-4 bg-[#333] hover:bg-[#444] text-white font-bold py-4 rounded-[1.5rem] uppercase tracking-[0.2em] text-xs transition-colors"
+              className="w-full mt-4 bg-muted hover:bg-muted/80 text-foreground font-bold py-4 rounded-[1.5rem] uppercase tracking-[0.2em] text-xs transition-colors cursor-pointer min-h-[44px]"
             >
               {t("gotIt")}
             </button>

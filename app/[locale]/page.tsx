@@ -8,17 +8,17 @@ import { loginAsGuest } from "@/app/actions/guest";
 import SocialLinks from "@/app/components/SocialLinks";
 
 const languages = [
-  { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
-  { code: 'es', label: 'Español', flag: '🇪🇸' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-  { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+  { code: 'it', label: 'Italiano' },
 ];
 
 function LoadingOverlay({ visible }: { visible: boolean }) {
   return (
     <div
-      className={`fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black transition-opacity duration-300 ${visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      className={`fixed inset-0 z-[999] flex flex-col items-center justify-center bg-background transition-opacity duration-300 ${visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
     >
       <div className="relative w-48 h-24 mb-10 flex items-center justify-center">
@@ -33,12 +33,12 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
       </div>
 
       <div className="relative w-20 h-20 flex items-center justify-center">
-        <span className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-[#FF5733] animate-[spin_1.4s_linear_infinite]" />
-        <span className="absolute inset-[6px] rounded-full border-[3px] border-transparent border-t-[#FF5733]/60 animate-[spin_1s_linear_infinite_reverse]" />
+        <span className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-primary animate-[spin_1.4s_linear_infinite]" />
+        <span className="absolute inset-[6px] rounded-full border-[3px] border-transparent border-t-secondary animate-[spin_1s_linear_infinite_reverse]" />
         <span className="absolute inset-[13px] rounded-full border-[2px] border-transparent border-t-white/40 animate-[spin_0.7s_linear_infinite]" />
       </div>
 
-      <p className="mt-10 text-[11px] font-black uppercase tracking-[0.3em] text-white/40 animate-pulse">
+      <p className="mt-10 text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground animate-pulse">
         Loading
       </p>
     </div>
@@ -85,7 +85,7 @@ export default function Home() {
   }, []);
 
 
-  const handleLanguageChange = (lang: { code: string; label: string; flag: string }) => {
+  const handleLanguageChange = (lang: { code: string; label: string }) => {
     setIsOpen(false);
 
     document.cookie = `NEXT_LOCALE=${lang.code}; path=/; max-age=31536000`;
@@ -133,9 +133,9 @@ export default function Home() {
           </div>
 
           <div className="text-center space-y-3">
-            <h1 className="text-3xl font-extrabold tracking-tight drop-shadow-lg">
+            <h1 className="text-3xl font-extrabold tracking-tight drop-shadow-lg text-foreground">
               {t("titleStart")}
-              <span className="text-[#FF5733] font-medium"> {t("titleHighlight")} </span>
+              <span className="text-secondary font-bold"> {t("titleHighlight")} </span>
               {t("titleEnd")}
             </h1>
           </div>
@@ -146,9 +146,10 @@ export default function Home() {
           <div className="relative w-full" ref={dropdownRef} data-testid="language-dropdown">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="w-full bg-[#1A1A1A]/80 backdrop-blur-md border-2 border-[#8E44AD] text-white font-sans font-semibold py-4 px-4 rounded-2xl flex items-center justify-center space-x-2 focus:outline-none focus:ring-2 focus:ring-[#8E44AD] transition-all shadow-lg"
+              className="w-full bg-card/80 backdrop-blur-md border-2 border-primary text-foreground font-sans font-semibold py-4 px-4 rounded-2xl flex items-center justify-center space-x-2 focus:outline-none focus:ring-2 focus:ring-primary transition-all shadow-lg cursor-pointer"
             >
-              <span>{activeLanguage.flag} {activeLanguage.label}</span>
+              <span className="text-xs font-black uppercase bg-primary/20 text-primary px-2 py-0.5 rounded mr-1">{activeLanguage.code}</span>
+              <span>{activeLanguage.label}</span>
               <svg
                 className={`fill-current h-5 w-5 absolute right-6 transition-transform ${isOpen ? "rotate-180" : ""}`}
                 xmlns="http://www.w3.org/2000/svg"
@@ -159,15 +160,16 @@ export default function Home() {
             </button>
 
             {isOpen && (
-              <ul className="absolute z-10 w-full mt-2 bg-[#1A1A1A]/90 backdrop-blur-lg border-2 border-[#8E44AD] rounded-2xl shadow-2xl overflow-hidden bottom-full mb-2">
+              <ul className="absolute z-10 w-full mt-2 bg-card/95 backdrop-blur-lg border-2 border-primary rounded-2xl shadow-2xl overflow-hidden bottom-full mb-2">
                 {languages.map((lang) => (
                   <li key={lang.code}>
                     <button
                       onClick={() => handleLanguageChange(lang)}
                       data-testid={`language-option-${lang.code}`}
-                      className="w-full text-center px-4 py-3 hover:bg-[#8E44AD] text-white font-sans font-medium transition-colors"
+                      className="w-full text-center px-4 py-3 hover:bg-primary/20 hover:text-primary text-foreground font-sans font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      {lang.flag} {lang.label}
+                      <span className="text-xs font-black uppercase bg-primary/20 text-primary px-1.5 py-0.5 rounded">{lang.code}</span>
+                      <span>{lang.label}</span>
                     </button>
                   </li>
                 ))}
@@ -179,7 +181,7 @@ export default function Home() {
             onClick={handleGuestEntry}
             disabled={isPending}
             data-testid="party-start-btn"
-            className="w-full bg-[#FF5733] hover:bg-[#e64d2e] text-white font-bold py-4 rounded-2xl text-center transition-all transform active:scale-95 shadow-[0_0_20px_rgba(255,87,51,0.3)] disabled:opacity-60"
+            className="w-full bg-accent hover:opacity-90 text-on-accent font-bold py-4 rounded-2xl text-center transition-all transform active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.4)] disabled:opacity-60 cursor-pointer"
           >
             {t("buttonStart")}
           </button>

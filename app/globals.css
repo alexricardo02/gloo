@@ -1,29 +1,133 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   GlooNightlife Design System — Global Tokens
+   Source of truth: design-system/gloonightlife/MASTER.md
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  /* ── Color Palette ─────────────────────────────────────────────────────── */
+  --color-primary: #7C3AED;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #EC4899;
+  --color-on-secondary: #000000;
+  --color-accent: #2563EB;
+  --color-on-accent: #FFFFFF;
+  --color-background: #0F172A;
+  --color-foreground: #F8FAFC;
+  --color-card: #111827;
+  --color-card-foreground: #F8FAFC;
+  --color-muted: #1E293B;
+  --color-muted-foreground: #CBD5E1;
+  --color-border: #334155;
+  --color-destructive: #DC2626;
+  --color-on-destructive: #FFFFFF;
+  --color-ring: #7C3AED;
+
+  /* ── Spacing Scale ─────────────────────────────────────────────────────── */
+  --space-xs: 0.25rem;   /* 4px  – Tight gaps */
+  --space-sm: 0.5rem;    /* 8px  – Icon gaps, inline spacing */
+  --space-md: 1rem;      /* 16px – Standard padding */
+  --space-lg: 1.5rem;    /* 24px – Section padding */
+  --space-xl: 2rem;      /* 32px – Large gaps */
+  --space-2xl: 3rem;     /* 48px – Section margins */
+  --space-3xl: 4rem;     /* 64px – Hero padding */
+
+  /* ── Shadow Depths ─────────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+  /* ── Radii ─────────────────────────────────────────────────────────────── */
+  --radius-sm: 0.5rem;   /* 8px  – Buttons, inputs */
+  --radius-md: 0.75rem;  /* 12px – Cards */
+  --radius-lg: 1rem;     /* 16px – Modals */
+  --radius-xl: 1.5rem;   /* 24px – Bottom sheets */
+  --radius-full: 9999px; /* Pills */
+
+  /* ── Transitions ───────────────────────────────────────────────────────── */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
 }
 
+/* ── Register tokens with Tailwind v4 @theme ─────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors */
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-primary: var(--color-primary);
+  --color-on-primary: var(--color-on-primary);
+  --color-secondary: var(--color-secondary);
+  --color-on-secondary: var(--color-on-secondary);
+  --color-accent: var(--color-accent);
+  --color-on-accent: var(--color-on-accent);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-border: var(--color-border);
+  --color-destructive: var(--color-destructive);
+  --color-on-destructive: var(--color-on-destructive);
+  --color-ring: var(--color-ring);
+
+  /* Typography – Inter loaded via next/font/google in layout.tsx */
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #ffffff;
-  }
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   Global Base Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 body {
-  background-color: #000000;
-  color: #FFFFFF;
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Leaflet Dark-Mode Popup Overrides
+   Prevents white-flash popups on the dark CARTO tile layer.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.leaflet-popup-content-wrapper {
+  background: var(--color-card) !important;
+  color: var(--color-card-foreground) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--color-card) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.leaflet-popup-close-button {
+  color: var(--color-muted-foreground) !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: var(--color-foreground) !important;
+}
+
+/* Override popup inner text colors for dark theme */
+.leaflet-popup-content {
+  color: var(--color-card-foreground) !important;
+}
+
+.leaflet-popup-content h3 {
+  color: var(--color-foreground) !important;
+}
+
+.leaflet-popup-content p {
+  color: var(--color-muted-foreground) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Keyframes & Animations
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 @keyframes shine {
   0% {
@@ -38,6 +142,10 @@ body {
   animation: shine 3s linear infinite; 
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Utilities
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
@@ -48,5 +156,25 @@ body {
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Safe-area inset for fixed bottom bars on notched devices */
+  .safe-bottom {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 1.25rem));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Reduced-Motion Support (MASTER.md pre-delivery checklist)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

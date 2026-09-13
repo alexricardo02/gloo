@@ -38,7 +38,7 @@ interface LikedGroupsMapProps {
 function createLikeMarkerIcon() {
   return L.divIcon({
     className: "custom-leaflet-marker",
-    html: `<div class="w-6 h-6 rounded-full bg-[#FF725E] border-2 border-white shadow-[0_0_15px_rgba(255,114,94,0.7)] flex items-center justify-center">
+    html: `<div class="w-6 h-6 rounded-full bg-secondary border-2 border-white shadow-[0_0_15px_rgba(236,72,153,0.7)] flex items-center justify-center">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
       </svg>
@@ -71,8 +71,8 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
   };
 
   return (
-    <div className="w-56 p-2 text-black font-sans flex flex-col">
-      <div className="w-full h-24 rounded-xl overflow-hidden bg-gray-200 mb-2">
+    <div className="w-56 p-2 text-foreground font-sans flex flex-col">
+      <div className="w-full h-24 rounded-xl overflow-hidden bg-muted mb-2 border border-border">
         <img
           src={group.photos?.[0] || "/images/bg-fallback.jpg"}
           alt={displayName}
@@ -80,32 +80,32 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
         />
       </div>
 
-      <h3 className="font-black text-sm tracking-tight text-gray-900">
+      <h3 className="font-black text-sm tracking-tight text-foreground">
         {displayName}
       </h3>
 
       <div className="flex flex-wrap gap-1 mt-1 mb-2">
-        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#FF725E] text-white">
+        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-secondary text-on-secondary">
           {group.gender}
         </span>
-        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
           {group.membersCount} Members
         </span>
-        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
           {group.ageMin}–{group.ageMax}
         </span>
       </div>
 
       {group.description && (
-        <p className="text-[10px] text-gray-500 line-clamp-2 mb-2">
+        <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">
           {group.description}
         </p>
       )}
 
       {group.likedByCurrentUser && (
-        <div className="flex items-center gap-1 mb-2 bg-[#FF725E]/10 p-1.5 rounded-lg">
-          <Heart size={12} className="text-[#FF725E]" fill="#FF725E" />
-          <span className="text-[10px] font-black text-[#FF725E] uppercase">
+        <div className="flex items-center gap-1 mb-2 bg-secondary/15 border border-secondary/25 p-1.5 rounded-lg">
+          <Heart size={12} className="text-secondary" fill="var(--color-secondary)" />
+          <span className="text-[10px] font-black text-secondary uppercase">
             Match!
           </span>
         </div>
@@ -114,10 +114,10 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
       <button
         onClick={handleOpenChat}
         disabled={isOpeningChat}
-        className="w-full mt-1 bg-black text-white text-xs font-black uppercase tracking-widest py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:bg-gray-900 transition-colors disabled:opacity-50"
+        className="w-full mt-1 bg-accent hover:opacity-90 text-on-accent text-xs font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-1.5 transition-opacity disabled:opacity-50 cursor-pointer min-h-[44px]"
       >
         {isOpeningChat ? (
-          <Loader2 size={14} className="animate-spin" />
+          <Loader2 size={14} className="animate-spin text-on-accent" />
         ) : (
           <>
             <MessageCircle size={14} />
@@ -172,8 +172,8 @@ export default function LikedGroupsMap({ groups }: LikedGroupsMapProps) {
 
       {/* Show message if no groups have location */}
       {groupsWithLocation.length === 0 && groups.length > 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-[1000] bg-black/60">
-          <p className="text-white text-sm font-bold px-4 text-center">
+        <div className="absolute inset-0 flex items-center justify-center z-[1000] bg-background/80 backdrop-blur-sm">
+          <p className="text-foreground text-sm font-bold px-4 text-center">
             No location data available for these groups
           </p>
         </div>

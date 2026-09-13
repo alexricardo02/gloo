@@ -16,9 +16,9 @@ export default function MapPage() {
   const t = useTranslations("Map");
 
   return (
-    <div className="flex flex-col h-screen bg-black text-white font-sans">
-      <div className="p-4 bg-[#111] border-b border-white/5">
-        <h1 className="text-xs font-black tracking-widest uppercase text-gray-400">
+    <div className="flex flex-col h-screen bg-background text-foreground font-sans">
+      <div className="p-4 bg-card/90 backdrop-blur-md border-b border-border">
+        <h1 className="text-xs font-black tracking-widest uppercase text-muted-foreground">
           {t("title")}
         </h1>
       </div>

@@ -92,7 +92,7 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
 
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-white/10 z-40 px-4 pb-5 pt-3 safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-lg border-t border-border z-40 px-4 pt-3 safe-bottom" role="tablist">
       <div className="max-w-md mx-auto flex justify-between items-center">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -104,25 +104,29 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
               key={item.href}
               onClick={(e) => handleNavigation(e, item)}
               data-testid={`nav-tab-${item.id}`}
-              className="flex flex-col items-center justify-center flex-1 min-w-0 transition-all duration-200 relative group bg-transparent border-none cursor-pointer"
+              role="tab"
+              aria-label={item.label}
+              aria-selected={isActive}
+              aria-current={isActive ? "page" : undefined}
+              className="flex flex-col items-center justify-center flex-1 min-w-0 min-h-12 transition-all duration-200 relative group bg-transparent border-none cursor-pointer"
             >
               <div
-                className={`p-1.5 rounded-xl transition-all duration-200 relative ${isActive
-                    ? "text-[#FF725E] scale-110"
-                    : "text-gray-500 group-hover:text-gray-300"
+                className={`p-2 rounded-xl transition-all duration-200 relative ${isActive
+                    ? "text-primary scale-110"
+                    : "text-muted-foreground group-hover:text-foreground"
                   }`}
               >
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
 
                 {isMessagesTab && unreadCount > 0 && (
-                  <div data-testid="unread-badge" className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF725E] text-black text-[10px] font-black flex items-center justify-center rounded-full border-2 border-black animate-in zoom-in">
+                  <div data-testid="unread-badge" className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-0.5 bg-secondary text-on-secondary text-[10px] font-black flex items-center justify-center rounded-full border-2 border-background animate-in zoom-in">
                     {unreadCount}
                   </div>
                 )}
               </div>
 
               {isActive && (
-                <div className="absolute -top-3 w-8 h-0.5 bg-[#FF725E] rounded-full shadow-[0_0_10px_#FF725E]" />
+                <div className="absolute -top-3 w-8 h-0.5 bg-primary rounded-full shadow-[0_0_10px_var(--color-primary)]" />
               )}
             </button>
           );

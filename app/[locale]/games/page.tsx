@@ -66,13 +66,13 @@ export default function GamesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans pb-32">
+    <div className="min-h-screen bg-background text-foreground font-sans pb-32">
       
-      <header className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md z-30 pt-12 pb-6 px-6 border-b border-white/5 text-center">
-        <h1 className="text-3xl font-black italic uppercase tracking-tight text-white mb-1">
+      <header className="fixed top-0 left-0 right-0 bg-card/90 backdrop-blur-md z-30 pt-12 pb-6 px-6 border-b border-border text-center">
+        <h1 className="text-3xl font-black italic uppercase tracking-tight text-foreground mb-1">
           {t("title") || "Gloo Games"}
         </h1>
-        <p className="text-gray-400 text-xs tracking-wide">
+        <p className="text-muted-foreground text-xs tracking-wide">
           {t("subtitle") || "Choose a game to jumpstart your pre-party"}
         </p>
       </header>
@@ -80,27 +80,28 @@ export default function GamesPage() {
       <main className="pt-36 px-4 max-w-md mx-auto">
         <div className="flex flex-col gap-3">
           {gamesList.map((game) => {
+            const Icon = game.icon;
             return (
               <Link
                 href={`/${locale}/games/${game.id}`}
                 key={game.id}
                 data-testid={`game-card-${game.id}`}
-                className="relative w-full bg-[#111111] rounded-2xl overflow-hidden border border-white/5 hover:border-[#FF725E]/30 transition-all duration-300 p-5 text-left flex items-start gap-4 group hover:scale-[1.01] block" // Añadí 'block'
+                className="relative w-full bg-card rounded-2xl overflow-hidden border border-border hover:border-primary/40 transition-all duration-300 p-5 text-left flex items-start gap-4 group hover:scale-[1.01] block cursor-pointer"
               >
-                <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center text-3xl shrink-0 group-hover:bg-[#FF725E]/10 transition-colors duration-300">
-                  {game.emoji}
+                <div className="w-14 h-14 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center justify-center shrink-0 group-hover:bg-secondary/20 transition-colors duration-300">
+                  <Icon size={26} className="text-secondary group-hover:scale-110 transition-transform" />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <h2 className="text-lg font-bold text-white group-hover:text-[#FF725E] transition-colors duration-300 truncate">
+                    <h2 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors duration-300 truncate">
                       {game.title}
                     </h2>
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/5 text-gray-400 border border-white/10 shrink-0">
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
                       {game.tag}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-400 line-clamp-2 leading-relaxed">
+                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                     {game.description}
                   </p>
                 </div>
@@ -113,26 +114,26 @@ export default function GamesPage() {
       {/* Paywall / Registration Modal for Restricted Navigation Tabs */}
       {showPaywall && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-[#111111] border border-white/10 rounded-3xl p-6 max-w-sm w-full text-center animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-[#FF725E]/10 text-[#FF725E] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#FF725E]/20">
+          <div className="bg-card border border-border rounded-3xl p-6 max-w-sm w-full text-center animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/20">
               <Gamepad2 size={32} />
             </div>
-            <h3 className="text-xl font-black uppercase italic tracking-tight mb-2">
+            <h3 className="text-xl font-black uppercase italic tracking-tight mb-2 text-foreground">
               Create an Account
             </h3>
-            <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
               To unlock group matching, instant direct messages, and customized profile features, you need a full profile.
             </p>
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => router.push(`/${locale}/register`)}
-                className="w-full bg-[#FF725E] text-black font-black uppercase tracking-wider py-3 rounded-xl hover:bg-[#ff8573] transition-colors text-sm"
+                className="w-full bg-accent text-on-accent font-black uppercase tracking-wider py-3.5 rounded-xl hover:opacity-90 transition-opacity text-sm cursor-pointer min-h-[44px]"
               >
                 Sign Up Now
               </button>
               <button
                 onClick={() => setShowPaywall(false)}
-                className="w-full bg-transparent text-gray-400 font-bold hover:text-white transition-colors py-2 text-xs"
+                className="w-full bg-transparent text-muted-foreground font-bold hover:text-foreground transition-colors py-2 text-xs cursor-pointer"
               >
                 Continue Playing
               </button>
