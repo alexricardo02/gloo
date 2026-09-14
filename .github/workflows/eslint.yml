@@ -19,7 +19,7 @@ on:
 
 jobs:
   eslint:
-    name: Run eslint scanning
+    name: Run ESLint scanning
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,14 +43,15 @@ jobs:
           npx prisma generate
           npm install --no-save @microsoft/eslint-formatter-sarif
 
-      - name: Run ESLint
+      - name: Run ESLint with SARIF output
         run: |
-          npx eslint . --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif || true
+          npx eslint . --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif
+        continue-on-error: true
 
       - name: Verify SARIF file exists
         run: |
           if [ ! -f eslint-results.sarif ]; then
-            echo "::error::eslint-results.sarif no fue generado. Revisa los errores del paso anterior."
+            echo "::error::eslint-results.sarif was not created. ESLint crashed before writing the file. Check the previous step logs for details."
             exit 1
           fi
 
