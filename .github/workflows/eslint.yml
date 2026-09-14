@@ -35,14 +35,24 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install dependencies & Generate Prisma
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
         run: |
           npm ci
+          npx prisma generate
           npm install --no-save @microsoft/eslint-formatter-sarif
 
       - name: Run ESLint
-        run: npx eslint . --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif
-        continue-on-error: true
+        run: |
+          npx eslint . --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif || true
+
+      - name: Verify SARIF file exists
+        run: |
+          if [ ! -f eslint-results.sarif ]; then
+            echo "::error::eslint-results.sarif no fue generado. Revisa los errores del paso anterior."
+            exit 1
+          fi
 
       - name: Upload analysis results to GitHub
         uses: github/codeql-action/upload-sarif@v4
