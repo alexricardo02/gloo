@@ -2,15 +2,16 @@
  * DB helper for E2E global-setup.
  * Called via: npx tsx tests/e2e/helpers/db.ts <action> <arg1> <arg2>
  *
- * Loads .env only if DATABASE_URL is not already passed from parent process.
+ * Loads ONLY .env.test and refuses to run unless TEST_DATABASE_URL is a local
+ * "*_test" database (never falls back to .env).
  */
-if (!process.env.DATABASE_URL) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { loadEnvConfig } = require('@next/env');
-  loadEnvConfig(process.cwd());
-}
+import { resolveTestEnv } from '../../testEnv';
 
-import { prisma } from '../../../lib/prisma';
+Object.assign(process.env, resolveTestEnv());
+
+// Imported after the env is guarded and pinned to the test database.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { prisma } = require('../../../lib/prisma') as typeof import('../../../lib/prisma');
 
 async function main() {
   const args = process.argv.slice(2);

@@ -3,6 +3,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import http from 'http';
+import { assertSafeTestDb } from '../assertSafeTestDb';
 
 const AUTH_DIR = path.join(__dirname, '.auth');
 const AUTH_FILE_A = path.join(AUTH_DIR, 'userA.json');
@@ -84,17 +85,25 @@ async function globalSetup(config: FullConfig) {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
   }
 
-  const baseURL = config.projects[0]?.use?.baseURL as string || 'http://localhost:3000';
+  const baseURL =
+    (config.projects[0]?.use?.baseURL as string) ||
+    `http://localhost:${process.env.E2E_PORT ?? 3100}`;
 
   // Wait for dev server
   console.log('[global-setup] Waiting for dev server...');
   await waitForServer(`${baseURL}/en`);
 
+  // SAFETY: the next command wipes the target database. Re-validate the URL
+  // right here (not only in playwright.config.ts) and pass it explicitly so
+  // Prisma can never fall back to DIRECT_URL from `.env` (prisma.config.ts
+  // loads dotenv, which does not override vars that are already set).
+  const testDbUrl = assertSafeTestDb(process.env.TEST_DATABASE_URL, 'TEST_DATABASE_URL');
+
   // Push schema (force-reset for clean test state)
-  console.log('[global-setup] Pushing Prisma schema...');
+  console.log('[global-setup] Pushing Prisma schema to the test database...');
   execSync('npx prisma db push --force-reset --accept-data-loss', {
     cwd: PROJECT_ROOT,
-    env: { ...process.env },
+    env: { ...process.env, DATABASE_URL: testDbUrl, DIRECT_URL: testDbUrl },
     stdio: 'inherit',
   });
 

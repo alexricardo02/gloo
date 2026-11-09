@@ -12,6 +12,8 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Creates gloo_test / gloo_shadow on first start of a fresh volume only.
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
 
 volumes:
   postgres_data:

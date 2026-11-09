@@ -135,12 +135,30 @@ npx prisma db seed
 ```
 
 #### 3. Execution & Testing
-Running the Automated Test Suite
-To execute the comprehensive suite of over 60 automated unit and integration testing blocks via Vitest, run:
 
-```Bash
-npm run test
+##### Test database (required, one-time setup)
+All test runners (Vitest and Playwright) use a **separate local test database** and never read `.env`. They load only `.env.test`, force `DATABASE_URL` / `DIRECT_URL` to `TEST_DATABASE_URL`, and **refuse to start** unless that URL's host is `localhost` / `127.0.0.1` / `::1` **and** the database name ends in `_test` (guard: `tests/assertSafeTestDb.ts`). They also abort if your shell exports a `DATABASE_URL` / `DIRECT_URL` that is not such a database. Your `gloo_db` dev data is never touched.
+
+```bash
+# 1. Create your test env file (gitignored)
+cp .env.test.example .env.test
+
+# 2. Create the gloo_test database inside the running gloo-db container
+#    (equivalent: docker exec gloo-db createdb -U party_admin gloo_test)
+npm run test:db:create
+
+# 3. Sync the Prisma schema into the test database (re-run after schema changes)
+npm run test:db:prepare
 ```
+
+A brand-new Docker volume creates `gloo_test` (and `gloo_shadow`, used for `prisma migrate diff`) automatically via `docker/postgres-init/`. Existing volumes skip init scripts, so use step 2. The helper scripts need Node ≥ 22.18.
+
+##### Unit & integration tests (Vitest)
+```bash
+npm run test          # watch mode
+npm run test:ci       # single run
+```
+Integration tests (`tests/integration/`) write to and clean up `gloo_test`, so the container must be running.
 
 Launching the Local Development Server
 Boot up the Next.js compilation engine to serve the interactive web interface locally:
@@ -160,16 +178,14 @@ Before running the E2E tests for the first time, ensure you install the required
 npx playwright install
 ```
 
-```bash
-npx prisma db seed
-```
+Playwright uses the same `.env.test` / `gloo_test` setup as above. Its global setup **wipes and recreates `gloo_test`** (`prisma db push --force-reset`) after re-checking the guard, and it starts its **own** dev server on port **3100** (override with `E2E_PORT`) connected to the test database, with `E2E_ENABLED=1` so the `/api/e2e` helper works. It never reuses an existing server, so **stop any `npm run dev` first** (Next 16 allows only one `next dev` per project). The `/api/e2e` helper returns 404 unless `NODE_ENV !== "production"`, `E2E_ENABLED=1`, the request comes from localhost, and the `x-e2e-secret` header matches `E2E_TEST_SECRET` (auto-generated per run if empty).
 
 Execution Commands:
 
 To execute the E2E tests in the background (headless mode), run:
 
 ```bash
-npx playwright test
+npm run test:e2e      # same as: npx playwright test
 ```
 
 To execute the E2E tests using the interactive UI (Highly recommended to visually inspect the automated browser interactions and state flows), run:

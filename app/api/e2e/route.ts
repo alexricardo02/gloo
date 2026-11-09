@@ -1,8 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+function isLoopback(host: string | null | undefined): boolean {
+  if (!host) return false;
+  const h = host.trim().toLowerCase();
+  return LOOPBACK_HOSTS.has(h) || h === '::ffff:127.0.0.1';
+}
+
 /**
- * E2E test helper API – only available in development.
+ * Best-effort "request comes from this machine" check.
+ * Route handlers do not expose the socket's remote address, so we require
+ * both the requested host to be loopback AND any proxy forwarding headers
+ * (which a reverse proxy/CDN would add) to name only loopback addresses.
+ * This is defense in depth on top of the NODE_ENV / E2E_ENABLED gates.
+ */
+function isLocalRequest(request: NextRequest): boolean {
+  if (!isLoopback(request.nextUrl.hostname)) return false;
+
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor && !forwardedFor.split(',').every((ip) => isLoopback(ip))) {
+    return false;
+  }
+
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp && !isLoopback(realIp)) return false;
+
+  return true;
+}
+
+/** True only when every E2E gate is open. (Not exported: route files may only export handlers.) */
+function isE2eApiEnabled(request: NextRequest): boolean {
+  return (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.E2E_ENABLED === '1' &&
+    isLocalRequest(request)
+  );
+}
+
+const notFound = () => NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+/**
+ * E2E test helper API – only reachable when ALL of these hold:
+ *   - NODE_ENV !== "production"
+ *   - E2E_ENABLED === "1" (set by playwright.config.ts for its own dev server)
+ *   - the request comes from localhost
+ *   - the x-e2e-secret header matches a non-empty E2E_TEST_SECRET
+ * Otherwise it responds 404 so its existence is not revealed.
+ *
  * Handles DB operations that the global-setup needs but can't do
  * via `npx tsx` due to Prisma engine binary issues on some platforms.
  *
@@ -10,14 +56,11 @@ import { prisma } from '@/lib/prisma';
  * Body: { action: "verify" | "create-group", email: string, label?: string }
  */
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
-  }
+  if (!isE2eApiEnabled(request)) return notFound();
 
+  const expectedSecret = process.env.E2E_TEST_SECRET;
   const secret = request.headers.get('x-e2e-secret');
-  if (secret !== process.env.E2E_TEST_SECRET) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!expectedSecret || secret !== expectedSecret) return notFound();
 
   try {
     const body = await request.json();
