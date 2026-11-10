@@ -55,7 +55,8 @@
     "privacyPolicy": "Informativa sulla privacy",
     "error": "Qualcosa è andato storto. Riprova.",
     "invalidCredentialsError": "Nome utente, email o password non validi.",
-    "emailNotVerifiedError": "Verifica il tuo indirizzo email prima di accedere. Controlla la tua casella di posta per il link di attivazione."
+    "emailNotVerifiedError": "Verifica il tuo indirizzo email prima di accedere. Controlla la tua casella di posta per il link di attivazione.",
+    "tooManyAttemptsError": "Troppi tentativi. Attendi qualche minuto e riprova."
   },
   "Register": {
     "title": "Registrati",
@@ -83,7 +84,11 @@
     "pwdMinChars": "Min. 8 caratteri",
     "pwdUppercase": "1 Maiuscola",
     "pwdNumber": "1 Numero",
-    "pwdSpecial": "1 Carattere speciale"
+    "pwdSpecial": "1 Carattere speciale",
+    "tooManyAttemptsError": "Troppi tentativi. Attendi qualche minuto e riprova.",
+    "passwordTooLongError": "La password è troppo lunga (massimo 72 byte; alcuni caratteri speciali contano più di uno).",
+    "dobInvalidError": "Inserisci una data di nascita valida.",
+    "invalidEmailError": "Inserisci un indirizzo email valido."
   },
   "Profile": {
     "title": "Profilo",
@@ -206,7 +211,10 @@
     "backToLogin": "Torna al Login",
     "successTitle": "Controlla la Tua Email",
     "successMessage": "Se esiste un account con quella email, abbiamo inviato un link per reimpostare la password.",
-    "checkSpam": "Per favore controlla la cartella spam se non vedi l'email nella tua casella di posta."
+    "checkSpam": "Per favore controlla la cartella spam se non vedi l'email nella tua casella di posta.",
+    "invalidEmailError": "Inserisci un indirizzo email valido.",
+    "tooManyAttemptsError": "Troppi tentativi. Attendi qualche minuto e riprova.",
+    "genericError": "Qualcosa è andato storto. Riprova."
   },
   "ResetPassword": {
     "title": "Crea Nuova Password",
@@ -220,7 +228,7 @@
     "req2": "Contiene una lettera maiuscola",
     "req3": "Contiene una lettera minuscola",
     "req4": "Contiene un numero",
-    "req5": "Contiene un carattere speciale (@$!%*?&.)",
+    "req5": "Contiene un carattere speciale (qualsiasi cosa diversa da una lettera o un numero)",
     "resetButton": "Reimposta Password",
     "resetting": "Reimpostazione in corso...",
     "successTitle": "Password Reimpostata",
@@ -231,7 +239,10 @@
     "tokenMissing": "Il token di reimpostazione è mancante. Per favore richiedi una nuova reimpostazione della password.",
     "passwordMismatch": "Le password non corrispondono.",
     "passwordWeakError": "La password non soddisfa i requisiti.",
-    "tokenInvalidOrExpired": "Il link di reimpostazione è non valido o scaduto. Per favore richiedine uno nuovo."
+    "tokenInvalidOrExpired": "Il link di reimpostazione è non valido o scaduto. Per favore richiedine uno nuovo.",
+    "tooManyAttemptsError": "Troppi tentativi. Attendi qualche minuto e riprova.",
+    "passwordTooLongError": "La password è troppo lunga (massimo 72 byte; alcuni caratteri speciali contano più di uno).",
+    "resetGenericError": "Qualcosa è andato storto. Riprova."
   },
   "Terms": {
     "title": "Termini di Servizio",

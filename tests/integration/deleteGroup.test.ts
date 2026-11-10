@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { deleteGroupAction } from "@/app/actions/group";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
+import { sessionCookiesFor } from "./helpers/session";
 
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 
@@ -30,7 +31,7 @@ describe("Group Deletion Capability (Integration)", () => {
   });
 
   it("should delete the group but keep the user account active", async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: testUserId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(testUserId)) as never);
 
     // Check group exists before
     let groupCheck = await prisma.group.findUnique({ where: { userId: testUserId } });

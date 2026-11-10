@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { deleteAccountAction } from "@/app/actions/auth";
 import { cookies } from "next/headers";
+import { sessionCookiesFor } from "./helpers/session";
 import type { PrismaClient } from "@prisma/client";
 
 // Next.js Header/Cookies mocken
@@ -118,8 +119,8 @@ describe.skip("Account Deletion - ST0-122", () => {
 
     expect(userBefore).toBeDefined();
 
-    const cookieStore = await cookies();
-    cookieStore.set("gloo_user_id", testUserId);
+    // Authenticate through a real server-side session (lib/session.ts).
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(testUserId)) as never);
 
     try {
       await deleteAccountAction("en");

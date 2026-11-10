@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { getDiscoveryGroups, toggleLike } from "@/app/actions/discoverGroups";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
+import { sessionCookiesFor } from "./helpers/session";
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
@@ -58,7 +59,7 @@ describe("Discovery Algorithm & Feed Integrity (Integration)", () => {
     freshUserId = freshUser.id;
 
     // Simulate Main User liking the "Already Liked" group to set up the state
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: mainUserId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(mainUserId)) as never);
     await toggleLike(alreadyLikedGroupId);
   });
 
@@ -68,7 +69,7 @@ describe("Discovery Algorithm & Feed Integrity (Integration)", () => {
 
   it("should accurately filter the discovery feed according to proximity and interaction history", async () => {
     // Simulate Main User session
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: mainUserId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(mainUserId)) as never);
 
     const distanceLimit = 20; // km
     const feedResult = await getDiscoveryGroups({ distance: distanceLimit });

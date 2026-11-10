@@ -24,15 +24,16 @@ export default function ForgotPasswordPage() {
 
     try {
       const result = await requestPasswordReset(email, locale);
-      if (result.success) {
+      if (result.ok) {
         setSubmitted(true);
         setEmail("");
       } else {
-        setError((result as any).error || "An error occurred");
+        const known = ["invalidEmailError", "tooManyAttemptsError"];
+        setError(t(result.messageKey && known.includes(result.messageKey) ? result.messageKey : "genericError"));
       }
     } catch (err) {
       console.error("Error:", err);
-      setError("An unexpected error occurred");
+      setError(t("genericError"));
     } finally {
       setIsLoading(false);
     }

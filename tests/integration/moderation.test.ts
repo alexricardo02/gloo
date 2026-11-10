@@ -3,6 +3,7 @@ import { blockGroupAction } from "@/app/actions/moderation";
 import { getDiscoveryGroups } from "@/app/actions/discoverGroups";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
+import { sessionCookiesFor } from "./helpers/session";
 
 // Mocking cookies to simulate sessions
 vi.mock("next/headers", () => ({
@@ -44,7 +45,7 @@ describe("Moderation & Security Flow (Integration)", () => {
 
   it("should mutually isolate users after a block is executed", async () => {
     // Step 1: Simulate User A session
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: userAId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(userAId)) as never);
 
     // Verify that BEFORE blocking, User B appears in User A's discovery feed
     const preBlockFeed = await getDiscoveryGroups({ distance: 10 });
@@ -61,7 +62,7 @@ describe("Moderation & Security Flow (Integration)", () => {
     expect(isUserBPresentAfter).toBe(false);
 
     // Step 4: Bidirectional isolation (User B should not see User A either)
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: userBId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(userBId)) as never);
     const postBlockFeedB = await getDiscoveryGroups({ distance: 10 });
     const isUserAPresentAfter = postBlockFeedB.groups?.some(g => g.userId === userAId);
     expect(isUserAPresentAfter).toBe(false);

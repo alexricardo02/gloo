@@ -1,11 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { getOptionalUserId } from "@/lib/session";
 
 export async function blockGroupAction(chatId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -58,8 +57,7 @@ export async function blockGroupAction(chatId: string) {
 }
 
 export async function reportGroupAction(chatId: string, reason?: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -116,8 +114,7 @@ export async function reportGroupByGroupIdAction(
   groupId: string,
   reason?: string,
 ) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -156,8 +153,7 @@ export async function reportGroupByGroupIdAction(
 }
 
 export async function unblockGroupAction(blockedGroupId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -177,8 +173,7 @@ export async function unblockGroupAction(blockedGroupId: string) {
 }
 
 export async function getBlockedGroupsAction() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 

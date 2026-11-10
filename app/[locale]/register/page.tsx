@@ -1,86 +1,81 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import SocialLinks from "@/app/components/SocialLinks";
 import { registerUser, checkUsernameAvailability } from "@/app/actions/auth";
+import { getPasswordCriteria, meetsPasswordStrength } from "@/lib/password";
+import { loadRegisterDraft, saveRegisterDraft, clearRegisterDraft } from "@/lib/registerDraft";
+
+const noopSubscribe = () => () => {};
+
+// false during SSR and hydration, true once running in the browser.
+function useIsClient() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
 
 export default function RegisterPage() {
+  const isClient = useIsClient();
+  // The server/hydration pass renders the same form with empty values, so the
+  // markup matches. On the client it remounts once (new key) and the lazy
+  // initializers restore the saved draft from sessionStorage.
+  return <RegisterForm key={isClient ? "client" : "server"} restoreDraft={isClient} />;
+}
+
+function RegisterForm({ restoreDraft }: { restoreDraft: boolean }) {
   const router = useRouter();
   const t = useTranslations("Register");
 
+  // Read once. The password is never stored or restored (see lib/registerDraft.ts).
+  const [savedDraft] = useState(() => (restoreDraft ? loadRegisterDraft(sessionStorage) : {}));
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const locale = useLocale();
   const [error, setError] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(savedDraft.agreed ?? false);
 
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(savedDraft.name ?? "");
+  const [email, setEmail] = useState(savedDraft.email ?? "");
 
-  const [dob, setDob] = useState("");
+  const [dob, setDob] = useState(savedDraft.dob ?? "");
 
   const [isDobFocused, setIsDobFocused] = useState(false);
 
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(savedDraft.username ?? "");
 
   const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
 
   const [password, setPassword] = useState("");
-  const [pwdCriteria, setPwdCriteria] = useState({
-    length: false,
-    uppercase: false,
-    number: false,
-    special: false
-  });
+  const [pwdCriteria, setPwdCriteria] = useState(() => getPasswordCriteria(""));
 
 
   useEffect(() => {
-    const savedData = sessionStorage.getItem("gloo_register_data");
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.name) setName(parsed.name);
-        if (parsed.email) setEmail(parsed.email);
-        if (parsed.dob) setDob(parsed.dob);
-        if (parsed.username) setUsername(parsed.username);
-        if (parsed.password) {
-          setPassword(parsed.password);
-          setPwdCriteria({
-            length: parsed.password.length >= 8,
-            uppercase: /[A-Z]/.test(parsed.password),
-            number: /\d/.test(parsed.password),
-            special: /[@$!%*?&.]/.test(parsed.password)
-          });
-        }
-        if (parsed.agreed) setAgreed(parsed.agreed);
-      } catch (e) {
-        console.error("Error parsing saved registration data:", e);
-      }
-    }
-  }, []);
+    // Skip in the server/hydration instance: it would overwrite the saved
+    // draft with empty values before the client instance reads it.
+    if (!restoreDraft) return;
+    saveRegisterDraft(sessionStorage, { name, email, dob, username, agreed });
+  }, [restoreDraft, name, email, dob, username, agreed]);
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\s/g, "");
+    setUsername(val);
+    // Too short to check: availability is unknown (the effect skips the check).
+    if (val.trim().length < 3) setIsUsernameAvailable(null);
+  };
 
   useEffect(() => {
-    sessionStorage.setItem("gloo_register_data", JSON.stringify({
-      name, email, dob, username, password, agreed
-    }));
-  }, [name, email, dob, username, password, agreed]);
-
-  useEffect(() => {
-    if (username.trim().length < 3) {
-      setIsUsernameAvailable(null);
-      return;
-    }
+    if (username.trim().length < 3) return;
 
     const timer = setTimeout(async () => {
       setIsCheckingUsername(true);
       const result = await checkUsernameAvailability(username.trim());
-      setIsUsernameAvailable(result.available);
+      // A rate-limited or failed check leaves availability unknown (submit stays disabled).
+      setIsUsernameAvailable(result.ok ? result.data.available : null);
       setIsCheckingUsername(false);
     }, 500);
 
@@ -91,25 +86,18 @@ export default function RegisterPage() {
     const val = e.target.value;
     setPassword(val);
 
-    setPwdCriteria({
-      length: val.length >= 8,
-      uppercase: /[A-Z]/.test(val),
-      number: /\d/.test(val),
-      special: /[@$!%*?&.]/.test(val)
-    });
+    setPwdCriteria(getPasswordCriteria(val));
   };
 
 
   async function handleSubmit(formData: FormData) {
     const result = await registerUser(formData, locale);
-    if (result?.error) {
-      setError(result.error);
-    } else if (result?.success && result?.needsVerification) {
-      sessionStorage.removeItem("gloo_register_data");
+    if (!result.ok) {
+      setError(result.messageKey ?? "registrationGenericError");
+    } else {
+      // Same result for new and already-registered emails (S14).
+      clearRegisterDraft(sessionStorage);
       setIsSuccess(true);
-    } else if (result?.success) {
-      sessionStorage.removeItem("gloo_register_data");
-      router.push(`/${locale}/profile/create-group`);
     }
   }
 
@@ -118,8 +106,8 @@ export default function RegisterPage() {
     .toISOString()
     .split('T')[0];
 
-  const isPasswordStrong = pwdCriteria.length && pwdCriteria.uppercase && pwdCriteria.number && pwdCriteria.special;
-  const canSubmit = agreed && isPasswordStrong && (isUsernameAvailable === true) && username.length >= 3 && dob;
+  // The 72-byte maximum is enforced server-side (passwordTooLongError) so the user sees why.
+  const isPasswordStrong = meetsPasswordStrength(pwdCriteria);
 
   if (isSuccess) {
     return (
@@ -145,7 +133,7 @@ export default function RegisterPage() {
         <div className="flex items-center mb-6">
           <button
             onClick={() => {
-              sessionStorage.removeItem("gloo_register_data");
+              clearRegisterDraft(sessionStorage);
               router.push(`/${locale}/login`);
             }}
             className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
@@ -163,7 +151,7 @@ export default function RegisterPage() {
             {t('alreadyHaveAccount')}
             <Link
               href={`/${locale}/login`}
-              onClick={() => sessionStorage.removeItem("gloo_register_data")}
+              onClick={() => clearRegisterDraft(sessionStorage)}
               className="text-primary font-bold hover:underline ml-1"
             >
               {t('signIn')}
@@ -250,7 +238,7 @@ export default function RegisterPage() {
                 type="text"
                 data-testid="register-username-input"
                 value={username}
-                onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+                onChange={handleUsernameChange}
                 placeholder={t('usernamePlaceholder')}
                 required
                 className="bg-transparent outline-none w-full ml-2 text-foreground placeholder:text-muted-foreground/50 font-medium pr-8"

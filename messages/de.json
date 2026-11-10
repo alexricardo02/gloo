@@ -398,7 +398,8 @@
     "privacyPolicy": "Datenschutzrichtlinie",
     "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
     "invalidCredentialsError": "Benutzername, E-Mail oder Passwort ungültig.",
-    "emailNotVerifiedError": "Bitte bestätigen Sie Ihre E-Mail-Adresse vor dem Login. Überprüfen Sie Ihren Posteingang auf den Aktivierungslink."
+    "emailNotVerifiedError": "Bitte bestätigen Sie Ihre E-Mail-Adresse vor dem Login. Überprüfen Sie Ihren Posteingang auf den Aktivierungslink.",
+    "tooManyAttemptsError": "Zu viele Versuche. Bitte warte ein paar Minuten und versuche es erneut."
   },
   "Register": {
     "title": "Registrieren",
@@ -429,7 +430,11 @@
     "pwdSpecial": "1 Sonderzeichen",
     "successTitle": "Überprüfe deine E-Mail",
     "goToLogin": "Zum Login",
-    "usernameSpaceError": "Der Benutzername darf keine Leerzeichen enthalten."
+    "usernameSpaceError": "Der Benutzername darf keine Leerzeichen enthalten.",
+    "tooManyAttemptsError": "Zu viele Versuche. Bitte warte ein paar Minuten und versuche es erneut.",
+    "passwordTooLongError": "Das Passwort ist zu lang (maximal 72 Byte; manche Sonderzeichen zählen mehrfach).",
+    "dobInvalidError": "Bitte gib ein gültiges Geburtsdatum ein.",
+    "invalidEmailError": "Bitte gib eine gültige E-Mail-Adresse ein."
   },
   "Profile": {
     "title": "Profil",
@@ -593,7 +598,10 @@
     "backToLogin": "Zurück zur Anmeldung",
     "successTitle": "Überprüfe deine E-Mail",
     "successMessage": "Wenn ein Konto mit dieser E-Mail existiert, haben wir einen Link zum Zurücksetzen des Passworts gesendet.",
-    "checkSpam": "Überprüfe deinen Spam-Ordner, wenn du die E-Mail nicht in deinem Posteingang findest."
+    "checkSpam": "Überprüfe deinen Spam-Ordner, wenn du die E-Mail nicht in deinem Posteingang findest.",
+    "invalidEmailError": "Bitte gib eine gültige E-Mail-Adresse ein.",
+    "tooManyAttemptsError": "Zu viele Versuche. Bitte warte ein paar Minuten und versuche es erneut.",
+    "genericError": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
   },
   "ResetPassword": {
     "title": "Neues Passwort erstellen",
@@ -607,7 +615,7 @@
     "req2": "Enthält einen Großbuchstaben",
     "req3": "Enthält einen Kleinbuchstaben",
     "req4": "Enthält eine Zahl",
-    "req5": "Enthält ein Sonderzeichen (@$!%*?&.)",
+    "req5": "Enthält ein Sonderzeichen (alles außer Buchstaben und Zahlen)",
     "resetButton": "Passwort zurücksetzen",
     "resetting": "Wird zurückgesetzt...",
     "successTitle": "Passwort zurückgesetzt",
@@ -618,7 +626,10 @@
     "tokenMissing": "Reset-Token ist nicht vorhanden. Bitte fordere ein neues Passwort-Reset an.",
     "passwordMismatch": "Die Passwörter stimmen nicht überein.",
     "passwordWeakError": "Das Passwort erfüllt nicht die Anforderungen.",
-    "tokenInvalidOrExpired": "Der Reset-Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an."
+    "tokenInvalidOrExpired": "Der Reset-Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.",
+    "tooManyAttemptsError": "Zu viele Versuche. Bitte warte ein paar Minuten und versuche es erneut.",
+    "passwordTooLongError": "Das Passwort ist zu lang (maximal 72 Byte; manche Sonderzeichen zählen mehrfach).",
+    "resetGenericError": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
   },
   "Terms": {
     "title": "Nutzungsbedingungen",

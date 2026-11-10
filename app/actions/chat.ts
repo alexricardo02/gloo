@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { getOptionalUserId } from "@/lib/session";
 
 /**
  * Checks both directions of the block relationship before allowing chat access.
@@ -40,8 +40,7 @@ async function isChatBlocked(userId: string, otherUserId: string) {
  * @returns The newly created message object for optimistic UI updates, or an error state.
  */
 export async function sendMessage(chatId: string, text: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -98,8 +97,7 @@ export async function sendMessage(chatId: string, text: string) {
  * Only returns data if the current user is a participant.
  */
 export async function getChatMessages(chatId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -157,8 +155,7 @@ export async function getChatMessages(chatId: string) {
  * host, or creates a new one. Returns the chatId for navigation.
  */
 export async function getOrCreateChat(targetUserId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -190,8 +187,7 @@ export async function getOrCreateChat(targetUserId: string) {
 }
 
 export async function getActiveChats() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 

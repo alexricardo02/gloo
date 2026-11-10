@@ -1,61 +1,15 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { getOptionalUserId } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
 /**
- * H-4 fix: replace the in-memory globalThis Map rate limiter.
- *
- * Root cause of the old approach:
- *  - `globalThis` state resets on every serverless cold start → limit is never
- *    actually enforced on Vercel / any scaled deployment.
- *  - No cross-instance coordination → two pods serving different requests for
- *    the same user never share state.
- *  - Unbounded map growth → old entries are never evicted, causing a slow
- *    memory leak.
- *
- * Fix: use @upstash/ratelimit with a sliding-window algorithm backed by
- * Upstash Redis (already listed in package.json).
- *
- * Graceful fallback: if the Upstash env vars are not yet configured (local
- * dev without Redis), rate limiting is skipped rather than crashing the action.
- * Remove the fallback once Redis is provisioned in production.
+ * H-4 / S8: likes are rate limited through the shared limiter in lib/rateLimit.ts
+ * (Upstash sliding window when configured; in-memory fallback with a warning in
+ * development; refuses to run in production without Upstash).
  */
-
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-
-// Build the limiter lazily so missing env vars are detected at call time
-// rather than at module evaluation (which would crash Next.js startup).
-let ratelimit: Ratelimit | null = null;
-
-function getRatelimiter(): Ratelimit | null {
-  if (ratelimit) return ratelimit;
-
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn(
-        "[rate-limit] Upstash env vars not set — like rate limiting is disabled. " +
-          "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to enable."
-      );
-    }
-    return null;
-  }
-
-  ratelimit = new Ratelimit({
-    redis: new Redis({ url, token }),
-    // Sliding window: 10 likes per 60-second window, per user.
-    limiter: Ratelimit.slidingWindow(10, "60 s"),
-    // Prefix keeps gloo keys isolated if the Redis instance is shared.
-    prefix: "gloo:likes",
-  });
-
-  return ratelimit;
-}
+import { checkRateLimit } from "@/lib/rateLimit";
 
 async function getBlockedGroupIds(
   userId: string,
@@ -102,8 +56,7 @@ export async function getDiscoveryGroups({
   distance: number;
   isPartyMode?: boolean;
 }) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -246,20 +199,14 @@ export async function getDiscoveryGroups({
  * Toggles a symbolic like between groups.
  */
 export async function toggleLike(toGroupId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return { error: "Unauthorized" };
 
-  // H-4 fix: enforce rate limit via Upstash Redis (cross-instance, survives restarts).
-  // If the limiter isn't configured (missing env vars in dev), we skip silently.
-  const limiter = getRatelimiter();
-  if (limiter) {
-    const { success } = await limiter.limit(userId);
-    if (!success) {
-      return {
-        error: "Rate limit exceeded. Please wait a moment before liking again.",
-      };
-    }
+  // H-4 / S8: 10 likes per 60 s per user via the shared limiter (lib/rateLimit.ts).
+  if (!(await checkRateLimit("like", { identifier: userId }))) {
+    return {
+      error: "Rate limit exceeded. Please wait a moment before liking again.",
+    };
   }
 
   const fromGroup = await prisma.group.findUnique({ where: { userId } });
@@ -349,8 +296,7 @@ export async function toggleLike(toGroupId: string) {
  * Used by the "Gruppen, die dich suchen" / "Groups that like you" feature (ST0-87).
  */
 export async function getGroupsThatLikedMe() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 

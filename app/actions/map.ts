@@ -2,10 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
+import { getOptionalUserId } from "@/lib/session";
 
 export async function getMapSession() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return null;
 
   const group = await prisma.group.findUnique({ where: { userId } });
@@ -13,8 +13,7 @@ export async function getMapSession() {
 }
 
 export async function getOrCreateChatWithUser(targetUserId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return { error: "Not authorized" };
 
   let chat = await prisma.chat.findFirst({
@@ -74,8 +73,7 @@ export async function getVenues() {
 }
 
 export async function toggleVenueAttendance(venueId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Not authorized" };
 
@@ -126,8 +124,7 @@ export async function startPreParty(
   longitude: number,
   description: string,
 ) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return { error: "Not authorized" };
 
   try {
@@ -164,8 +161,7 @@ export async function startPreParty(
 }
 
 export async function stopPreParty() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return { error: "Not authorized" };
 
   try {
@@ -212,8 +208,7 @@ export async function getActiveEvents() {
 }
 
 export async function getMyActiveEvent() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return null;
 
   const now = new Date();
@@ -227,8 +222,7 @@ export async function getMyActiveEvent() {
 }
 
 export async function requestEventAttendance(eventId: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return { error: "Nicht autorisiert" };
 
   try {
@@ -250,8 +244,7 @@ export async function respondToEventRequest(
   attendanceId: string,
   accept: boolean,
 ) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
   if (!userId) return { error: "Nicht autorisiert" };
 
   try {

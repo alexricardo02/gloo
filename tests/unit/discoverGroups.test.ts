@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { toggleLike } from '@/app/actions/discoverGroups';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { getOptionalUserId } from '@/lib/session';
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
@@ -15,6 +15,10 @@ vi.mock('@/lib/prisma', () => ({
     chat: { findFirst: vi.fn(), create: vi.fn() },
     message: { create: vi.fn() },
   },
+}));
+
+vi.mock('@/lib/session', () => ({
+  getOptionalUserId: vi.fn(),
 }));
 
 vi.mock('next/headers', () => ({
@@ -67,7 +71,7 @@ describe('DiscoverGroups Server Actions', () => {
   });
 
   it('should return Unauthorized if user cookie is missing', async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) } as any);
+    vi.mocked(getOptionalUserId).mockResolvedValue(null);
 
     const result = await toggleLike('group-1');
 
@@ -75,7 +79,7 @@ describe('DiscoverGroups Server Actions', () => {
   });
 
   it('should return Group not found if current user has no group', async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+    vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
     vi.mocked(prisma.group.findUnique).mockResolvedValueOnce(null as any);
 
     const result = await toggleLike('group-1');
@@ -84,7 +88,7 @@ describe('DiscoverGroups Server Actions', () => {
   });
 
   it('should remove an existing like and return liked false', async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+    vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
     vi.mocked(prisma.group.findUnique).mockResolvedValueOnce({ id: 'from-group', userId: 'user-1' } as any);
     vi.mocked(prisma.groupLike.findUnique).mockResolvedValueOnce({ id: 'like-1' } as any);
 
@@ -96,7 +100,7 @@ describe('DiscoverGroups Server Actions', () => {
   });
 
   it('should create a like and return matched false when no reciprocal like exists', async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+    vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
     vi.mocked(prisma.group.findUnique)
       .mockResolvedValueOnce({ id: 'from-group', userId: 'user-1' } as any)
       .mockResolvedValueOnce({ id: 'target-group', userId: 'user-2' } as any);
@@ -113,7 +117,7 @@ describe('DiscoverGroups Server Actions', () => {
   });
 
   it('should create a mutual match chat when a reciprocal like already exists', async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+    vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
 
     vi.mocked(prisma.group.findUnique)
       .mockResolvedValueOnce({ id: 'from-group', userId: 'user-1' } as any)
@@ -150,7 +154,7 @@ describe('DiscoverGroups Server Actions', () => {
   });
 
   it('should not create a new chat when one already exists', async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+    vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
 
     vi.mocked(prisma.group.findUnique)
       .mockResolvedValueOnce({ id: 'from-group', userId: 'user-1' } as any)
@@ -170,7 +174,7 @@ describe('DiscoverGroups Server Actions', () => {
   });
 
   it('should reject likes after rate limit is exceeded', async () => {
-    vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+    vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (prisma.group.findUnique as any).mockImplementation(async (args: any) => {
       if (args?.where?.userId === 'user-1') {

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { sendMessage, getChatMessages } from "@/app/actions/chat"; 
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
+import { sessionCookiesFor } from "./helpers/session";
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
@@ -42,7 +43,7 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
 
   it("should securely allow legitimate participants to send and retrieve messages", async () => {
     // Simulate User A session
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: userAId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(userAId)) as never);
 
     // Standard Requirement: Sending a message must succeed
     const sendResult = await sendMessage(sharedChatId, "Hello securely!");
@@ -57,7 +58,7 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
 
   it("SECURITY BOUNDARY: should strictly block non-participants from reading messages", async () => {
     // Simulate Hacker session
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: hackerUserId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(hackerUserId)) as never);
 
     // Standard Requirement: Access must be explicitly denied (Horizontal Privilege Escalation prevention)
     const messagesResult = await getChatMessages(sharedChatId);
@@ -67,7 +68,7 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
 
   it("SECURITY BOUNDARY: should strictly block non-participants from sending messages", async () => {
     // Simulate Hacker session
-    vi.mocked(cookies).mockResolvedValue({ get: () => ({ value: hackerUserId }) } as any);
+    vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(hackerUserId)) as never);
 
     // Standard Requirement: Writing to another user's chat must fail and not hit the database
     const sendResult = await sendMessage(sharedChatId, "Malicious injection!");
