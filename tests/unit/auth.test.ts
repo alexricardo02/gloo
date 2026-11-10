@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   registerUser,
@@ -79,6 +80,8 @@ vi.mock('@/lib/rateLimit', () => ({
 }));
 
 // --- HELPERS ---
+const sha256Hex = (value: string) => createHash('sha256').update(value).digest('hex');
+
 const createFormData = (data: Record<string, string>) => {
   const formData = new FormData();
   Object.entries(data).forEach(([key, value]) => formData.append(key, value));
@@ -375,6 +378,40 @@ describe('Auth Server Actions (Unit Tests)', () => {
       const result = await resetPassword("fake-token", "NewSecurePass123!");
 
       expect(result).toEqual({ ok: false, code: 'NOT_FOUND', messageKey: 'tokenInvalidOrExpired' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("should look the token up by its SHA-256 hash, never the raw value, and keep the expiry check", async () => {
+      vi.mocked(prisma.user.findFirst).mockResolvedValue(null);
+
+      await resetPassword("raw-reset-token", "NewSecurePass123!");
+
+      const where = vi.mocked(prisma.user.findFirst).mock.calls[0][0]!.where!;
+      expect(where.resetPasswordToken).toBe(sha256Hex("raw-reset-token"));
+      expect(where.resetPasswordExpiry).toEqual({ gt: expect.any(Date) });
+    });
+
+    it("should store only the hash of a new reset token; the raw token goes only into the link", async () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      try {
+        vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-5' } as never);
+
+        const result = await requestPasswordReset("someone@test.com", "en");
+        expect(result).toEqual({ ok: true, data: undefined });
+
+        const linkLine = log.mock.calls.map((c) => String(c[0])).find((l) => l.includes('token='));
+        const rawToken = new URL(linkLine!.split('→ ')[1].trim()).searchParams.get('token')!;
+        expect(rawToken.length).toBeGreaterThan(0);
+
+        const data = vi.mocked(prisma.user.update).mock.calls[0][0].data;
+        expect(data.resetPasswordToken).toBe(sha256Hex(rawToken));
+        expect(data.resetPasswordToken).not.toBe(rawToken);
+        expect(data.resetPasswordToken).toMatch(/^[0-9a-f]{64}$/);
+      } finally {
+        vi.unstubAllEnvs();
+        log.mockRestore();
+      }
     });
 
     it("should update the password AND revoke all sessions in one transaction", async () => {
@@ -386,14 +423,16 @@ describe('Auth Server Actions (Unit Tests)', () => {
       const result = await resetPassword("good-token", "NewSecurePass123!");
 
       expect(result).toEqual({ ok: true, data: undefined });
+      expect(vi.mocked(prisma.user.findFirst).mock.calls[0][0]!.where!.resetPasswordToken).toBe(sha256Hex("good-token"));
       expect(prisma.session.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-9' } });
       expect(prisma.$transaction).toHaveBeenCalledWith(['update-op', 'revoke-op']);
     });
 
-    it("should rate limit reset submissions", async () => {
+    it("should rate limit reset submissions per IP only (the token is attacker-chosen)", async () => {
       vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
       const result = await resetPassword("any-token", "NewSecurePass123!");
       expect(result).toEqual({ ok: false, code: 'RATE_LIMITED', messageKey: 'tooManyAttemptsError' });
+      expect(checkRateLimit).toHaveBeenCalledWith('passwordResetSubmit', { ip: '203.0.113.1' });
       expect(prisma.user.findFirst).not.toHaveBeenCalled();
     });
 

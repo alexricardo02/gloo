@@ -34,7 +34,8 @@ export const RATE_LIMIT_RULES = {
   login: { ip: { limit: 20, windowSec: 15 * 60 }, identifier: { limit: 10, windowSec: 15 * 60 } },
   register: { ip: { limit: 10, windowSec: 60 * 60 }, identifier: { limit: 5, windowSec: 60 * 60 } },
   passwordResetRequest: { ip: { limit: 10, windowSec: 60 * 60 }, identifier: { limit: 3, windowSec: 60 * 60 } },
-  passwordResetSubmit: { ip: { limit: 10, windowSec: 15 * 60 }, identifier: { limit: 5, windowSec: 15 * 60 } },
+  // IP only: the reset token is attacker-chosen, so a per-token bucket is useless.
+  passwordResetSubmit: { ip: { limit: 10, windowSec: 15 * 60 } },
   usernameCheck: { ip: { limit: 60, windowSec: 60 }, identifier: { limit: 30, windowSec: 60 } },
   // Unchanged from the original like limiter: 10 likes / 60 s per user.
   like: { identifier: { limit: 10, windowSec: 60 } },

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import {
@@ -14,6 +15,8 @@ import bcrypt from "bcryptjs";
 import { SESSION_COOKIE, hashSessionToken } from "@/lib/session";
 import { resetRateLimiterForTests } from "@/lib/rateLimit";
 import { fakeCookieStore, sessionCookiesFor } from "./helpers/session";
+
+const sha256Hex = (value: string) => createHash("sha256").update(value).digest("hex");
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -442,6 +445,8 @@ describe("Auth Actions (Integration)", () => {
 
       const stored = await prisma.user.findUnique({ where: { email } });
       expect(stored!.resetPasswordToken).not.toBeNull();
+      // Only a SHA-256 hash is stored, never the raw token from the link.
+      expect(stored!.resetPasswordToken).toMatch(/^[0-9a-f]{64}$/);
       expect(stored!.resetPasswordExpiry).not.toBeNull();
 
       // Expiry must be in the future
@@ -471,7 +476,7 @@ describe("Auth Actions (Integration)", () => {
           birthDate: new Date("2000-01-01"),
           isVerified: true,
           verificationToken: null,
-          resetPasswordToken: resetToken,
+          resetPasswordToken: sha256Hex(resetToken),
           resetPasswordExpiry: expiry,
         },
       });
@@ -516,7 +521,7 @@ describe("Auth Actions (Integration)", () => {
           birthDate: new Date("2000-01-01"),
           isVerified: true,
           verificationToken: null,
-          resetPasswordToken: resetToken,
+          resetPasswordToken: sha256Hex(resetToken),
           resetPasswordExpiry: expiredAt,
         },
       });
@@ -528,6 +533,32 @@ describe("Auth Actions (Integration)", () => {
       const unchanged = await prisma.user.findUnique({ where: { email } });
       const oldPasswordStillWorks = await bcrypt.compare(oldPassword, unchanged!.password);
       expect(oldPasswordStillWorks).toBe(true);
+    });
+
+    it("should reject the stored hash used as a token (a leaked DB value is not a working link)", async () => {
+      const email = testEmail("hashastok");
+      const resetToken = `valid-token-${uid()}`;
+      const oldPassword = "OldValidPass123!";
+      await prisma.user.create({
+        data: {
+          email,
+          name: "Hash As Token User",
+          username: testUsername("hashastok"),
+          password: await bcrypt.hash(oldPassword, 10),
+          birthDate: new Date("2000-01-01"),
+          isVerified: true,
+          verificationToken: null,
+          resetPasswordToken: sha256Hex(resetToken),
+          resetPasswordExpiry: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+
+      const result = await resetPassword(sha256Hex(resetToken), "NewSecurePass456!");
+      expect(result).toEqual({ ok: false, code: "NOT_FOUND", messageKey: "tokenInvalidOrExpired" });
+
+      const unchanged = await prisma.user.findUnique({ where: { email } });
+      expect(await bcrypt.compare(oldPassword, unchanged!.password)).toBe(true);
+      expect(unchanged!.resetPasswordToken).toBe(sha256Hex(resetToken));
     });
 
     it("should reject a completely fake reset token", async () => {

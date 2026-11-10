@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
@@ -483,6 +484,15 @@ export async function deleteAccountAction(locale: string) {
 const ResetRequestSchema = z.string().max(254).regex(EMAIL_REGEX);
 
 /**
+ * Reset tokens are stored only as their SHA-256 hash (like session tokens), so
+ * a database leak does not hand out working reset links. SHA-256 (not bcrypt)
+ * is right here: the token is high-entropy random data, not a password.
+ */
+function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/**
  * Starts a password reset. Always reports success for well-formed emails so
  * the response cannot be used to enumerate accounts.
  * @returns ActionResult; on failure `messageKey` is a key in the "ForgotPassword" namespace.
@@ -527,7 +537,8 @@ export async function requestPasswordReset(email: string, locale: string): Promi
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        resetPasswordToken: resetToken,
+        // Only the hash is stored; the raw token exists only in the link.
+        resetPasswordToken: hashResetToken(resetToken),
         resetPasswordExpiry: expiryTime,
       },
     });
@@ -567,15 +578,14 @@ export async function resetPassword(token: string, newPassword: string): Promise
   }
 
   try {
-    const allowed = await checkRateLimit("passwordResetSubmit", {
-      ip: await getClientIp(),
-      identifier: token,
-    });
+    // IP only: the submitted token is attacker-chosen, so a per-token bucket
+    // would never fill for someone guessing a new token each time.
+    const allowed = await checkRateLimit("passwordResetSubmit", { ip: await getClientIp() });
     if (!allowed) return fail("RATE_LIMITED", TOO_MANY_ATTEMPTS);
 
     const user = await prisma.user.findFirst({
       where: {
-        resetPasswordToken: token,
+        resetPasswordToken: hashResetToken(token),
         resetPasswordExpiry: {
           gt: new Date(),
         },
