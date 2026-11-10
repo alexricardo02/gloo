@@ -72,6 +72,35 @@ test.describe('Auth Flow (TC4–TC7)', () => {
     await page.locator('[data-testid="register-submit-btn"]').click();
 
     await expect(page.locator('[data-testid="register-success"]')).toBeVisible({ timeout: 10_000 });
+    // The saved draft is cleared entirely after a successful registration.
+    expect(await page.evaluate(() => sessionStorage.getItem('gloo_register_data'))).toBeNull();
+  });
+
+  test('Registration – password is never persisted to sessionStorage', async ({ page }) => {
+    const readDraft = () => page.evaluate(() => sessionStorage.getItem('gloo_register_data'));
+
+    // Legacy data written by an older version of the page, including a password.
+    await page.goto(url('en', '/register'));
+    await page.evaluate(() => sessionStorage.setItem('gloo_register_data', JSON.stringify({
+      name: 'Legacy User', email: 'legacy@test.com', dob: '', username: 'legacyuser',
+      password: 'LegacyPass123!', agreed: false,
+    })));
+    await page.reload();
+    await waitForAppStable(page);
+
+    // Non-secret fields are restored, the password is not, and storage is sanitized.
+    await expect(page.locator('[data-testid="register-username-input"]')).toHaveValue('legacyuser');
+    await expect(page.locator('[data-testid="register-password-input"]')).toHaveValue('');
+    await expect.poll(readDraft).not.toContain('LegacyPass123!');
+    expect(JSON.parse((await readDraft())!)).not.toHaveProperty('password');
+
+    // Typing a password never writes it to storage.
+    await page.fill('[data-testid="register-name-input"]', 'Typed User');
+    await page.fill('[data-testid="register-password-input"]', 'TypedPass123!');
+    await expect.poll(async () => JSON.parse((await readDraft()) ?? '{}').name).toBe('Typed User');
+    const draft = (await readDraft())!;
+    expect(draft).not.toContain('TypedPass123!');
+    expect(JSON.parse(draft)).not.toHaveProperty('password');
   });
 
   test('TC7: Login – invalid credentials', async ({ page }) => {

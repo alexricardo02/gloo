@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import SocialLinks from "@/app/components/SocialLinks";
 import { registerUser, checkUsernameAvailability } from "@/app/actions/auth";
 import { getPasswordCriteria, meetsPasswordStrength } from "@/lib/password";
+import { loadRegisterDraft, saveRegisterDraft, clearRegisterDraft } from "@/lib/registerDraft";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,30 +38,20 @@ export default function RegisterPage() {
 
 
   useEffect(() => {
-    const savedData = sessionStorage.getItem("gloo_register_data");
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.name) setName(parsed.name);
-        if (parsed.email) setEmail(parsed.email);
-        if (parsed.dob) setDob(parsed.dob);
-        if (parsed.username) setUsername(parsed.username);
-        if (parsed.password) {
-          setPassword(parsed.password);
-          setPwdCriteria(getPasswordCriteria(parsed.password));
-        }
-        if (parsed.agreed) setAgreed(parsed.agreed);
-      } catch (e) {
-        console.error("Error parsing saved registration data:", e);
-      }
-    }
+    // Restored in an effect (not a lazy initializer) because the page is
+    // server-rendered and sessionStorage only exists in the browser.
+    // The password is never stored or restored (see lib/registerDraft.ts).
+    const saved = loadRegisterDraft(sessionStorage);
+    if (saved.name) setName(saved.name);
+    if (saved.email) setEmail(saved.email);
+    if (saved.dob) setDob(saved.dob);
+    if (saved.username) setUsername(saved.username);
+    if (saved.agreed) setAgreed(saved.agreed);
   }, []);
 
   useEffect(() => {
-    sessionStorage.setItem("gloo_register_data", JSON.stringify({
-      name, email, dob, username, password, agreed
-    }));
-  }, [name, email, dob, username, password, agreed]);
+    saveRegisterDraft(sessionStorage, { name, email, dob, username, agreed });
+  }, [name, email, dob, username, agreed]);
 
   useEffect(() => {
     if (username.trim().length < 3) {
@@ -93,7 +84,7 @@ export default function RegisterPage() {
       setError(result.messageKey ?? "registrationGenericError");
     } else {
       // Same result for new and already-registered emails (S14).
-      sessionStorage.removeItem("gloo_register_data");
+      clearRegisterDraft(sessionStorage);
       setIsSuccess(true);
     }
   }
@@ -131,7 +122,7 @@ export default function RegisterPage() {
         <div className="flex items-center mb-6">
           <button
             onClick={() => {
-              sessionStorage.removeItem("gloo_register_data");
+              clearRegisterDraft(sessionStorage);
               router.push(`/${locale}/login`);
             }}
             className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
@@ -149,7 +140,7 @@ export default function RegisterPage() {
             {t('alreadyHaveAccount')}
             <Link
               href={`/${locale}/login`}
-              onClick={() => sessionStorage.removeItem("gloo_register_data")}
+              onClick={() => clearRegisterDraft(sessionStorage)}
               className="text-primary font-bold hover:underline ml-1"
             >
               {t('signIn')}
