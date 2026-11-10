@@ -282,7 +282,8 @@
     "privacyPolicy": "Politique de confidentialité",
     "error": "Un problème est survenu. Veuillez réessayer.",
     "invalidCredentialsError": "Nom d'utilisateur, e-mail ou mot de passe invalide.",
-    "emailNotVerifiedError": "Veuillez vérifier votre adresse e-mail avant de vous connecter. Vérifiez votre boîte de réception pour le lien d'activation."
+    "emailNotVerifiedError": "Veuillez vérifier votre adresse e-mail avant de vous connecter. Vérifiez votre boîte de réception pour le lien d'activation.",
+    "tooManyAttemptsError": "Trop de tentatives. Veuillez patienter quelques minutes et réessayer."
   },
   "Register": {
     "title": "S'inscrire",
@@ -313,7 +314,11 @@
     "pwdSpecial": "1 Caractère spécial",
     "successTitle": "Vérifiez votre e-mail",
     "goToLogin": "Aller à la connexion",
-    "usernameSpaceError": "Le nom d'utilisateur ne peut pas contenir d'espaces."
+    "usernameSpaceError": "Le nom d'utilisateur ne peut pas contenir d'espaces.",
+    "tooManyAttemptsError": "Trop de tentatives. Veuillez patienter quelques minutes et réessayer.",
+    "passwordTooLongError": "Le mot de passe est trop long (72 octets maximum ; certains caractères spéciaux comptent pour plusieurs).",
+    "dobInvalidError": "Veuillez saisir une date de naissance valide.",
+    "invalidEmailError": "Veuillez saisir une adresse e-mail valide."
   },
   "Profile": {
     "title": "Profil",
@@ -477,7 +482,10 @@
     "backToLogin": "Retour à la connexion",
     "successTitle": "Vérifiez votre E-mail",
     "successMessage": "Si un compte existe avec cet e-mail, nous avons envoyé un lien de réinitialisation de mot de passe.",
-    "checkSpam": "Veuillez vérifier votre dossier spam si vous ne trouvez pas l'e-mail dans votre boîte de réception."
+    "checkSpam": "Veuillez vérifier votre dossier spam si vous ne trouvez pas l'e-mail dans votre boîte de réception.",
+    "invalidEmailError": "Veuillez saisir une adresse e-mail valide.",
+    "tooManyAttemptsError": "Trop de tentatives. Veuillez patienter quelques minutes et réessayer.",
+    "genericError": "Un problème est survenu. Veuillez réessayer."
   },
   "ResetPassword": {
     "title": "Créer un Nouveau Mot de Passe",
@@ -491,7 +499,7 @@
     "req2": "Contient une lettre majuscule",
     "req3": "Contient une lettre minuscule",
     "req4": "Contient un chiffre",
-    "req5": "Contient un caractère spécial (@$!%*?&.)",
+    "req5": "Contient un caractère spécial (tout ce qui n'est ni une lettre ni un chiffre)",
     "resetButton": "Réinitialiser le Mot de Passe",
     "resetting": "Réinitialisation en cours...",
     "successTitle": "Mot de Passe Réinitialisé",
@@ -502,7 +510,10 @@
     "tokenMissing": "Le token de réinitialisation est manquant. Veuillez demander une nouvelle réinitialisation de mot de passe.",
     "passwordMismatch": "Les mots de passe ne correspondent pas.",
     "passwordWeakError": "Le mot de passe ne respecte pas les exigences.",
-    "tokenInvalidOrExpired": "Le lien de réinitialisation est invalide ou a expiré. Veuillez en demander un nouveau."
+    "tokenInvalidOrExpired": "Le lien de réinitialisation est invalide ou a expiré. Veuillez en demander un nouveau.",
+    "tooManyAttemptsError": "Trop de tentatives. Veuillez patienter quelques minutes et réessayer.",
+    "passwordTooLongError": "Le mot de passe est trop long (72 octets maximum ; certains caractères spéciaux comptent pour plusieurs).",
+    "resetGenericError": "Un problème est survenu. Veuillez réessayer."
   },
   "Terms": {
     "title": "Conditions d'utilisation",

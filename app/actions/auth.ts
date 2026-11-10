@@ -4,73 +4,149 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { validateImage } from "@/lib/validateImage";
+import { type ActionResult, fail, ok } from "@/lib/actionResult";
+import { validatePassword, passwordErrorKey } from "@/lib/password";
+import { calendarDateToUtcDate, isAtLeastAge, parseCalendarDate } from "@/lib/birthdate";
+import {
+  SESSION_COOKIE,
+  createSession,
+  destroyCurrentSession,
+  getOptionalUserId,
+} from "@/lib/session";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BCRYPT_ROUNDS = 10;
+const TOO_MANY_ATTEMPTS = "tooManyAttemptsError";
+
+/** Returns the first issue's message if it is a known i18n key, else `fallback`. */
+function firstIssueKey(error: z.ZodError, known: readonly string[], fallback: string): string {
+  const message = error.issues[0]?.message;
+  return message && known.includes(message) ? message : fallback;
+}
+
+function isUniqueViolation(error: unknown): error is { code: "P2002"; meta?: { target?: unknown } } {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2002";
+}
+
+/** Normalised unique-constraint target, e.g. "email" (shape differs across Prisma adapters). */
+function uniqueViolationTarget(error: { meta?: { target?: unknown } }): string {
+  const target = error.meta?.target;
+  return Array.isArray(target) ? target.join(",") : JSON.stringify(target ?? "");
+}
+
+// ── Register ─────────────────────────────────────────────────────────────────
+
+const REGISTER_ERROR_KEYS = [
+  "dobInvalidError",
+  "ageMinError",
+  "invalidEmailError",
+  "usernameTooShort",
+  "usernameSpaceError",
+  "passwordWeakError",
+  "passwordTooLongError",
+  "registrationGenericError",
+] as const;
+
+const RegisterSchema = z.object({
+  birthDate: z
+    .string({ error: "dobInvalidError" })
+    .superRefine((raw, ctx) => {
+      const date = parseCalendarDate(raw);
+      if (!date) ctx.addIssue({ code: "custom", message: "dobInvalidError" });
+      else if (!isAtLeastAge(date, 18)) ctx.addIssue({ code: "custom", message: "ageMinError" });
+    })
+    .transform((raw) => calendarDateToUtcDate(parseCalendarDate(raw)!)),
+  email: z
+    .string({ error: "invalidEmailError" })
+    .max(254, { error: "invalidEmailError" })
+    .regex(EMAIL_REGEX, { error: "invalidEmailError" }),
+  username: z
+    .string({ error: "usernameTooShort" })
+    .min(3, { error: "usernameTooShort" })
+    .max(50, { error: "registrationGenericError" })
+    .refine((u) => !/\s/.test(u), { error: "usernameSpaceError" }),
+  password: z.string({ error: "passwordWeakError" }).superRefine((pw, ctx) => {
+    const result = validatePassword(pw);
+    if (!result.ok) ctx.addIssue({ code: "custom", message: passwordErrorKey(result.reason) });
+  }),
+  name: z
+    .string({ error: "registrationGenericError" })
+    .trim()
+    .min(1, { error: "registrationGenericError" })
+    .max(100, { error: "registrationGenericError" }),
+});
 
 /**
  * Registers a new user and establishes their initial security boundaries.
- * Enforces strict age verification (18+) and password complexity to comply with security standards.
+ * Enforces strict age verification (18+) and the shared password policy.
  * Accounts are created in a locked state (isVerified: false) until email confirmation is completed.
- * * @param formData - Contains email, password, username, name, and birthDate.
+ *
+ * S14: the result is identical whether or not the email is already registered
+ * ("check your email"), so the form cannot be used to enumerate accounts.
+ * The username availability check remains (rate limited).
+ *
+ * @param formData - Contains email, password, username, name, and birthDate.
  * @param locale - The current routing locale used for generating the verification email link.
- * @returns Object indicating success status or specific i18n error keys (e.g., "emailExistsError").
+ * @returns ActionResult; on failure `messageKey` is a key in the "Register" i18n namespace.
  */
-export async function registerUser(formData: FormData, locale: string) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const username = formData.get("username") as string;
-  const name = formData.get("name") as string;
-
-  const birthDateRaw = formData.get("birthDate") as string;
-  if (!birthDateRaw) return { error: "Date of birth is required" };
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalidEmailError" };
-  const birthDate = new Date(birthDateRaw);
-
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDifference = today.getMonth() - birthDate.getMonth();
-
-  // A simple year subtraction gives the wrong age for birthdays that haven't
-  // occurred yet this year (e.g., today is March, birthday is December → off by 1).
-  // monthDifference corrects this before the age gate is applied.
-  if (
-    monthDifference < 0 ||
-    (monthDifference === 0 && today.getDate() < birthDate.getDate())
-  ) {
-    age--;
-  }
-
-  if (age < 18) {
-    return { error: "ageMinError" };
-  }
-
-  if (username && /\s/.test(username)) {
-    return { error: "usernameSpaceError" };
-  }
-
-  const passwordRegex =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
-  if (!passwordRegex.test(password)) {
-    return { error: "passwordWeakError" };
-  }
+export async function registerUser(
+  formData: FormData,
+  locale: string,
+): Promise<ActionResult<{ needsVerification: true }>> {
+  const rawEmail = formData.get("email");
+  const genericSuccess = ok({ needsVerification: true as const });
 
   try {
-    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    const allowed = await checkRateLimit("register", {
+      ip: await getClientIp(),
+      identifier: typeof rawEmail === "string" ? rawEmail : null,
+    });
+    if (!allowed) return fail("RATE_LIMITED", TOO_MANY_ATTEMPTS);
+  } catch (error) {
+    console.error("Registration rate limiter error:", error);
+    return fail("INTERNAL", "registrationGenericError");
+  }
+
+  const parsed = RegisterSchema.safeParse({
+    birthDate: formData.get("birthDate") ?? undefined,
+    email: rawEmail ?? undefined,
+    username: formData.get("username") ?? undefined,
+    password: formData.get("password") ?? undefined,
+    name: formData.get("name") ?? undefined,
+  });
+  if (!parsed.success) {
+    return fail("VALIDATION", firstIssueKey(parsed.error, REGISTER_ERROR_KEYS, "registrationGenericError"));
+  }
+  const { email, username, password, name, birthDate } = parsed.data;
+
+  try {
+    const existingUsername = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    });
+    if (existingUsername) {
+      return fail("VALIDATION", "usernameTakenError");
+    }
+
+    // Hash before looking at the email so both outcomes cost the same bcrypt time.
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    const existingEmail = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
     if (existingEmail) {
-      return { error: "emailExistsError" };
-    }
-
-    if (username) {
-      const existingUsername = await prisma.user.findUnique({
-        where: { username },
-      });
-      if (existingUsername) {
-        return { error: "usernameTakenError" };
+      // TODO: email the owner ("someone tried to sign up with your address")
+      //       once a mail provider is wired up. Never tell the requester.
+      if (process.env.NODE_ENV === "development") {
+        console.log(`\n[EMAIL SIMULATION] Sign-up attempt for an already registered email: ${email}\n`);
       }
+      return genericSuccess;
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     const verificationToken = crypto.randomUUID();
 
@@ -103,60 +179,79 @@ export async function registerUser(formData: FormData, locale: string) {
       console.log(`[EMAIL SIMULATION] Click to verify → ${verificationUrl}\n`);
     }
 
-    return { success: true, needsVerification: true };
+    return genericSuccess;
   } catch (error) {
+    // A concurrent registration hit a unique constraint after our checks.
+    if (isUniqueViolation(error)) {
+      const target = uniqueViolationTarget(error);
+      if (target.includes("username")) return fail("VALIDATION", "usernameTakenError");
+      if (target.includes("email")) return genericSuccess;
+    }
     console.error("Registration critical error:", error);
-    return { error: "registrationGenericError" };
+    return fail("INTERNAL", "registrationGenericError");
   }
 }
 
+// ── Login ────────────────────────────────────────────────────────────────────
+
+const LoginSchema = z.object({
+  identifier: z.string().trim().min(1).max(254),
+  password: z.string().min(1).max(1024),
+});
+
 /**
  * Authenticates a user using either their email or username.
- * Establishes a secure HttpOnly session cookie upon success, mitigating XSS attack vectors.
+ * Creates a server-side session (lib/session.ts) and sets the HttpOnly session cookie.
  * Rejects authentication if the user's email has not been verified.
- * * @param formData - Contains the identifier (email/username) and raw password.
+ *
+ * @param formData - Contains the identifier (email/username) and raw password.
  * @param locale - The current routing locale for redirection after successful login.
+ * @returns Only on failure (success redirects); `messageKey` is a key in the "Login" namespace.
  */
-export async function loginUser(formData: FormData, locale: string) {
-  const identifier = formData.get("identifier") as string;
-  const password = formData.get("password") as string;
-
-  // Search user
-  const user = await prisma.user.findFirst({
-    where: {
-      OR: [{ email: identifier }, { username: identifier }],
-    },
+export async function loginUser(formData: FormData, locale: string): Promise<ActionResult> {
+  const parsed = LoginSchema.safeParse({
+    identifier: formData.get("identifier") ?? undefined,
+    password: formData.get("password") ?? undefined,
   });
+  if (!parsed.success) return fail("VALIDATION", "invalidCredentialsError");
+  const { identifier, password } = parsed.data;
 
-  if (!user) return { error: "invalidCredentialsError" };
+  try {
+    const allowed = await checkRateLimit("login", { ip: await getClientIp(), identifier });
+    if (!allowed) return fail("RATE_LIMITED", TOO_MANY_ATTEMPTS);
 
-  // Validate password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) return { error: "invalidCredentialsError" };
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: identifier }, { username: identifier }],
+      },
+      select: { id: true, password: true, isVerified: true },
+    });
 
-  if (!user.isVerified) {
-    return { error: "emailNotVerifiedError" };
+    if (!user) return fail("UNAUTHORIZED", "invalidCredentialsError");
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) return fail("UNAUTHORIZED", "invalidCredentialsError");
+
+    if (!user.isVerified) {
+      return fail("FORBIDDEN", "emailNotVerifiedError");
+    }
+
+    await createSession(user.id);
+    const cookieStore = await cookies();
+    cookieStore.delete("gloo_is_guest");
+  } catch (error) {
+    console.error("Login error:", error);
+    return fail("INTERNAL", "error");
   }
 
-  // Create session with cookies
-  const cookieStore = await cookies();
-  cookieStore.set("gloo_user_id", user.id, { 
-    httpOnly: true, 
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, 
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax"
-  });
-  cookieStore.delete("gloo_is_guest");
-
+  // Outside the try: redirect() works by throwing and must not be caught.
   redirect(`/${locale}/search-groups`);
 }
 
 export async function getCurrentUser() {
 
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("gloo_user_id")?.value;
+    const userId = await getOptionalUserId();
     if (!userId) return null;
 
     return await prisma.user.findUnique({
@@ -170,15 +265,19 @@ export async function getCurrentUser() {
     });
   } catch (error) {
     console.error("Connection error in getCurrentUser:", error);
-    return null; 
+    return null;
   }
 }
 
 export async function logOutAction(locale: string) {
+  try {
+    // Deletes this browser's session row (server-side revocation) and the cookie.
+    await destroyCurrentSession();
+  } catch (error) {
+    console.error("Error revoking session on logout:", error);
+  }
+
   const cookieStore = await cookies();
-
-  cookieStore.delete("gloo_user_id");
-
   const guestId = crypto.randomUUID();
 
   // After logout the user lands on the discovery feed, which requires a valid
@@ -203,11 +302,20 @@ export async function logOutAction(locale: string) {
   redirect(`/${locale}/search-groups`);
 }
 
-export async function checkUsernameAvailability(username: string) {
-  if (!username || username.length < 3 || /\s/.test(username))
-    return { available: false };
+/**
+ * Live username availability check for the register form (rate limited per IP
+ * and per username, S8/S14).
+ */
+export async function checkUsernameAvailability(
+  username: string,
+): Promise<ActionResult<{ available: boolean }>> {
+  if (typeof username !== "string" || username.length < 3 || username.length > 50 || /\s/.test(username))
+    return ok({ available: false });
 
   try {
+    const allowed = await checkRateLimit("usernameCheck", { ip: await getClientIp(), identifier: username });
+    if (!allowed) return fail("RATE_LIMITED", TOO_MANY_ATTEMPTS);
+
     // Selecting only the ID avoids loading the full user row from the DB.
     // At scale, this matters because username checks fire on every keystroke.
     const user = await prisma.user.findUnique({
@@ -215,16 +323,15 @@ export async function checkUsernameAvailability(username: string) {
       select: { id: true },
     });
 
-    return { available: !user };
+    return ok({ available: !user });
   } catch (error) {
     console.error("Error checking username:", error);
-    return { available: false };
+    return fail("INTERNAL");
   }
 }
 
 export async function updateProfileImage(formData: FormData) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 
@@ -280,12 +387,13 @@ export async function updateProfileImage(formData: FormData) {
 }
 
 export async function deleteAccountAction(locale: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) {
     return { error: "Unauthorized" };
   }
+
+  const cookieStore = await cookies();
 
   try {
     const user = await prisma.user.findUnique({
@@ -302,14 +410,15 @@ export async function deleteAccountAction(locale: string) {
     }
 
     // DB record is deleted first because Prisma's cascade handles all relational
-    // cleanup (Group, Chats, Messages, GameScores) atomically. Supabase storage
+    // cleanup (Group, Chats, Messages, GameScores, Sessions) atomically. Supabase storage
     // has no foreign key constraints, so file deletion order doesn't affect
     // data integrity — only UX speed.
     await prisma.user.delete({
       where: { id: userId },
     });
 
-    cookieStore.delete("gloo_user_id");
+    // All Session rows were removed by the cascade; drop the now-dead cookie.
+    cookieStore.delete(SESSION_COOKIE);
 
     const guestId = crypto.randomUUID();
     cookieStore.set("gloo_is_guest", "true", {
@@ -369,18 +478,38 @@ export async function deleteAccountAction(locale: string) {
   redirect(`/${locale}/search-groups`);
 }
 
-export async function requestPasswordReset(email: string, locale: string) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+// ── Password reset ───────────────────────────────────────────────────────────
+
+const ResetRequestSchema = z.string().max(254).regex(EMAIL_REGEX);
+
+/**
+ * Starts a password reset. Always reports success for well-formed emails so
+ * the response cannot be used to enumerate accounts.
+ * @returns ActionResult; on failure `messageKey` is a key in the "ForgotPassword" namespace.
+ */
+export async function requestPasswordReset(email: string, locale: string): Promise<ActionResult> {
+  const parsedEmail = ResetRequestSchema.safeParse(email);
+  if (!parsedEmail.success) {
     // Return a validation error — this is a client-side input mistake,
     // not a privacy-sensitive case. User enumeration protection only applies
     // to valid-format emails that are simply not registered in the system.
-    return { error: "invalidEmailError" };
+    return fail("VALIDATION", "invalidEmailError");
+  }
+
+  try {
+    const allowed = await checkRateLimit("passwordResetRequest", {
+      ip: await getClientIp(),
+      identifier: parsedEmail.data,
+    });
+    if (!allowed) return fail("RATE_LIMITED", TOO_MANY_ATTEMPTS);
+  } catch (error) {
+    console.error("Password reset rate limiter error:", error);
+    return fail("INTERNAL");
   }
 
   try {
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: parsedEmail.data },
       select: { id: true },
     });
 
@@ -388,7 +517,7 @@ export async function requestPasswordReset(email: string, locale: string) {
     // enumeration — an attacker can't use the response to check which emails
     // exist in the system.
     if (!user) {
-      return { success: true };
+      return ok();
     }
 
     const resetToken = crypto.randomUUID() + "-" + crypto.randomUUID();
@@ -415,21 +544,35 @@ export async function requestPasswordReset(email: string, locale: string) {
       console.log(`[EMAIL SIMULATION] Click to reset → ${resetUrl}\n`);
     }
 
-    return { success: true };
+    return ok();
   } catch (error) {
     console.error("Error requesting password reset:", error);
-    return { success: true };
+    return ok();
   }
 }
 
-export async function resetPassword(token: string, newPassword: string) {
-  const passwordRegex =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
-  if (!passwordRegex.test(newPassword)) {
-    return { error: "passwordWeakError" };
+/**
+ * Completes a password reset. On success the reset token is consumed and ALL
+ * of the user's sessions are revoked (any stolen session dies with the old password).
+ * @returns ActionResult; on failure `messageKey` is a key in the "ResetPassword" namespace.
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<ActionResult> {
+  if (typeof token !== "string" || token.length === 0 || token.length > 200) {
+    return fail("VALIDATION", "tokenInvalidOrExpired");
+  }
+
+  const passwordCheck = validatePassword(newPassword);
+  if (!passwordCheck.ok) {
+    return fail("VALIDATION", passwordErrorKey(passwordCheck.reason));
   }
 
   try {
+    const allowed = await checkRateLimit("passwordResetSubmit", {
+      ip: await getClientIp(),
+      identifier: token,
+    });
+    if (!allowed) return fail("RATE_LIMITED", TOO_MANY_ATTEMPTS);
+
     const user = await prisma.user.findFirst({
       where: {
         resetPasswordToken: token,
@@ -437,28 +580,33 @@ export async function resetPassword(token: string, newPassword: string) {
           gt: new Date(),
         },
       },
+      select: { id: true },
     });
 
     if (!user) {
-      return { error: "tokenInvalidOrExpired" };
+      return fail("NOT_FOUND", "tokenInvalidOrExpired");
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        // Single-use: clearing both fields after a successful reset ensures
-        // the same link cannot be replayed even within its original validity window.
-        password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpiry: null,
-      },
-    });
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          // Single-use: clearing both fields after a successful reset ensures
+          // the same link cannot be replayed even within its original validity window.
+          password: hashedPassword,
+          resetPasswordToken: null,
+          resetPasswordExpiry: null,
+        },
+      }),
+      // Every password change revokes every existing session.
+      prisma.session.deleteMany({ where: { userId: user.id } }),
+    ]);
 
-    return { success: true };
+    return ok();
   } catch (error) {
     console.error("Error resetting password:", error);
-    return { error: "Failed to reset password" };
+    return fail("INTERNAL", "resetGenericError");
   }
 }

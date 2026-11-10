@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getGroupByUser, createGroupAction } from '@/app/actions/group';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { getOptionalUserId } from '@/lib/session';
 import { redirect } from 'next/navigation';
 
 //  MOCKS 
@@ -36,6 +36,10 @@ vi.mock('@/lib/validateImage', () => ({
   })),
 }));
 
+vi.mock('@/lib/session', () => ({
+  getOptionalUserId: vi.fn(),
+}));
+
 vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
@@ -65,8 +69,8 @@ describe('Group Server Actions (Unit Tests)', () => {
 
   describe('getGroupByUser', () => {
     
-    it('should return null if user is not authenticated (no gloo_user_id cookie)', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) } as any);
+    it('should return null if user is not authenticated (no valid session)', async () => {
+      vi.mocked(getOptionalUserId).mockResolvedValue(null);
       
       const result = await getGroupByUser();
       
@@ -75,7 +79,7 @@ describe('Group Server Actions (Unit Tests)', () => {
     });
 
     it('should return the group object if the user has a group', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
 
       
       const mockGroup = { 
@@ -98,7 +102,7 @@ describe('Group Server Actions (Unit Tests)', () => {
     });
 
     it('should return null if the user does not have a group yet', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
       vi.mocked(prisma.group.findUnique).mockResolvedValueOnce(null);
 
       const result = await getGroupByUser();
@@ -112,14 +116,14 @@ describe('Group Server Actions (Unit Tests)', () => {
   describe('createGroupAction', () => {
     
     it('should throw an error if the user is not authenticated', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue(null);
       const formData = new FormData();
 
       await expect(createGroupAction(formData, 'en')).rejects.toThrow("User not found or unauthorized");
     });
 
     it('should upsert the group with default values if formData is mostly empty', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
       
       // Simulate empty form submission
       const formData = new FormData();
@@ -155,7 +159,7 @@ describe('Group Server Actions (Unit Tests)', () => {
     });
 
     it('should correctly parse and save all provided form data', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
       
       const formData = createFormData({
         membersCount: '5',
@@ -202,7 +206,7 @@ describe('Group Server Actions (Unit Tests)', () => {
     });
 
     it('should process new uploaded files and upload them to Supabase Storage', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
       
       const formData = new FormData();
       
@@ -223,7 +227,7 @@ describe('Group Server Actions (Unit Tests)', () => {
     });
 
     it('should ignore empty file uploads (size 0)', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
       
       const formData = new FormData();
 
@@ -245,7 +249,7 @@ describe('Group Server Actions (Unit Tests)', () => {
     });
 
     it('should throw an error if no photos are provided', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
       
       const formData = new FormData(); 
 
@@ -256,13 +260,8 @@ describe('Group Server Actions (Unit Tests)', () => {
   });
 
   it('should reject group creation if the user is a Guest', async () => {
-      // Mock the cookie to simulate a GUEST session
-      vi.mocked(cookies).mockResolvedValue({ 
-        get: vi.fn().mockImplementation((name) => {
-          if (name === "gloo_is_guest") return { value: "true" };
-          return undefined; // No real user ID provided
-        })
-      } as any);
+      // A guest has guest cookies but no server-side session.
+      vi.mocked(getOptionalUserId).mockResolvedValue(null);
       
       const formData = new FormData();
       formData.append('existingPhotos', 'https://dummy.co/foto.jpg');

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import SocialLinks from "@/app/components/SocialLinks";
 import { registerUser, checkUsernameAvailability } from "@/app/actions/auth";
+import { getPasswordCriteria, meetsPasswordStrength } from "@/lib/password";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,12 +33,7 @@ export default function RegisterPage() {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
 
   const [password, setPassword] = useState("");
-  const [pwdCriteria, setPwdCriteria] = useState({
-    length: false,
-    uppercase: false,
-    number: false,
-    special: false
-  });
+  const [pwdCriteria, setPwdCriteria] = useState(() => getPasswordCriteria(""));
 
 
   useEffect(() => {
@@ -51,12 +47,7 @@ export default function RegisterPage() {
         if (parsed.username) setUsername(parsed.username);
         if (parsed.password) {
           setPassword(parsed.password);
-          setPwdCriteria({
-            length: parsed.password.length >= 8,
-            uppercase: /[A-Z]/.test(parsed.password),
-            number: /\d/.test(parsed.password),
-            special: /[@$!%*?&.]/.test(parsed.password)
-          });
+          setPwdCriteria(getPasswordCriteria(parsed.password));
         }
         if (parsed.agreed) setAgreed(parsed.agreed);
       } catch (e) {
@@ -80,7 +71,8 @@ export default function RegisterPage() {
     const timer = setTimeout(async () => {
       setIsCheckingUsername(true);
       const result = await checkUsernameAvailability(username.trim());
-      setIsUsernameAvailable(result.available);
+      // A rate-limited or failed check leaves availability unknown (submit stays disabled).
+      setIsUsernameAvailable(result.ok ? result.data.available : null);
       setIsCheckingUsername(false);
     }, 500);
 
@@ -91,25 +83,18 @@ export default function RegisterPage() {
     const val = e.target.value;
     setPassword(val);
 
-    setPwdCriteria({
-      length: val.length >= 8,
-      uppercase: /[A-Z]/.test(val),
-      number: /\d/.test(val),
-      special: /[@$!%*?&.]/.test(val)
-    });
+    setPwdCriteria(getPasswordCriteria(val));
   };
 
 
   async function handleSubmit(formData: FormData) {
     const result = await registerUser(formData, locale);
-    if (result?.error) {
-      setError(result.error);
-    } else if (result?.success && result?.needsVerification) {
+    if (!result.ok) {
+      setError(result.messageKey ?? "registrationGenericError");
+    } else {
+      // Same result for new and already-registered emails (S14).
       sessionStorage.removeItem("gloo_register_data");
       setIsSuccess(true);
-    } else if (result?.success) {
-      sessionStorage.removeItem("gloo_register_data");
-      router.push(`/${locale}/profile/create-group`);
     }
   }
 
@@ -118,7 +103,8 @@ export default function RegisterPage() {
     .toISOString()
     .split('T')[0];
 
-  const isPasswordStrong = pwdCriteria.length && pwdCriteria.uppercase && pwdCriteria.number && pwdCriteria.special;
+  // The 72-byte maximum is enforced server-side (passwordTooLongError) so the user sees why.
+  const isPasswordStrong = meetsPasswordStrength(pwdCriteria);
   const canSubmit = agreed && isPasswordStrong && (isUsernameAvailable === true) && username.length >= 3 && dob;
 
   if (isSuccess) {

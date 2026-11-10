@@ -22,7 +22,7 @@ export default function VerifyPage() {
     setLoading(true);
     const result = await verifyAccountAction(token, locale);
 
-    if (result?.error) {
+    if (result && !result.ok) {
       setError(t("invalidToken"));
       setLoading(false);
     }

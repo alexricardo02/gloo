@@ -18,7 +18,8 @@ export default function LoginPage() {
   async function handleSubmit(formData: FormData) {
     setError("");
     const result = await loginUser(formData, locale);
-    if (result?.error) setError(result.error);
+    // On success the action redirects; it only returns on failure.
+    if (result && !result.ok) setError(result.messageKey ?? "error");
   }
 
   return (

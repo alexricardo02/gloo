@@ -7,17 +7,18 @@ const intlMiddleware = createMiddleware({
 });
 
 /**
- * H-3 fix: Auth check based on the REAL session cookie (gloo_user_id), not
- * on the boolean guest flag.
+ * H-3 fix: protected routes redirect when there is no session cookie at all,
+ * not only for users flagged as guests.
  *
- * Previous vulnerability: only users with gloo_is_guest === "true" were
- * redirected. An unauthenticated user who simply had no cookies — or cleared
- * them — bypassed the redirect entirely and reached protected pages.
+ * This is a cheap UX check: it only tests whether the `gloo_session` cookie
+ * EXISTS. It does not validate it (no DB access in the proxy). Real validation
+ * (hashed-token lookup + expiry) happens in getOptionalUserId() / requireUserId()
+ * in lib/session.ts, which every server action and route handler uses. A forged
+ * cookie therefore gets past this redirect but is rejected by every data access.
  *
- * Fix: on any protected route, the absence of gloo_user_id means
- * unauthenticated → redirect to /login. The guest-paywall redirect is kept
- * as a secondary, UX-only path (show paywall modal on the discovery page
- * instead of a login screen for users who explicitly chose to browse as guests).
+ * The guest-paywall redirect is kept as a secondary, UX-only path (show paywall
+ * modal on the discovery page instead of a login screen for users who explicitly
+ * chose to browse as guests).
  */
 export default function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
@@ -25,9 +26,9 @@ export default function middleware(req: NextRequest) {
   const isProtectedRoute = /\/(messages|chat|profile)/.test(pathname);
 
   if (isProtectedRoute) {
-    const userId = req.cookies.get('gloo_user_id')?.value;
+    const hasSessionCookie = req.cookies.has('gloo_session');
 
-    if (!userId) {
+    if (!hasSessionCookie) {
       // Derive locale from the path segment (e.g. /en/, /de/) with a safe fallback.
       const localeMatch = pathname.match(/^\/([a-z]{2})\//);
       const locale = localeMatch ? localeMatch[1] : 'en';

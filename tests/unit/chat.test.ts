@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getActiveChats } from '@/app/actions/chat';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { getOptionalUserId } from '@/lib/session';
 
 // --- MOCKS ---
 vi.mock('@/lib/prisma', () => ({
@@ -19,6 +19,10 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
+vi.mock('@/lib/session', () => ({
+  getOptionalUserId: vi.fn(),
+}));
+
 vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
@@ -32,14 +36,14 @@ describe('Chat Server Actions (Unit Tests)', () => {
 
   describe('getActiveChats', () => {
     it('should return Unauthorized error if user cookie is missing', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue(null);
       
       const result = await getActiveChats();
       expect(result).toEqual({ error: 'Unauthorized' });
     });
 
     it('should correctly format chats and sort them newest first', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
       
       // Mock raw data returned from Prisma
       const mockChats = [
@@ -106,7 +110,7 @@ describe('Chat Server Actions (Unit Tests)', () => {
     });
 
     it('should catch errors and return Failed to fetch chats', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-1' }) } as any);
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
       vi.mocked(prisma.group.findUnique).mockResolvedValueOnce({ id: 'group-1' } as any);
       vi.mocked(prisma.groupBlock.findMany).mockResolvedValue([]);
       vi.mocked(prisma.groupBlock.findMany).mockResolvedValue([]);

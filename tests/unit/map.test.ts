@@ -5,8 +5,12 @@ import { prisma } from '@/lib/prisma';
 
 vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({
-    get: vi.fn(() => ({ value: 'fake-user-id' }))
+    get: vi.fn(() => undefined)
   }))
+}));
+
+vi.mock('@/lib/session', () => ({
+  getOptionalUserId: vi.fn(async () => 'fake-user-id'),
 }));
 
 vi.mock('@/lib/prisma', () => ({

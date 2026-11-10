@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import {
   registerUser,
@@ -11,6 +11,9 @@ import {
 import { verifyAccountAction } from "@/app/actions/verify";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { SESSION_COOKIE, hashSessionToken } from "@/lib/session";
+import { resetRateLimiterForTests } from "@/lib/rateLimit";
+import { fakeCookieStore, sessionCookiesFor } from "./helpers/session";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -62,6 +65,18 @@ const TEST_EMAIL_DOMAIN = "@auth-integration.test";
 const testEmail = (prefix = "user") => `${prefix}-${uid()}${TEST_EMAIL_DOMAIN}`;
 const testUsername = (prefix = "user") => `${prefix}_${uid()}`;
 
+/** Awaits an action that is expected to redirect (our redirect mock throws). */
+async function expectRedirect(action: Promise<unknown>, target: string) {
+  await expect(action).rejects.toThrow(`NEXT_REDIRECT:${target}`);
+}
+
+/** Installs a fresh fake cookie store for the next action call. */
+function setCookies(initial: Record<string, string> = {}) {
+  const store = fakeCookieStore(initial);
+  vi.mocked(cookies).mockResolvedValue(store as never);
+  return store;
+}
+
 /** Creates a fully verified user directly in the DB, bypassing registerUser */
 const createVerifiedUser = async (overrides: {
   email?: string;
@@ -90,8 +105,14 @@ const createVerifiedUser = async (overrides: {
 
 describe("Auth Actions (Integration)", () => {
 
+  beforeEach(() => {
+    // Each test starts with empty in-memory rate-limit buckets.
+    resetRateLimiterForTests();
+    setCookies();
+  });
+
   afterAll(async () => {
-    // Clean up every user created during this test run
+    // Clean up every user created during this test run (sessions cascade)
     await prisma.user.deleteMany({
       where: { email: { contains: TEST_EMAIL_DOMAIN } },
     });
@@ -115,7 +136,7 @@ describe("Auth Actions (Integration)", () => {
         "en"
       );
 
-      expect(result).toEqual({ success: true, needsVerification: true });
+      expect(result).toEqual({ ok: true, data: { needsVerification: true } });
 
       const stored = await prisma.user.findUnique({ where: { email } });
       expect(stored).not.toBeNull();
@@ -145,11 +166,10 @@ describe("Auth Actions (Integration)", () => {
       expect(hashIsValid).toBe(true);
     });
 
-    it("should return emailExistsError when the same email is registered twice", async () => {
+    it("should return the SAME result for a new and an already registered email (S14)", async () => {
       const email = testEmail("dup");
 
-      // First registration succeeds
-      await registerUser(
+      const first = await registerUser(
         createFormData({
           name: "First",
           email,
@@ -160,19 +180,24 @@ describe("Auth Actions (Integration)", () => {
         "en"
       );
 
-      // Second registration with same email must fail
-      const result = await registerUser(
+      const second = await registerUser(
         createFormData({
           name: "Second",
           email,
           username: testUsername("dup2"),
-          password: "ValidPass123!",
+          password: "OtherValidPass1!",
           birthDate: adultBirthDate(),
         }),
         "en"
       );
 
-      expect(result).toEqual({ error: "emailExistsError" });
+      expect(second).toEqual(first);
+      expect(second).toEqual({ ok: true, data: { needsVerification: true } });
+
+      // The original account is untouched and no second row exists.
+      const rows = await prisma.user.findMany({ where: { email } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].name).toBe("First");
     });
 
     it("should return usernameTakenError when the same username is registered twice", async () => {
@@ -200,17 +225,18 @@ describe("Auth Actions (Integration)", () => {
         "en"
       );
 
-      expect(result).toEqual({ error: "usernameTakenError" });
+      expect(result).toEqual({ ok: false, code: "VALIDATION", messageKey: "usernameTakenError" });
     });
 
     it("should reject registration for a user under 18", async () => {
       const underageDate = new Date();
       underageDate.setFullYear(underageDate.getFullYear() - 15);
+      const email = testEmail("minor");
 
       const result = await registerUser(
         createFormData({
           name: "Minor User",
-          email: testEmail("minor"),
+          email,
           username: testUsername("minor"),
           password: "ValidPass123!",
           birthDate: underageDate.toISOString().split("T")[0],
@@ -218,14 +244,27 @@ describe("Auth Actions (Integration)", () => {
         "en"
       );
 
-      expect(result).toEqual({
-        error: "ageMinError",
-      });
+      expect(result).toEqual({ ok: false, code: "VALIDATION", messageKey: "ageMinError" });
 
-      const stored = await prisma.user.findUnique({
-        where: { email: `minor${TEST_EMAIL_DOMAIN}` },
-      });
+      const stored = await prisma.user.findUnique({ where: { email } });
       expect(stored).toBeNull();
+    });
+
+    it("should store the birthdate as the exact calendar day (S10)", async () => {
+      const email = testEmail("bday");
+      await registerUser(
+        createFormData({
+          name: "Birthday",
+          email,
+          username: testUsername("bday"),
+          password: "ValidPass123!",
+          birthDate: "1999-12-31",
+        }),
+        "en"
+      );
+
+      const stored = await prisma.user.findUnique({ where: { email } });
+      expect(stored!.birthDate.toISOString().slice(0, 10)).toBe("1999-12-31");
     });
 
     it("should reject a weak password", async () => {
@@ -240,83 +279,68 @@ describe("Auth Actions (Integration)", () => {
         "en"
       );
 
-      expect(result).toEqual({ error: "passwordWeakError" });
+      expect(result).toEqual({ ok: false, code: "VALIDATION", messageKey: "passwordWeakError" });
     });
   });
 
   // ── loginUser ─────────────────────────────────────────────────────────────────
 
   describe("loginUser", () => {
-    it("should set gloo_user_id cookie and redirect on successful login by email", async () => {
+    it("should create a hashed session row + random token cookie and redirect (login by email)", async () => {
       const email = testEmail("loginbyemail");
       const user = await createVerifiedUser({ email });
+      const store = setCookies({ gloo_is_guest: "true" });
 
-      const mockSet = vi.fn();
-      const mockDelete = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({
-        set: mockSet,
-        delete: mockDelete,
-        get: vi.fn(),
-      } as any);
+      await expectRedirect(
+        loginUser(createFormData({ identifier: email, password: "ValidPass123!" }), "en"),
+        "/en/search-groups"
+      );
 
-      try {
-        await loginUser(createFormData({ identifier: email, password: "ValidPass123!" }), "en");
-      } catch (e: any) {
-        expect(e.message).toContain("NEXT_REDIRECT:/en/search-groups");
-      }
+      const token = store.jar.get(SESSION_COOKIE)!;
+      expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(token).not.toContain(user.id);
+      expect(store.set).toHaveBeenCalledWith(
+        SESSION_COOKIE,
+        token,
+        expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/" })
+      );
+      expect(store.jar.has("gloo_is_guest")).toBe(false);
 
-      expect(mockSet).toHaveBeenCalledWith("gloo_user_id", user.id, expect.any(Object));
-      expect(mockDelete).toHaveBeenCalledWith("gloo_is_guest");
+      // Only the SHA-256 hash is stored, never the raw token.
+      const sessions = await prisma.session.findMany({ where: { userId: user.id } });
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].tokenHash).toBe(hashSessionToken(token));
+      expect(sessions[0].tokenHash).not.toBe(token);
+      const ttlDays = (sessions[0].expiresAt.getTime() - Date.now()) / 86_400_000;
+      expect(ttlDays).toBeGreaterThan(29.9);
+      expect(ttlDays).toBeLessThanOrEqual(30);
     });
 
-    it("should set gloo_user_id cookie and redirect on successful login by username", async () => {
+    it("should log in by username", async () => {
       const username = testUsername("loginbyusr");
       const user = await createVerifiedUser({ username });
 
-      const mockSet = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({
-        set: mockSet,
-        delete: vi.fn(),
-        get: vi.fn(),
-      } as any);
+      await expectRedirect(
+        loginUser(createFormData({ identifier: username, password: "ValidPass123!" }), "en"),
+        "/en/search-groups"
+      );
 
-      try {
-        await loginUser(
-          createFormData({ identifier: username, password: "ValidPass123!" }),
-          "en"
-        );
-      } catch (e: any) {
-        expect(e.message).toContain("NEXT_REDIRECT");
-      }
-
-      expect(mockSet).toHaveBeenCalledWith("gloo_user_id", user.id, expect.any(Object));
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(1);
     });
 
     it("should return invalidCredentialsError for a wrong password", async () => {
       const email = testEmail("wrongpw");
       await createVerifiedUser({ email });
 
-      vi.mocked(cookies).mockResolvedValue({
-        set: vi.fn(),
-        delete: vi.fn(),
-        get: vi.fn(),
-      } as any);
-
       const result = await loginUser(
         createFormData({ identifier: email, password: "WrongPassword1!" }),
         "en"
       );
 
-      expect(result).toEqual({ error: "invalidCredentialsError" });
+      expect(result).toEqual({ ok: false, code: "UNAUTHORIZED", messageKey: "invalidCredentialsError" });
     });
 
     it("should return invalidCredentialsError for a non-existent email", async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        set: vi.fn(),
-        delete: vi.fn(),
-        get: vi.fn(),
-      } as any);
-
       const result = await loginUser(
         createFormData({
           identifier: `nobody-${uid()}@nonexistent.test`,
@@ -325,7 +349,7 @@ describe("Auth Actions (Integration)", () => {
         "en"
       );
 
-      expect(result).toEqual({ error: "invalidCredentialsError" });
+      expect(result).toEqual({ ok: false, code: "UNAUTHORIZED", messageKey: "invalidCredentialsError" });
     });
 
     it("should return emailNotVerifiedError when the account has not been verified", async () => {
@@ -341,38 +365,46 @@ describe("Auth Actions (Integration)", () => {
           password: hashedPassword,
           birthDate: new Date("2000-01-01"),
           isVerified: false,
-          verificationToken: "pending-token",
+          verificationToken: `pending-token-${uid()}`,
         },
       });
-
-      vi.mocked(cookies).mockResolvedValue({
-        set: vi.fn(),
-        delete: vi.fn(),
-        get: vi.fn(),
-      } as any);
 
       const result = await loginUser(
         createFormData({ identifier: email, password: "ValidPass123!" }),
         "en"
       );
 
-      expect(result).toEqual({ error: "emailNotVerifiedError" });
+      expect(result).toEqual({ ok: false, code: "FORBIDDEN", messageKey: "emailNotVerifiedError" });
     });
 
     it("should NOT set a session cookie when login fails", async () => {
-      const mockSet = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({
-        set: mockSet,
-        delete: vi.fn(),
-        get: vi.fn(),
-      } as any);
+      const store = setCookies();
 
       await loginUser(
         createFormData({ identifier: "ghost@nowhere.test", password: "Whatever1!" }),
         "en"
       );
 
-      expect(mockSet).not.toHaveBeenCalled();
+      expect(store.set).not.toHaveBeenCalled();
+    });
+
+    it("should rate limit repeated attempts for the same identifier (S8)", async () => {
+      const email = testEmail("bruteforce");
+      await createVerifiedUser({ email });
+
+      const results = [];
+      for (let i = 0; i < 11; i++) {
+        results.push(
+          await loginUser(createFormData({ identifier: email, password: `Wrong${i}Pass!` }), "en")
+        );
+      }
+
+      expect(results.slice(0, 10).every((r) => r.ok === false && r.code === "UNAUTHORIZED")).toBe(true);
+      expect(results[10]).toEqual({ ok: false, code: "RATE_LIMITED", messageKey: "tooManyAttemptsError" });
+
+      // Even the correct password is refused while the identifier is limited.
+      const blocked = await loginUser(createFormData({ identifier: email, password: "ValidPass123!" }), "en");
+      expect(blocked).toEqual({ ok: false, code: "RATE_LIMITED", messageKey: "tooManyAttemptsError" });
     });
   });
 
@@ -381,7 +413,7 @@ describe("Auth Actions (Integration)", () => {
   describe("checkUsernameAvailability", () => {
     it("should return available: true for a username that does not exist in the DB", async () => {
       const result = await checkUsernameAvailability(`free_${uid()}`);
-      expect(result).toEqual({ available: true });
+      expect(result).toEqual({ ok: true, data: { available: true } });
     });
 
     it("should return available: false for a username that already exists in the DB", async () => {
@@ -389,12 +421,12 @@ describe("Auth Actions (Integration)", () => {
       await createVerifiedUser({ username });
 
       const result = await checkUsernameAvailability(username);
-      expect(result).toEqual({ available: false });
+      expect(result).toEqual({ ok: true, data: { available: false } });
     });
 
     it("should return available: false without querying the DB for usernames shorter than 3 chars", async () => {
       const result = await checkUsernameAvailability("ab");
-      expect(result).toEqual({ available: false });
+      expect(result).toEqual({ ok: true, data: { available: false } });
     });
   });
 
@@ -406,7 +438,7 @@ describe("Auth Actions (Integration)", () => {
       await createVerifiedUser({ email });
 
       const result = await requestPasswordReset(email, "en");
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ ok: true, data: undefined });
 
       const stored = await prisma.user.findUnique({ where: { email } });
       expect(stored!.resetPasswordToken).not.toBeNull();
@@ -421,16 +453,16 @@ describe("Auth Actions (Integration)", () => {
         `nobody-${uid()}@never-registered.test`,
         "en"
       );
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ ok: true, data: undefined });
     });
 
-    it("should update the password and clear the token when a valid, non-expired token is submitted", async () => {
+    it("should update the password, clear the token and revoke ALL sessions", async () => {
       const email = testEmail("resetpw");
       const resetToken = `valid-token-${uid()}`;
       const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
       const oldPassword = "OldValidPass123!";
 
-      await prisma.user.create({
+      const user = await prisma.user.create({
         data: {
           email,
           name: "Reset PW User",
@@ -443,9 +475,13 @@ describe("Auth Actions (Integration)", () => {
           resetPasswordExpiry: expiry,
         },
       });
+      // Two devices logged in (e.g. one of them an attacker's).
+      await sessionCookiesFor(user.id);
+      await sessionCookiesFor(user.id);
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(2);
 
       const result = await resetPassword(resetToken, "NewSecurePass456!");
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ ok: true, data: undefined });
 
       const updated = await prisma.user.findUnique({ where: { email } });
 
@@ -460,6 +496,9 @@ describe("Auth Actions (Integration)", () => {
       // Old password must no longer work
       const oldPasswordWorks = await bcrypt.compare(oldPassword, updated!.password);
       expect(oldPasswordWorks).toBe(false);
+
+      // Every session is gone
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
     });
 
     it("should reject an expired reset token and leave the password unchanged", async () => {
@@ -483,7 +522,7 @@ describe("Auth Actions (Integration)", () => {
       });
 
       const result = await resetPassword(resetToken, "NewSecurePass456!");
-      expect(result).toEqual({ error: "tokenInvalidOrExpired" });
+      expect(result).toEqual({ ok: false, code: "NOT_FOUND", messageKey: "tokenInvalidOrExpired" });
 
       // Password must remain unchanged
       const unchanged = await prisma.user.findUnique({ where: { email } });
@@ -493,12 +532,12 @@ describe("Auth Actions (Integration)", () => {
 
     it("should reject a completely fake reset token", async () => {
       const result = await resetPassword(`fake-token-${uid()}`, "NewSecurePass456!");
-      expect(result).toEqual({ error: "tokenInvalidOrExpired" });
+      expect(result).toEqual({ ok: false, code: "NOT_FOUND", messageKey: "tokenInvalidOrExpired" });
     });
 
     it("should reject a weak new password even with a valid token", async () => {
       const result = await resetPassword("any-token", "weak");
-      expect(result).toEqual({ error: "passwordWeakError" });
+      expect(result).toEqual({ ok: false, code: "VALIDATION", messageKey: "passwordWeakError" });
     });
   });
 
@@ -508,24 +547,15 @@ describe("Auth Actions (Integration)", () => {
     it("should permanently delete the user row from the database", async () => {
       const email = testEmail("delete");
       const user = await createVerifiedUser({ email });
+      vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(user.id)) as never);
 
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: user.id }),
-        set: vi.fn(),
-        delete: vi.fn(),
-      } as any);
-
-      try {
-        await deleteAccountAction("en");
-      } catch (e: any) {
-        expect(e.message).toContain("NEXT_REDIRECT");
-      }
+      await expectRedirect(deleteAccountAction("en"), "/en/search-groups");
 
       const deletedUser = await prisma.user.findUnique({ where: { id: user.id } });
       expect(deletedUser).toBeNull();
     });
 
-    it("should cascade-delete the user's group when the account is deleted", async () => {
+    it("should cascade-delete the user's group and sessions when the account is deleted", async () => {
       const email = testEmail("cascade");
       const hashedPassword = await bcrypt.hash("ValidPass123!", 10);
 
@@ -552,47 +582,29 @@ describe("Auth Actions (Integration)", () => {
       });
 
       const groupId = user.group!.id;
+      vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(user.id)) as never);
+      await sessionCookiesFor(user.id); // a second device
 
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: user.id }),
-        set: vi.fn(),
-        delete: vi.fn(),
-      } as any);
-
-      try {
-        await deleteAccountAction("en");
-      } catch (_) {
-        // redirect expected
-      }
+      await expectRedirect(deleteAccountAction("en"), "/en/search-groups");
 
       const deletedUser = await prisma.user.findUnique({ where: { id: user.id } });
       const deletedGroup = await prisma.group.findUnique({ where: { id: groupId } });
 
       expect(deletedUser).toBeNull();
       expect(deletedGroup).toBeNull();
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
     });
 
-    it("should set guest cookies after the account is deleted", async () => {
+    it("should clear the session cookie and set guest cookies after the account is deleted", async () => {
       const email = testEmail("delcookie");
       const user = await createVerifiedUser({ email });
+      const store = await sessionCookiesFor(user.id);
+      vi.mocked(cookies).mockResolvedValue(store as never);
 
-      const mockSet = vi.fn();
-      const mockDelete = vi.fn();
+      await expectRedirect(deleteAccountAction("en"), "/en/search-groups");
 
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: user.id }),
-        set: mockSet,
-        delete: mockDelete,
-      } as any);
-
-      try {
-        await deleteAccountAction("en");
-      } catch (_) {
-        // redirect expected
-      }
-
-      expect(mockDelete).toHaveBeenCalledWith("gloo_user_id");
-      expect(mockSet).toHaveBeenCalledWith(
+      expect(store.delete).toHaveBeenCalledWith(SESSION_COOKIE);
+      expect(store.set).toHaveBeenCalledWith(
         "gloo_is_guest",
         "true",
         expect.objectContaining({ httpOnly: true })
@@ -600,11 +612,7 @@ describe("Auth Actions (Integration)", () => {
     });
 
     it("should return Unauthorized and not touch the DB if no session cookie is present", async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue(undefined),
-        set: vi.fn(),
-        delete: vi.fn(),
-      } as any);
+      setCookies();
 
       const result = await deleteAccountAction("en");
       expect(result).toEqual({ error: "Unauthorized" });
@@ -630,7 +638,7 @@ describe("Auth Actions (Integration)", () => {
         "en"
       );
 
-      expect(regResult).toEqual({ success: true, needsVerification: true });
+      expect(regResult).toEqual({ ok: true, data: { needsVerification: true } });
 
       // 2. Query user to get generated verificationToken
       const user = await prisma.user.findUnique({ where: { email } });
@@ -641,29 +649,20 @@ describe("Auth Actions (Integration)", () => {
       const token = user!.verificationToken!;
 
       // 3. Simulate email confirmation link click
-      const mockSet = vi.fn();
-      const mockDelete = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({
-        set: mockSet,
-        delete: mockDelete,
-        get: vi.fn(),
-      } as any);
+      const store = setCookies({ gloo_is_guest: "true" });
 
-      try {
-        await verifyAccountAction(token, "en");
-        expect.unreachable("Expected redirect to throw NEXT_REDIRECT");
-      } catch (e: any) {
-        expect(e.message).toContain("NEXT_REDIRECT:/en/profile/create-group");
-      }
+      await expectRedirect(verifyAccountAction(token, "en"), "/en/profile/create-group");
 
       // 4. Assert user is now verified in database
       const activatedUser = await prisma.user.findUnique({ where: { email } });
       expect(activatedUser!.isVerified).toBe(true);
       expect(activatedUser!.verificationToken).toBeNull();
 
-      // 5. Assert session cookie was created
-      expect(mockSet).toHaveBeenCalledWith("gloo_user_id", user!.id, expect.any(Object));
-      expect(mockDelete).toHaveBeenCalledWith("gloo_is_guest");
+      // 5. Assert a real session was created
+      const sessionToken = store.jar.get(SESSION_COOKIE)!;
+      const session = await prisma.session.findUnique({ where: { tokenHash: hashSessionToken(sessionToken) } });
+      expect(session?.userId).toBe(user!.id);
+      expect(store.jar.has("gloo_is_guest")).toBe(false);
     });
 
     it("should preserve dynamic locale in redirection target (de locale)", async () => {
@@ -681,19 +680,7 @@ describe("Auth Actions (Integration)", () => {
         },
       });
 
-      const mockSet = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({
-        set: mockSet,
-        delete: vi.fn(),
-        get: vi.fn(),
-      } as any);
-
-      try {
-        await verifyAccountAction(user.verificationToken!, "de");
-        expect.unreachable("Expected redirect to throw");
-      } catch (e: any) {
-        expect(e.message).toContain("NEXT_REDIRECT:/de/profile/create-group");
-      }
+      await expectRedirect(verifyAccountAction(user.verificationToken!, "de"), "/de/profile/create-group");
     });
   });
 });

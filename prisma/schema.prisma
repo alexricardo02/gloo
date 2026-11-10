@@ -32,6 +32,7 @@ model User {
   blockedGroups       GroupBlock[]
   filedReports        GroupReport[]
   messages            Message[]
+  sessions            Session[]
 }
 
 model Group {
@@ -185,6 +186,21 @@ model GroupReport {
   reporter        User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@unique([reporterId, reportedGroupId])
+}
+
+/// Server-side login session. The cookie holds only a random token; the DB
+/// stores its SHA-256 hash, so a DB leak does not leak usable session tokens.
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 enum Role {

@@ -1,18 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { 
-  registerUser, 
-  loginUser, 
-  getCurrentUser, 
-  logOutAction, 
-  checkUsernameAvailability 
+import {
+  registerUser,
+  loginUser,
+  getCurrentUser,
+  logOutAction,
+  checkUsernameAvailability,
+  resetPassword,
+  requestPasswordReset,
 } from '@/app/actions/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import crypto from 'crypto';
-import { resetPassword } from "@/app/actions/auth";
 import { verifyAccountAction } from "@/app/actions/verify";
+import { createSession, destroyCurrentSession, getOptionalUserId } from '@/lib/session';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -40,6 +42,10 @@ vi.mock('@/lib/prisma', () => ({
       create: vi.fn(),
       update: vi.fn(),
     },
+    session: {
+      deleteMany: vi.fn(),
+    },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -58,10 +64,18 @@ vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
 }));
 
-vi.mock('crypto', () => ({
-  default: {
-    randomUUID: vi.fn(),
-  },
+// The session layer has its own tests (tests/unit/session.test.ts and
+// tests/integration/session.test.ts); here we only check that the actions use it.
+vi.mock('@/lib/session', () => ({
+  SESSION_COOKIE: 'gloo_session',
+  createSession: vi.fn(),
+  destroyCurrentSession: vi.fn(),
+  getOptionalUserId: vi.fn(),
+}));
+
+vi.mock('@/lib/rateLimit', () => ({
+  checkRateLimit: vi.fn(),
+  getClientIp: vi.fn().mockResolvedValue('203.0.113.1'),
 }));
 
 // --- HELPERS ---
@@ -84,71 +98,71 @@ const getMinorDate = () => {
   return d.toISOString().split('T')[0];
 };
 
+const validRegistration = (overrides: Record<string, string> = {}) =>
+  createFormData({
+    email: 'new@test.com',
+    password: 'ValidPassword123!',
+    username: 'newuser',
+    name: 'John Doe',
+    birthDate: getAdultDate(),
+    ...overrides,
+  });
+
+const mockCookieStore = () => {
+  const store = { set: vi.fn(), delete: vi.fn(), get: vi.fn() };
+  vi.mocked(cookies).mockResolvedValue(store as never);
+  return store;
+};
 
 describe('Auth Server Actions (Unit Tests)', () => {
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(checkRateLimit).mockResolvedValue(true);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   // 1. REGISTER USER TESTS
   describe('registerUser', () => {
-    it('should return an error if birthDate is missing', async () => {
-      const formData = createFormData({ email: 'test@test.com', password: 'Password123!', username: 'testuser' });
+    it('should return dobInvalidError if birthDate is missing', async () => {
+      const formData = createFormData({ email: 'test@test.com', password: 'Password123!', username: 'testuser', name: 'T' });
       const result = await registerUser(formData, 'en');
-      expect(result).toEqual({ error: 'Date of birth is required' });
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'dobInvalidError' });
     });
 
     it('should return an ageMinError if user is under 18', async () => {
-      const formData = createFormData({ 
-        email: 'test@test.com', password: 'Password123!', username: 'testuser', birthDate: getMinorDate() 
-      });
-      const result = await registerUser(formData, 'en');
-      expect(result).toEqual({ error: 'ageMinError' });
+      const result = await registerUser(validRegistration({ birthDate: getMinorDate() }), 'en');
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'ageMinError' });
     });
 
     it('should return passwordWeakError if password is not strong enough', async () => {
-      const formData = createFormData({ 
-        email: 'test@test.com', password: 'weak', username: 'testuser', birthDate: getAdultDate() 
-      });
-      const result = await registerUser(formData, 'en');
-      expect(result).toEqual({ error: 'passwordWeakError' });
+      const result = await registerUser(validRegistration({ password: 'weak' }), 'en');
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'passwordWeakError' });
     });
 
-    it('should return emailExistsError if email is already in the database', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: '1' } as any);
+    it('should return passwordTooLongError for passwords over 72 UTF-8 bytes', async () => {
+      const result = await registerUser(validRegistration({ password: 'Aa1!' + 'x'.repeat(69) }), 'en');
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'passwordTooLongError' });
+    });
 
-      const formData = createFormData({ 
-        email: 'exist@test.com', password: 'ValidPassword123!', username: 'testuser', birthDate: getAdultDate() 
-      });
-      
-      const result = await registerUser(formData, 'en');
-      expect(result).toEqual({ error: 'emailExistsError' });
+    it('should return usernameSpaceError for usernames with whitespace', async () => {
+      const result = await registerUser(validRegistration({ username: 'has space' }), 'en');
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'usernameSpaceError' });
     });
 
     it('should return usernameTakenError if username is already in the database', async () => {
-      // First call: email check (returns null -> available)
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null);
-      // Second call: username check (returns user -> taken)
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: '2' } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ id: '2' } as never);
 
-      const formData = createFormData({ 
-        email: 'new@test.com', password: 'ValidPassword123!', username: 'taken_user', birthDate: getAdultDate() 
-      });
-      
-      const result = await registerUser(formData, 'en');
-      expect(result).toEqual({ error: 'usernameTakenError' });
+      const result = await registerUser(validRegistration({ username: 'taken_user' }), 'en');
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'usernameTakenError' });
+      expect(prisma.user.create).not.toHaveBeenCalled();
     });
 
     it('should successfully create an unverified user and return success', async () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
       vi.mocked(bcrypt.hash).mockResolvedValue('hashed_password' as never);
 
-      const formData = createFormData({ 
-        email: 'new@test.com', password: 'ValidPassword123!', username: 'newuser', name: 'John Doe', birthDate: getAdultDate() 
-      });
-
-      const result = await registerUser(formData, 'en');
+      const result = await registerUser(validRegistration(), 'en');
 
       // Verify Prisma create was called with correct data
       expect(prisma.user.create).toHaveBeenCalledWith({
@@ -163,18 +177,33 @@ describe('Auth Server Actions (Unit Tests)', () => {
         })
       });
 
-      expect(result).toEqual({ success: true, needsVerification: true });
+      expect(result).toEqual({ ok: true, data: { needsVerification: true } });
+    });
+
+    it('should store the birthdate as the exact calendar date (S10, no timezone shift)', async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed_password' as never);
+
+      await registerUser(validRegistration({ birthDate: '2000-03-15' }), 'en');
+
+      const data = vi.mocked(prisma.user.create).mock.calls[0][0].data;
+      expect((data.birthDate as Date).toISOString()).toBe('2000-03-15T00:00:00.000Z');
     });
 
     it('should catch critical errors and return registrationGenericError', async () => {
       vi.mocked(prisma.user.findUnique).mockRejectedValueOnce(new Error('DB Down'));
 
-      const formData = createFormData({ 
-        email: 'new@test.com', password: 'ValidPassword123!', username: 'newuser', birthDate: getAdultDate() 
-      });
+      const result = await registerUser(validRegistration(), 'en');
+      expect(result).toEqual({ ok: false, code: 'INTERNAL', messageKey: 'registrationGenericError' });
+    });
 
-      const result = await registerUser(formData, 'en');
-      expect(result).toEqual({ error: 'registrationGenericError' });
+    it('should return RATE_LIMITED and do no DB work when the limiter blocks', async () => {
+      vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
+
+      const result = await registerUser(validRegistration(), 'en');
+      expect(result).toEqual({ ok: false, code: 'RATE_LIMITED', messageKey: 'tooManyAttemptsError' });
+      expect(checkRateLimit).toHaveBeenCalledWith('register', { ip: '203.0.113.1', identifier: 'new@test.com' });
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
   });
 
@@ -184,71 +213,95 @@ describe('Auth Server Actions (Unit Tests)', () => {
     it('should return an error if credentials are missing', async () => {
       const formData = createFormData({});
       const result = await loginUser(formData, 'en');
-      expect(result).toEqual({ error: 'invalidCredentialsError' });
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'invalidCredentialsError' });
     });
 
     it('should return invalidCredentialsError if user is not found', async () => {
       vi.mocked(prisma.user.findFirst).mockResolvedValue(null);
-      
+
       const formData = createFormData({ identifier: 'wrong@user.com', password: 'pw' });
       const result = await loginUser(formData, 'en');
-      
-      expect(result).toEqual({ error: 'invalidCredentialsError' });
+
+      expect(result).toEqual({ ok: false, code: 'UNAUTHORIZED', messageKey: 'invalidCredentialsError' });
     });
 
     it('should return invalidCredentialsError if password does not match', async () => {
-      vi.mocked(prisma.user.findFirst).mockResolvedValue({ password: 'hashed_pw' } as any);
+      vi.mocked(prisma.user.findFirst).mockResolvedValue({ password: 'hashed_pw' } as never);
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
-      
+
       const formData = createFormData({ identifier: 'user@test.com', password: 'wrongpw' });
       const result = await loginUser(formData, 'en');
-      
-      expect(result).toEqual({ error: 'invalidCredentialsError' });
+
+      expect(result).toEqual({ ok: false, code: 'UNAUTHORIZED', messageKey: 'invalidCredentialsError' });
+      expect(createSession).not.toHaveBeenCalled();
     });
 
     it('should return emailNotVerifiedError if user account is not activated', async () => {
-      vi.mocked(prisma.user.findFirst).mockResolvedValue({ password: 'hashed_pw', isVerified: false } as any);
+      vi.mocked(prisma.user.findFirst).mockResolvedValue({ password: 'hashed_pw', isVerified: false } as never);
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
-      
+
       const formData = createFormData({ identifier: 'user@test.com', password: 'correctpw' });
       const result = await loginUser(formData, 'en');
-      
-      expect(result).toEqual({ error: 'emailNotVerifiedError' });
+
+      expect(result).toEqual({ ok: false, code: 'FORBIDDEN', messageKey: 'emailNotVerifiedError' });
+      expect(createSession).not.toHaveBeenCalled();
     });
 
-    it('should set cookies and redirect upon successful login', async () => {
-      vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-123', password: 'hashed_pw', isVerified: true } as any);
+    it('should create a server-side session and redirect upon successful login', async () => {
+      vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-123', password: 'hashed_pw', isVerified: true } as never);
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
-      
-      const mockSet = vi.fn();
-      const mockDelete = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({ set: mockSet, delete: mockDelete } as any);
+      const store = mockCookieStore();
 
       const formData = createFormData({ identifier: 'user@test.com', password: 'correctpw' });
       await loginUser(formData, 'en');
 
-      expect(mockSet).toHaveBeenCalledWith('gloo_user_id', 'user-123', expect.any(Object));
-      expect(mockDelete).toHaveBeenCalledWith('gloo_is_guest');
+      expect(createSession).toHaveBeenCalledWith('user-123');
+      // The user id itself is never written into a cookie anymore.
+      expect(store.set).not.toHaveBeenCalledWith(expect.anything(), 'user-123', expect.anything());
+      expect(store.delete).toHaveBeenCalledWith('gloo_is_guest');
       expect(redirect).toHaveBeenCalledWith('/en/search-groups');
+    });
+
+    it('should return RATE_LIMITED before touching the database', async () => {
+      vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
+
+      const formData = createFormData({ identifier: 'user@test.com', password: 'pw' });
+      const result = await loginUser(formData, 'en');
+
+      expect(result).toEqual({ ok: false, code: 'RATE_LIMITED', messageKey: 'tooManyAttemptsError' });
+      expect(checkRateLimit).toHaveBeenCalledWith('login', { ip: '203.0.113.1', identifier: 'user@test.com' });
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('should return a typed INTERNAL error instead of throwing when the DB fails (D12)', async () => {
+      vi.mocked(prisma.user.findFirst).mockRejectedValue(new Error('DB down'));
+
+      const formData = createFormData({ identifier: 'user@test.com', password: 'pw' });
+      const result = await loginUser(formData, 'en');
+
+      expect(result).toEqual({ ok: false, code: 'INTERNAL', messageKey: 'error' });
+      expect(console.error).toHaveBeenCalled();
+      expect(redirect).not.toHaveBeenCalled();
     });
   });
 
   // 3. GET CURRENT USER TESTS
 
   describe('getCurrentUser', () => {
-    it('should return null if gloo_user_id cookie is missing', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue(undefined) } as any);
+    it('should return null if there is no valid session', async () => {
+      vi.mocked(getOptionalUserId).mockResolvedValue(null);
       const user = await getCurrentUser();
       expect(user).toBeNull();
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
-    it('should return user object if cookie exists', async () => {
-      vi.mocked(cookies).mockResolvedValue({ get: vi.fn().mockReturnValue({ value: 'user-123' }) } as any);
+    it('should return user object for a valid session', async () => {
+      vi.mocked(getOptionalUserId).mockResolvedValue('user-123');
       const mockUser = { name: 'John', username: 'johndoe', image: 'avatar.png' };
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as never);
 
       const user = await getCurrentUser();
-      
+
       expect(prisma.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'user-123' } }));
       expect(user).toEqual(mockUser);
     });
@@ -257,16 +310,14 @@ describe('Auth Server Actions (Unit Tests)', () => {
   // 4. LOGOUT TESTS
 
   describe('logOutAction', () => {
-    it('should clear user session, set guest cookies and redirect', async () => {
-      const mockSet = vi.fn();
-      const mockDelete = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({ set: mockSet, delete: mockDelete } as any);
+    it('should revoke the session, set guest cookies and redirect', async () => {
+      const store = mockCookieStore();
 
       await logOutAction('en');
 
-      expect(mockDelete).toHaveBeenCalledWith('gloo_user_id');
-      expect(mockSet).toHaveBeenCalledWith('gloo_is_guest', 'true', expect.any(Object));
-      expect(mockSet).toHaveBeenCalledWith('gloo_guest_id', expect.any(String), expect.any(Object));
+      expect(destroyCurrentSession).toHaveBeenCalled();
+      expect(store.set).toHaveBeenCalledWith('gloo_is_guest', 'true', expect.any(Object));
+      expect(store.set).toHaveBeenCalledWith('gloo_guest_id', expect.any(String), expect.any(Object));
       expect(redirect).toHaveBeenCalledWith('/en/search-groups');
     });
   });
@@ -276,69 +327,102 @@ describe('Auth Server Actions (Unit Tests)', () => {
   describe('checkUsernameAvailability', () => {
     it('should instantly return false if username is less than 3 characters', async () => {
       const result = await checkUsernameAvailability('ab');
-      expect(result).toEqual({ available: false });
+      expect(result).toEqual({ ok: true, data: { available: false } });
       expect(prisma.user.findUnique).not.toHaveBeenCalled(); // Ensures DB is not queried
     });
 
     it('should return available: false if username exists', async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'existing-user' } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'existing-user' } as never);
       const result = await checkUsernameAvailability('takenUser');
-      expect(result).toEqual({ available: false });
+      expect(result).toEqual({ ok: true, data: { available: false } });
     });
 
     it('should return available: true if username does not exist', async () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
       const result = await checkUsernameAvailability('freeUser');
-      expect(result).toEqual({ available: true });
+      expect(result).toEqual({ ok: true, data: { available: true } });
     });
 
-    it('should catch exceptions and return available: false for safety', async () => {
+    it('should catch exceptions and return a typed error', async () => {
       vi.mocked(prisma.user.findUnique).mockRejectedValue(new Error('Network error'));
       const result = await checkUsernameAvailability('errorUser');
-      expect(result).toEqual({ available: false });
+      expect(result).toEqual({ ok: false, code: 'INTERNAL' });
+    });
+
+    it('should be rate limited per IP and per username', async () => {
+      vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
+      const result = await checkUsernameAvailability('someone');
+      expect(result).toEqual({ ok: false, code: 'RATE_LIMITED', messageKey: 'tooManyAttemptsError' });
+      expect(checkRateLimit).toHaveBeenCalledWith('usernameCheck', { ip: '203.0.113.1', identifier: 'someone' });
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
   });
 
   describe("Security Boundaries: Password Reset", () => {
-  it("should reject a password reset if the token has expired", async () => {
-    vi.mocked(prisma.user.findFirst).mockResolvedValue(null);
+    it("should reject a password reset if the token has expired", async () => {
+      vi.mocked(prisma.user.findFirst).mockResolvedValue(null);
 
-    const result = await resetPassword("expired-token", "NewSecurePass123!");
-    
-    // Based on standard security requirements, this MUST fail
-    expect(result.error).toBe("tokenInvalidOrExpired");
-    expect(prisma.user.update).not.toHaveBeenCalled();
-  });
+      const result = await resetPassword("expired-token", "NewSecurePass123!");
 
-  it("should reject a password reset if no valid token is provided", async () => {
-    vi.mocked(prisma.user.findFirst).mockResolvedValue(null);
+      // Based on standard security requirements, this MUST fail
+      expect(result).toEqual({ ok: false, code: 'NOT_FOUND', messageKey: 'tokenInvalidOrExpired' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
 
-    const result = await resetPassword("fake-token", "NewSecurePass123!");
-    
-    expect(result.error).toBe("tokenInvalidOrExpired");
-  });
+    it("should reject a password reset if no valid token is provided", async () => {
+      vi.mocked(prisma.user.findFirst).mockResolvedValue(null);
 
-  it('should reject registration if the email already exists in the database (TC5)', async () => {
-      // Simulate that Prisma finds a user when checking if email exists
-      vi.mocked(prisma.user.findUnique).mockResolvedValue({
-        id: "existing-id",
-        email: "alreadyused@example.com",
-        username: "someone_else"
-      } as any);
+      const result = await resetPassword("fake-token", "NewSecurePass123!");
 
-      const formData = new FormData();
-      formData.append('email', 'alreadyused@example.com');
-      formData.append('password', 'SecurePass123!');
-      formData.append('username', 'new_user');
-      formData.append('name', 'New Name');
-      formData.append('birthDate', '2000-01-01');
+      expect(result).toEqual({ ok: false, code: 'NOT_FOUND', messageKey: 'tokenInvalidOrExpired' });
+    });
 
-      const result = await registerUser(formData, 'en');
+    it("should update the password AND revoke all sessions in one transaction", async () => {
+      vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'user-9' } as never);
+      vi.mocked(bcrypt.hash).mockResolvedValue('new-hash' as never);
+      vi.mocked(prisma.user.update).mockReturnValue('update-op' as never);
+      vi.mocked(prisma.session.deleteMany).mockReturnValue('revoke-op' as never);
 
-      // Verifies exact security rule implementation
-      expect(result.error).toBe("emailExistsError");
-      // Ensures no creation attempt was made to the DB
-      expect(prisma.user.create).not.toHaveBeenCalled();
+      const result = await resetPassword("good-token", "NewSecurePass123!");
+
+      expect(result).toEqual({ ok: true, data: undefined });
+      expect(prisma.session.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-9' } });
+      expect(prisma.$transaction).toHaveBeenCalledWith(['update-op', 'revoke-op']);
+    });
+
+    it("should rate limit reset submissions", async () => {
+      vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
+      const result = await resetPassword("any-token", "NewSecurePass123!");
+      expect(result).toEqual({ ok: false, code: 'RATE_LIMITED', messageKey: 'tooManyAttemptsError' });
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("should rate limit reset requests per IP and email", async () => {
+      vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
+      const result = await requestPasswordReset("victim@test.com", "en");
+      expect(result).toEqual({ ok: false, code: 'RATE_LIMITED', messageKey: 'tooManyAttemptsError' });
+      expect(checkRateLimit).toHaveBeenCalledWith('passwordResetRequest', { ip: '203.0.113.1', identifier: 'victim@test.com' });
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should NOT reveal that an email already exists when registering (S14)', async () => {
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed_pw' as never);
+
+      // New email: username free, email free.
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      const forNewEmail = await registerUser(validRegistration({ email: 'fresh@example.com' }), 'en');
+
+      // Existing email: username free, email taken.
+      vi.mocked(prisma.user.findUnique)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "existing-id" } as never);
+      const forExistingEmail = await registerUser(validRegistration({ email: 'alreadyused@example.com' }), 'en');
+
+      expect(forExistingEmail).toEqual(forNewEmail);
+      expect(forExistingEmail).toEqual({ ok: true, data: { needsVerification: true } });
+      // Only the new email created a row; both paths ran the same bcrypt work.
+      expect(prisma.user.create).toHaveBeenCalledTimes(1);
+      expect(bcrypt.hash).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -347,17 +431,12 @@ describe('Auth Server Actions (Unit Tests)', () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
       vi.mocked(bcrypt.hash).mockResolvedValue('hashed_pw' as never);
 
-      const formData = createFormData({
-        email: 'redirect-test@test.com',
-        password: 'ValidPassword123!',
-        username: 'redirect_user',
-        name: 'Redirect User',
-        birthDate: getAdultDate(),
-      });
+      const result = await registerUser(
+        validRegistration({ email: 'redirect-test@test.com', username: 'redirect_user', name: 'Redirect User' }),
+        'en',
+      );
 
-      const result = await registerUser(formData, 'en');
-
-      expect(result).toEqual({ success: true, needsVerification: true });
+      expect(result).toEqual({ ok: true, data: { needsVerification: true } });
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           email: 'redirect-test@test.com',
@@ -370,11 +449,8 @@ describe('Auth Server Actions (Unit Tests)', () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
         id: 'user-post-reg-123',
         isVerified: false,
-      } as any);
-
-      const mockSet = vi.fn();
-      const mockDelete = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({ set: mockSet, delete: mockDelete } as any);
+      } as never);
+      const store = mockCookieStore();
 
       await verifyAccountAction('valid-activation-token', 'en');
 
@@ -385,8 +461,8 @@ describe('Auth Server Actions (Unit Tests)', () => {
       });
 
       // Session established
-      expect(mockSet).toHaveBeenCalledWith('gloo_user_id', 'user-post-reg-123', expect.any(Object));
-      expect(mockDelete).toHaveBeenCalledWith('gloo_is_guest');
+      expect(createSession).toHaveBeenCalledWith('user-post-reg-123');
+      expect(store.delete).toHaveBeenCalledWith('gloo_is_guest');
 
       // Critical requirement: must redirect directly to /en/profile/create-group
       expect(redirect).toHaveBeenCalledWith('/en/profile/create-group');
@@ -396,11 +472,8 @@ describe('Auth Server Actions (Unit Tests)', () => {
       vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
         id: 'user-es-456',
         isVerified: false,
-      } as any);
-
-      const mockSet = vi.fn();
-      const mockDelete = vi.fn();
-      vi.mocked(cookies).mockResolvedValue({ set: mockSet, delete: mockDelete } as any);
+      } as never);
+      mockCookieStore();
 
       await verifyAccountAction('valid-token-es', 'es');
 

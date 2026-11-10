@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeft, AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { resetPassword } from "@/app/actions/auth";
+import { getPasswordCriteria, passwordErrorKey, validatePassword } from "@/lib/password";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -30,10 +31,7 @@ export default function ResetPasswordPage() {
     setIsValidating(false);
   }, [token]);
 
-  const validatePassword = () => {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
-    return passwordRegex.test(password);
-  };
+  const criteria = getPasswordCriteria(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +47,9 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (!validatePassword()) {
-      setError("passwordWeakError");
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.ok) {
+      setError(passwordErrorKey(passwordCheck.reason));
       return;
     }
 
@@ -58,14 +57,14 @@ export default function ResetPasswordPage() {
 
     try {
       const result = await resetPassword(token, password);
-      if (result.success) {
+      if (result.ok) {
         setSuccess(true);
       } else {
-        setError(result.error || "An error occurred");
+        setError(result.messageKey ?? "resetGenericError");
       }
     } catch (err) {
       console.error("Error:", err);
-      setError("An unexpected error occurred");
+      setError("resetGenericError");
     } finally {
       setIsLoading(false);
     }
@@ -159,11 +158,11 @@ export default function ResetPasswordPage() {
               <div className="text-xs text-gray-500 bg-gray-50 rounded-2xl p-4">
                 <p className="font-bold mb-2">{t('passwordRequirements')}:</p>
                 <ul className="space-y-1">
-                  <li className={password.length >= 8 ? "text-green-600" : ""}>✓ {t('req1')}</li>
-                  <li className={/[A-Z]/.test(password) ? "text-green-600" : ""}>✓ {t('req2')}</li>
-                  <li className={/[a-z]/.test(password) ? "text-green-600" : ""}>✓ {t('req3')}</li>
-                  <li className={/[0-9]/.test(password) ? "text-green-600" : ""}>✓ {t('req4')}</li>
-                  <li className={/[@$!%*?&.]/.test(password) ? "text-green-600" : ""}>✓ {t('req5')}</li>
+                  {/* Same rules as the server (lib/password.ts). */}
+                  <li className={criteria.length ? "text-green-600" : ""}>✓ {t('req1')}</li>
+                  <li className={criteria.uppercase ? "text-green-600" : ""}>✓ {t('req2')}</li>
+                  <li className={criteria.number ? "text-green-600" : ""}>✓ {t('req4')}</li>
+                  <li className={criteria.special ? "text-green-600" : ""}>✓ {t('req5')}</li>
                 </ul>
               </div>
 

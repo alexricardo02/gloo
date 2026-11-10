@@ -3,14 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Gender } from "@prisma/client";
-import { cookies } from "next/headers";
+import { getOptionalUserId } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import { validateImage } from "@/lib/validateImage";
 
 export async function getGroupByUser() {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("gloo_user_id")?.value;
+    const userId = await getOptionalUserId();
 
     if (!userId) return null;
 
@@ -32,8 +31,7 @@ export async function getGroupByUser() {
 }
 
 export async function createGroupAction(formData: FormData, locale: string) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) throw new Error("User not found or unauthorized");
 
@@ -186,8 +184,7 @@ export async function createGroupAction(formData: FormData, locale: string) {
  * @returns Object indicating operation success or authorization failure.
  */
 export async function deleteGroupAction() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("gloo_user_id")?.value;
+  const userId = await getOptionalUserId();
 
   if (!userId) return { error: "Unauthorized" };
 

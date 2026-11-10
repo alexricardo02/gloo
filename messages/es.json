@@ -282,7 +282,8 @@
     "privacyPolicy": "Política de privacidad",
     "error": "Algo salió mal. Por favor, inténtalo de nuevo.",
     "invalidCredentialsError": "Usuario, correo electrónico o contraseña incorrectos.",
-    "emailNotVerifiedError": "Por favor, verifica tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada para encontrar el enlace de activación."
+    "emailNotVerifiedError": "Por favor, verifica tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada para encontrar el enlace de activación.",
+    "tooManyAttemptsError": "Demasiados intentos. Espera unos minutos y vuelve a intentarlo."
   },
   "Register": {
     "title": "Registrarse",
@@ -313,7 +314,11 @@
     "pwdSpecial": "1 Carácter especial",
     "successTitle": "Revisa tu correo",
     "goToLogin": "Ir a Iniciar sesión",
-    "usernameSpaceError": "El nombre de usuario no puede contener espacios."
+    "usernameSpaceError": "El nombre de usuario no puede contener espacios.",
+    "tooManyAttemptsError": "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.",
+    "passwordTooLongError": "La contraseña es demasiado larga (máximo 72 bytes; algunos caracteres especiales cuentan como más de uno).",
+    "dobInvalidError": "Introduce una fecha de nacimiento válida.",
+    "invalidEmailError": "Introduce una dirección de correo electrónico válida."
   },
   "Profile": {
     "title": "Perfil",
@@ -477,7 +482,10 @@
     "backToLogin": "Volver a Iniciar sesión",
     "successTitle": "Revisa tu Correo Electrónico",
     "successMessage": "Si existe una cuenta con ese correo, hemos enviado un enlace para restablecer la contraseña.",
-    "checkSpam": "Por favor revisa tu carpeta de spam si no ves el correo en tu bandeja de entrada."
+    "checkSpam": "Por favor revisa tu carpeta de spam si no ves el correo en tu bandeja de entrada.",
+    "invalidEmailError": "Introduce una dirección de correo electrónico válida.",
+    "tooManyAttemptsError": "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.",
+    "genericError": "Algo salió mal. Por favor, inténtalo de nuevo."
   },
   "ResetPassword": {
     "title": "Crear Nueva Contraseña",
@@ -491,7 +499,7 @@
     "req2": "Contiene una letra mayúscula",
     "req3": "Contiene una letra minúscula",
     "req4": "Contiene un número",
-    "req5": "Contiene un carácter especial (@$!%*?&.)",
+    "req5": "Contiene un carácter especial (cualquier cosa que no sea una letra o un número)",
     "resetButton": "Restablecer Contraseña",
     "resetting": "Restableciendo...",
     "successTitle": "Contraseña Restablecida",
@@ -502,7 +510,10 @@
     "tokenMissing": "El token de restablecimiento falta. Por favor solicita un nuevo restablecimiento de contraseña.",
     "passwordMismatch": "Las contraseñas no coinciden.",
     "passwordWeakError": "La contraseña no cumple con los requisitos.",
-    "tokenInvalidOrExpired": "El enlace de restablecimiento es inválido o ha expirado. Por favor solicita uno nuevo."
+    "tokenInvalidOrExpired": "El enlace de restablecimiento es inválido o ha expirado. Por favor solicita uno nuevo.",
+    "tooManyAttemptsError": "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.",
+    "passwordTooLongError": "La contraseña es demasiado larga (máximo 72 bytes; algunos caracteres especiales cuentan como más de uno).",
+    "resetGenericError": "Algo salió mal. Por favor, inténtalo de nuevo."
   },
   "Terms": {
     "title": "Términos de Servicio",

@@ -34,7 +34,7 @@ test.describe('Auth Flow (TC4–TC7)', () => {
     await expect(page.locator('[data-testid="register-error-msg"]')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('TC5: Registration – duplicate email', async ({ page }) => {
+  test('TC5: Registration – duplicate email does not reveal that the account exists (S14)', async ({ page }) => {
     await page.goto(url('en', '/register'));
     await waitForAppStable(page);
 
@@ -49,7 +49,9 @@ test.describe('Auth Flow (TC4–TC7)', () => {
     await termsCheckbox.check();
     await page.locator('[data-testid="register-submit-btn"]').click();
 
-    await expect(page.locator('[data-testid="register-error-msg"]')).toBeVisible({ timeout: 5_000 });
+    // Same "check your email" screen as a brand-new registration; no error.
+    await expect(page.locator('[data-testid="register-success"]')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-testid="register-error-msg"]')).toHaveCount(0);
   });
 
   test('TC4: Registration – valid input', async ({ page }) => {
