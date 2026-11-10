@@ -12,7 +12,8 @@
  *
  * Every rule is checked per IP and per identifier (email, username, user id,
  * reset token…). Identifiers are SHA-256 hashed before being used as keys so
- * no emails end up in Redis.
+ * no emails end up in Redis. Passwords are NEVER a rate-limit input: they are
+ * only ever hashed/verified with bcryptjs (app/actions/auth.ts).
  */
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
@@ -138,7 +139,14 @@ export function resetRateLimiterForTests(): void {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-function hashIdentifier(value: string): string {
+/**
+ * Hashes a NON-SECRET rate-limit identifier (email, username, user id) or a
+ * high-entropy random token so raw values never end up in Redis. This is a
+ * privacy measure for bucket keys, NOT password storage: never pass a
+ * password (or anything containing one) here. Passwords are hashed only with
+ * bcryptjs where they are stored or verified.
+ */
+function hashRateLimitKey(value: string): string {
   return createHash("sha256").update(value.trim().toLowerCase()).digest("hex").slice(0, 32);
 }
 
@@ -158,6 +166,17 @@ export async function getClientIp(): Promise<string> {
 }
 
 /**
+ * Keys for one rate-limit check: the client IP and a single non-secret
+ * identifier string. `password?: never` makes passing a credentials object
+ * (e.g. `{ identifier, password }`) a type error.
+ */
+export interface RateLimitKeys {
+  ip?: string;
+  identifier?: string | null;
+  password?: never;
+}
+
+/**
  * Consumes one attempt for `name` from both the IP bucket and the identifier
  * bucket. Returns true if the request is allowed.
  *
@@ -167,7 +186,7 @@ export async function getClientIp(): Promise<string> {
  */
 export async function checkRateLimit(
   name: RateLimitName,
-  keys: { ip?: string; identifier?: string | null },
+  keys: RateLimitKeys,
 ): Promise<boolean> {
   const rule: RateLimitRule = RATE_LIMIT_RULES[name];
   const store = getBackend();
@@ -177,7 +196,7 @@ export async function checkRateLimit(
     checks.push(store.hit(`${name}:ip:${keys.ip}`, rule.ip));
   }
   if (rule.identifier && keys.identifier) {
-    checks.push(store.hit(`${name}:id:${hashIdentifier(keys.identifier)}`, rule.identifier));
+    checks.push(store.hit(`${name}:id:${hashRateLimitKey(keys.identifier)}`, rule.identifier));
   }
 
   try {

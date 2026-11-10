@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const upstashHits = new Map<string, number>();
@@ -124,6 +125,36 @@ describe("rate limiter (S8)", () => {
     expect(keys).toHaveLength(1);
     expect(keys[0]).toMatch(/^register:id:[0-9a-f]{32}$/);
     expect(keys[0]).not.toContain("someone");
+  });
+
+  it("builds keys from the client IP and the hashed identifier only", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://example.upstash.io");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "token");
+
+    await checkRateLimit("login", { ip: "203.0.113.5", identifier: "  User@Test.com " });
+
+    const expectedIdHash = createHash("sha256").update("user@test.com").digest("hex").slice(0, 32);
+    expect([...upstashHits.keys()].sort()).toEqual(
+      [`login:id:${expectedIdHash}`, "login:ip:203.0.113.5"].sort(),
+    );
+    for (const key of upstashHits.keys()) expect(key.toLowerCase()).not.toContain("user@test.com");
+  });
+
+  it("does not accept credentials objects through the public API (type-level)", () => {
+    // Checked by `tsc --noEmit`, never executed: if the API ever accepts a
+    // password (or a credentials object as the identifier), the expect-error
+    // directives below become unused and type-checking fails.
+    const typeOnly = () => {
+      // @ts-expect-error a password is never a rate-limit input
+      void checkRateLimit("login", { ip: "203.0.113.6", identifier: "a@test.com", password: "hunter2-Secret!" });
+      // @ts-expect-error the identifier must be a single string, not a credentials payload
+      void checkRateLimit("login", { identifier: { email: "a@test.com", password: "hunter2-Secret!" } });
+      const credentials = { identifier: "b@test.com", password: "hunter2-Secret!" };
+      // @ts-expect-error non-literal objects carrying a password are rejected too
+      void checkRateLimit("login", credentials);
+    };
+    expect(typeof typeOnly).toBe("function");
   });
 
   it("reads the client IP from the first x-forwarded-for entry", async () => {
