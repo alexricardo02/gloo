@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import SocialLinks from "@/app/components/SocialLinks";
@@ -9,26 +9,43 @@ import { registerUser, checkUsernameAvailability } from "@/app/actions/auth";
 import { getPasswordCriteria, meetsPasswordStrength } from "@/lib/password";
 import { loadRegisterDraft, saveRegisterDraft, clearRegisterDraft } from "@/lib/registerDraft";
 
+const noopSubscribe = () => () => {};
+
+// false during SSR and hydration, true once running in the browser.
+function useIsClient() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
 export default function RegisterPage() {
+  const isClient = useIsClient();
+  // The server/hydration pass renders the same form with empty values, so the
+  // markup matches. On the client it remounts once (new key) and the lazy
+  // initializers restore the saved draft from sessionStorage.
+  return <RegisterForm key={isClient ? "client" : "server"} restoreDraft={isClient} />;
+}
+
+function RegisterForm({ restoreDraft }: { restoreDraft: boolean }) {
   const router = useRouter();
   const t = useTranslations("Register");
 
+  // Read once. The password is never stored or restored (see lib/registerDraft.ts).
+  const [savedDraft] = useState(() => (restoreDraft ? loadRegisterDraft(sessionStorage) : {}));
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const locale = useLocale();
   const [error, setError] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(savedDraft.agreed ?? false);
 
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(savedDraft.name ?? "");
+  const [email, setEmail] = useState(savedDraft.email ?? "");
 
-  const [dob, setDob] = useState("");
+  const [dob, setDob] = useState(savedDraft.dob ?? "");
 
   const [isDobFocused, setIsDobFocused] = useState(false);
 
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(savedDraft.username ?? "");
 
   const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
@@ -38,26 +55,21 @@ export default function RegisterPage() {
 
 
   useEffect(() => {
-    // Restored in an effect (not a lazy initializer) because the page is
-    // server-rendered and sessionStorage only exists in the browser.
-    // The password is never stored or restored (see lib/registerDraft.ts).
-    const saved = loadRegisterDraft(sessionStorage);
-    if (saved.name) setName(saved.name);
-    if (saved.email) setEmail(saved.email);
-    if (saved.dob) setDob(saved.dob);
-    if (saved.username) setUsername(saved.username);
-    if (saved.agreed) setAgreed(saved.agreed);
-  }, []);
-
-  useEffect(() => {
+    // Skip in the server/hydration instance: it would overwrite the saved
+    // draft with empty values before the client instance reads it.
+    if (!restoreDraft) return;
     saveRegisterDraft(sessionStorage, { name, email, dob, username, agreed });
-  }, [name, email, dob, username, agreed]);
+  }, [restoreDraft, name, email, dob, username, agreed]);
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\s/g, "");
+    setUsername(val);
+    // Too short to check: availability is unknown (the effect skips the check).
+    if (val.trim().length < 3) setIsUsernameAvailable(null);
+  };
 
   useEffect(() => {
-    if (username.trim().length < 3) {
-      setIsUsernameAvailable(null);
-      return;
-    }
+    if (username.trim().length < 3) return;
 
     const timer = setTimeout(async () => {
       setIsCheckingUsername(true);
@@ -96,7 +108,6 @@ export default function RegisterPage() {
 
   // The 72-byte maximum is enforced server-side (passwordTooLongError) so the user sees why.
   const isPasswordStrong = meetsPasswordStrength(pwdCriteria);
-  const canSubmit = agreed && isPasswordStrong && (isUsernameAvailable === true) && username.length >= 3 && dob;
 
   if (isSuccess) {
     return (
@@ -227,7 +238,7 @@ export default function RegisterPage() {
                 type="text"
                 data-testid="register-username-input"
                 value={username}
-                onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+                onChange={handleUsernameChange}
                 placeholder={t('usernamePlaceholder')}
                 required
                 className="bg-transparent outline-none w-full ml-2 text-foreground placeholder:text-muted-foreground/50 font-medium pr-8"
