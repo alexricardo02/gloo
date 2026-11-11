@@ -20,6 +20,7 @@ GLOO is a mobile-first social nightlife app that connects groups of people befor
   - [Step-by-Step Installation](#2-step-by-step-installation)
 - [Group Discovery](#group-discovery)
 - [Email Flows](#email-flows)
+- [Image Storage](#image-storage)
 - [Deployment](#deployment)
   - [Environment Configuration & Twelve-Factor Compliance](#environment-configuration--twelve-factor-compliance)
   - [Required Environment Variables (`.env`)](#required-environment-variables-env)
@@ -111,6 +112,10 @@ DIRECT_URL="postgresql://party_admin:party_password123@localhost:5433/gloo_db?sc
 # Supabase Client Credentials (used as fallback mock placeholders for local runtime)
 NEXT_PUBLIC_SUPABASE_URL="https://dummy-project.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="dummy-anon-key-for-local-compilation-and-testing-purposes"
+
+# Image uploads (see "Image Storage"). Use a SEPARATE dev bucket locally.
+SUPABASE_SERVICE_ROLE_KEY=""
+SUPABASE_STORAGE_BUCKET="gloo-images-dev"
 ```
 
 #### Step 2.4: Spin Up the Containerized Database
@@ -231,6 +236,41 @@ The flag is server-side only. Client components receive it as a prop from their 
 
 ---
 
+## Image Storage
+
+Group photos and profile images live in a **public-read** Supabase Storage bucket. Only the server writes to it.
+
+- **One module.** `lib/storage.ts` (`server-only`) is the only app code that talks to Supabase Storage. It uses `SUPABASE_SERVICE_ROLE_KEY`, a full-access secret that exists only on the server. The anon client in `lib/supabase.ts` is for Realtime only. The bucket has no insert/update/delete policies for `anon` or `authenticated` (see `docs/supabase-storage-policies.sql`).
+- **Server-generated keys.** Uploads go to `groups/{groupId}/{uuid}.webp` and `users/{userId}/{uuid}.webp`. Nothing is derived from client input.
+- **Validation and re-encoding.** Every upload passes the magic-byte check in `lib/validateImage.ts` (JPEG, PNG or WebP, max 5 MB; anything else, e.g. HEIC or GIF, gets a localized "unsupported type" error). `lib/imageProcessing.ts` then auto-rotates it, resizes it to at most 1600 px on the longest side, converts it to WebP (quality 80) and strips all metadata (EXIF incl. GPS, XMP, ICC). A group can have at most 6 photos.
+- **The database stores object keys, not URLs.** `Group.photos` and `User.image` hold keys such as `groups/<id>/<uuid>.webp`. Actions turn them into public URLs on read (`toPublicUrl` / `withPhotoUrls` / `withImageUrl`), so the UI still receives full URLs. Values that are not keys (external URLs, `/images/...` assets) are passed through unchanged. Migration `20261111120000_storage_object_keys` converts existing public URLs of the `gloo-images` bucket to keys; preview it read-only with `docs/storage-object-keys-preview.sql`.
+- **Ownership.** When a group is edited, the photos to keep are picked from the photos stored on the caller's own group; any other value sent by the client is ignored.
+- **Deletion.** Photos that an edit removes or replaces, a replaced profile image, a deleted group's `groups/{groupId}/` folder, and all of a deleted account's objects are removed from storage **after** the database change succeeds. Storage failures never fail the action: they are logged with the exact keys that remain.
+
+### Local development: use a separate bucket
+
+Local dev and E2E must never touch production photos:
+
+1. In the Supabase dashboard, create a **public** bucket named e.g. `gloo-images-dev`.
+2. In your local `.env`, set `SUPABASE_STORAGE_BUCKET="gloo-images-dev"` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+If the bucket is left unset (the production default `gloo-images`) outside production, the server logs a warning on the first write. Unit/integration tests mock `lib/storage.ts`. The Playwright dev server is pinned to `SUPABASE_STORAGE_BUCKET=gloo-images-e2e` with an empty service-role key and the dummy Supabase URL from `.env.test`, so E2E runs cannot write to any real bucket.
+
+### Orphaned objects
+
+`scripts/storage-orphans.mjs` lists objects in the bucket that no `Group.photos` / `User.image` row references (it reads `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_STORAGE_BUCKET` from the environment or `.env`):
+
+```bash
+node scripts/storage-orphans.mjs            # dry run (default): prints orphans, deletes nothing
+node scripts/storage-orphans.mjs --delete   # deletes the listed orphans
+```
+
+- It refuses to run when `DATABASE_URL` is not `localhost` / `127.0.0.1` / `::1`, unless you pass `--i-know-this-is-production`.
+- It refuses `--delete` when the database is local but the bucket is the production `gloo-images` (every production photo would look orphaned).
+- It skips objects younger than one hour, since an upload may still be in flight.
+
+---
+
 ## Deployment
 
 Gloo is built as a highly available, decoupled Full-Stack Web Application optimized for mobile-first clients. The architecture follows modern cloud-native patterns split into three core layers:
@@ -252,6 +292,8 @@ To spin up the application infrastructure, the following variables must be defin
 | `DIRECT_URL` | Direct connection URL bypassing connection poolers, strictly required for database schema migrations. | `postgresql://user:pass@host:5432/postgres` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public API gateway endpoint for the Supabase project instance. | `https://your-project.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anonymous client-side cryptographic key for initializing real-time WebSocket listeners. | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret, server only.** Full-access key used by `lib/storage.ts` to upload and delete images. Never commit it or add a `NEXT_PUBLIC_` copy. See [Image Storage](#image-storage). | from Supabase → Project Settings → API Keys |
+| `SUPABASE_STORAGE_BUCKET` | Storage bucket name. Defaults to `gloo-images` (production). Local dev must use a separate bucket. | `gloo-images-dev` |
 | `EMAIL_FLOWS_ENABLED` | Optional. Enables email verification and password recovery; off when unset. See [Email Flows](#email-flows). | `false` |
 
 ---

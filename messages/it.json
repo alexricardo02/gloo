@@ -296,5 +296,14 @@
     "recoveryUnavailableTitle": "Recupero password non disponibile",
     "recoveryUnavailableDesc": "Il recupero della password non è temporaneamente disponibile. Se hai effettuato l'accesso, puoi cambiare la password nelle impostazioni dell'account.",
     "backToLogin": "Torna al Login"
+  },
+  "ImageUpload": {
+    "empty": "Scegli un'immagine.",
+    "tooLarge": "L'immagine supera i 5 MB. Scegli un file più piccolo.",
+    "unsupportedType": "Questo tipo di immagine non è supportato. Usa un'immagine JPEG, PNG o WebP.",
+    "invalid": "Non è stato possibile elaborare questa immagine. Prova con un altro file.",
+    "uploadFailed": "Il caricamento della foto non è riuscito. Riprova.",
+    "photoRequired": "Aggiungi almeno una foto.",
+    "tooManyPhotos": "Puoi aggiungere fino a 6 foto."
   }
 }

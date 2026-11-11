@@ -6,8 +6,17 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { supabase } from "@/lib/supabase";
-import { validateImage } from "@/lib/validateImage";
+import { ImageValidationError, validateImage } from "@/lib/validateImage";
+import { processImage } from "@/lib/imageProcessing";
+import { upload, withImageUrl } from "@/lib/storage";
+import {
+  groupPrefix,
+  isOwnedGroupPhotoKey,
+  isOwnedUserImageKey,
+  newUserImageKey,
+  userPrefix,
+} from "@/lib/storageKeys";
+import { cleanupStorage } from "@/lib/storageCleanup";
 import { type ActionResult, fail, ok } from "@/lib/actionResult";
 import { validatePassword, passwordErrorKey } from "@/lib/password";
 import { calendarDateToUtcDate, isAtLeastAge, parseCalendarDate } from "@/lib/birthdate";
@@ -286,7 +295,7 @@ export async function getCurrentUser() {
     const userId = await getOptionalUserId();
     if (!userId) return null;
 
-    return await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         name: true,
@@ -295,6 +304,7 @@ export async function getCurrentUser() {
         email: true,
       },
     });
+    return withImageUrl(user);
   } catch (error) {
     console.error("Connection error in getCurrentUser:", error);
     return null;
@@ -362,66 +372,69 @@ export async function checkUsernameAvailability(
   }
 }
 
+/**
+ * Replaces the caller's profile image (S7/B15).
+ * The file is validated (magic bytes), re-encoded to WebP and uploaded with the
+ * service-role client to `users/{userId}/{uuid}.webp`; the DB stores the key.
+ * The previous image is deleted after the DB update succeeds.
+ * On failure `messageKey` (when present) is a key in the "ImageUpload" namespace.
+ */
 export async function updateProfileImage(formData: FormData) {
-  const userId = await getOptionalUserId();
-
-  if (!userId) return { error: "Unauthorized" };
-
-  const file = formData.get("image") as File;
-
-  // H-2 fix: validate the image using magic bytes (not the client-supplied
-  // file.type or file.name, which are attacker-controlled strings).
-  // validateImage() also enforces the 5 MB size cap.
-  let validated;
+  let userId: string;
   try {
-    validated = await validateImage(file);
+    userId = await requireUserId();
+  } catch {
+    return { error: "Unauthorized" };
+  }
+
+  const file = formData.get("image");
+
+  let processed;
+  try {
+    processed = await processImage(await validateImage(file as File));
   } catch (err) {
     // Surface validation errors as user-friendly messages; do NOT propagate
     // the raw error, which might contain internal details.
-    const message = err instanceof Error ? err.message : "Invalid image file.";
-    return { error: message };
+    if (err instanceof ImageValidationError) return { error: err.message, messageKey: err.messageKey };
+    console.error("Error processing profile image:", err);
+    return { error: "Invalid image file.", messageKey: "invalid" };
   }
 
+  const key = newUserImageKey(userId, processed.extension);
   try {
-    // Use the safe extension derived from magic bytes, not the original filename.
-    const fileName = `${userId}-${Date.now()}.${validated.safeExtension}`;
-    const filePath = `profiles/${fileName}`;
+    await upload(key, processed.buffer, processed.contentType);
+  } catch (error) {
+    console.error("Profile image upload error:", error);
+    return { error: "Failed to upload image to storage", messageKey: "uploadFailed" };
+  }
 
-    const { error: uploadError } = await supabase.storage
-      .from("gloo-images")
-      .upload(filePath, validated.buffer, {
-        cacheControl: "3600",
-        upsert: true,
-        contentType: validated.mimeType,
-      });
-
-    if (uploadError) {
-      console.error("Supabase upload error:", uploadError);
-      return { error: "Failed to upload image to storage" };
-    }
-
-    const { data: publicUrlData } = supabase.storage
-      .from("gloo-images")
-      .getPublicUrl(filePath);
-
-    const publicUrl = publicUrlData.publicUrl;
-
+  let previous: string | null;
+  try {
+    const before = await prisma.user.findUnique({ where: { id: userId }, select: { image: true } });
+    previous = before?.image ?? null;
     await prisma.user.update({
       where: { id: userId },
-      data: { image: publicUrl },
+      data: { image: key },
     });
-
-    return { success: true, image: publicUrl };
   } catch (error) {
     console.error("Error updating profile image:", error);
+    await cleanupStorage({ paths: [key] }, `rollback of profile image upload (user ${userId})`);
     return { error: "Internal server error" };
   }
+
+  // B15: delete the replaced image, but only if it is one of ours for this user.
+  if (previous && previous !== key && isOwnedUserImageKey(previous, userId)) {
+    await cleanupStorage({ paths: [previous] }, `replaced profile image of user ${userId}`);
+  }
+
+  return { success: true, image: withImageUrl({ image: key }).image };
 }
 
 export async function deleteAccountAction(locale: string) {
-  const userId = await getOptionalUserId();
-
-  if (!userId) {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
     return { error: "Unauthorized" };
   }
 
@@ -432,7 +445,7 @@ export async function deleteAccountAction(locale: string) {
       where: { id: userId },
       include: {
         group: {
-          select: { photos: true },
+          select: { id: true, photos: true },
         },
       },
     });
@@ -442,9 +455,9 @@ export async function deleteAccountAction(locale: string) {
     }
 
     // DB record is deleted first because Prisma's cascade handles all relational
-    // cleanup (Group, Chats, Messages, GameScores, Sessions) atomically. Supabase storage
-    // has no foreign key constraints, so file deletion order doesn't affect
-    // data integrity — only UX speed.
+    // cleanup (Group, Chats, Messages, GameScores, Sessions) atomically. Storage
+    // has no foreign keys, so objects are removed afterwards (never the other
+    // way round, which could leave rows pointing at deleted files).
     await prisma.user.delete({
       where: { id: userId },
     });
@@ -469,39 +482,22 @@ export async function deleteAccountAction(locale: string) {
       sameSite: "lax",
     });
 
-    // Supabase file deletion is intentionally fire-and-forget (not awaited).
-    // The DB record is already gone at this point, so the redirect should not
-    // be held back by storage cleanup — a slow CDN response would degrade UX
-    // with zero user-facing benefit.
-    (async () => {
-      try {
-        const filesToDelete: string[] = [];
-
-        if (user.image && user.image.includes("supabase")) {
-          const imageFileName = user.image.split("/").pop();
-          if (imageFileName) {
-            filesToDelete.push(`profiles/${imageFileName}`);
-          }
-        }
-
-        if (user.group?.photos && user.group.photos.length > 0) {
-          user.group.photos.forEach((url) => {
-            if (url.includes("supabase")) {
-              const photoFileName = url.split("/").pop();
-              if (photoFileName) {
-                filesToDelete.push(`groups/${photoFileName}`);
-              }
-            }
-          });
-        }
-
-        if (filesToDelete.length > 0) {
-          await supabase.storage.from("gloo-images").remove(filesToDelete);
-        }
-      } catch (error) {
-        console.error("Error deleting Supabase files in background:", error);
+    // B15: awaited storage cleanup. cleanupStorage never throws; a storage
+    // failure is logged with the exact keys that remain and does not block
+    // the (already completed) account deletion.
+    const prefixes = [userPrefix(userId)];
+    const legacyPaths: string[] = [];
+    if (user.image && isOwnedUserImageKey(user.image, userId) && !user.image.startsWith(userPrefix(userId))) {
+      legacyPaths.push(user.image);
+    }
+    if (user.group) {
+      const prefix = groupPrefix(user.group.id);
+      prefixes.push(prefix);
+      for (const key of user.group.photos) {
+        if (isOwnedGroupPhotoKey(key, user.group.id, userId) && !key.startsWith(prefix)) legacyPaths.push(key);
       }
-    })();
+    }
+    await cleanupStorage({ prefixes, paths: legacyPaths }, `deleted account ${userId}`);
   } catch (error) {
     console.error("Error deleting account:", error);
     return { error: "Failed to delete account" };

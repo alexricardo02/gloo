@@ -70,7 +70,11 @@ export default function PreferencesPage() {
           try {
             formData.append("latitude", String(position.coords.latitude));
             formData.append("longitude", String(position.coords.longitude));
-            await createGroupAction(formData, locale);
+            const result = await createGroupAction(formData, locale);
+            if (result && !result.ok) {
+              alert(t("saveError"));
+              return;
+            }
           } catch (err: unknown) {
             const e = err as Error;
             if (e?.message === "NEXT_REDIRECT") {
@@ -88,6 +92,9 @@ export default function PreferencesPage() {
           formData.append("latitude", String((existingGroup.latitude as number) ?? ""));
           formData.append("longitude", String((existingGroup.longitude as number) ?? ""));
           createGroupAction(formData, locale)
+            .then((result) => {
+              if (result && !result.ok) alert(t("saveError"));
+            })
             .catch((err: unknown) => {
               const e = err as Error;
               if (e?.message !== "NEXT_REDIRECT") console.error(err);

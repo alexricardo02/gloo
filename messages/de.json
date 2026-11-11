@@ -739,5 +739,14 @@
     "recoveryUnavailableTitle": "Passwort-Wiederherstellung nicht verfügbar",
     "recoveryUnavailableDesc": "Die Passwort-Wiederherstellung ist vorübergehend nicht verfügbar. Wenn du angemeldet bist, kannst du dein Passwort in den Kontoeinstellungen ändern.",
     "backToLogin": "Zurück zur Anmeldung"
+  },
+  "ImageUpload": {
+    "empty": "Bitte wähle ein Bild aus.",
+    "tooLarge": "Das Bild ist größer als 5 MB. Bitte wähle eine kleinere Datei.",
+    "unsupportedType": "Dieses Bildformat wird nicht unterstützt. Bitte verwende ein JPEG-, PNG- oder WebP-Bild.",
+    "invalid": "Dieses Bild konnte nicht verarbeitet werden. Bitte versuche eine andere Datei.",
+    "uploadFailed": "Das Hochladen des Fotos ist fehlgeschlagen. Bitte versuche es erneut.",
+    "photoRequired": "Bitte füge mindestens ein Foto hinzu.",
+    "tooManyPhotos": "Du kannst bis zu 6 Fotos hinzufügen."
   }
 }

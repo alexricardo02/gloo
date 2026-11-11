@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { getOptionalUserId } from "@/lib/session";
+import { withPhotoUrls } from "@/lib/storage";
 
 export async function getMapSession() {
   const userId = await getOptionalUserId();
@@ -63,6 +64,7 @@ export async function getVenues() {
       createdAt: venue.createdAt.toISOString(),
       attendees: venue.attendees.map((a) => ({
         ...a,
+        group: withPhotoUrls(a.group),
         createdAt: a.createdAt.toISOString(),
       })),
     }));
@@ -183,7 +185,7 @@ export async function getActiveEvents() {
 
   const now = new Date();
   try {
-    return await prisma.event.findMany({
+    const events = await prisma.event.findMany({
       where: { endTime: { gt: now } },
       include: {
         owner: { select: { name: true, group: true } },
@@ -202,6 +204,11 @@ export async function getActiveEvents() {
         },
       },
     });
+    return events.map((event) => ({
+      ...event,
+      owner: { ...event.owner, group: withPhotoUrls(event.owner.group) },
+      attendees: event.attendees.map((a) => ({ ...a, group: withPhotoUrls(a.group) })),
+    }));
   } catch (error) {
     return [];
   }

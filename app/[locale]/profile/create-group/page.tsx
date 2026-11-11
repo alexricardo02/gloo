@@ -11,6 +11,7 @@ export default function CreateGroupPage() {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("CreateGroup");
+  const tUpload = useTranslations("ImageUpload");
   const searchParams = useSearchParams();
 
   const [membersCount, setMembersCount] = useState(4);
@@ -223,7 +224,11 @@ export default function CreateGroupPage() {
             formData.append("agreedToTerms", agreed ? "true" : "false");
 
 
-            await createGroupAction(formData, locale);
+            const result = await createGroupAction(formData, locale);
+            if (result && !result.ok) {
+              alert(result.messageKey && tUpload.has(result.messageKey) ? tUpload(result.messageKey) : t("error"));
+              return;
+            }
             router.push(`/${locale}/profile`);
 
           } catch (unknownError: unknown) {

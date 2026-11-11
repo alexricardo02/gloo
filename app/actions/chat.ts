@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getOptionalUserId } from "@/lib/session";
+import { toPublicUrl, withImageUrl } from "@/lib/storage";
 
 /**
  * Checks both directions of the block relationship before allowing chat access.
@@ -81,7 +82,7 @@ export async function sendMessage(chatId: string, text: string) {
       },
     });
 
-    return { success: true, message };
+    return { success: true, message: { ...message, sender: withImageUrl(message.sender) } };
   } catch (error) {
     console.error("Error sending message:", error);
     return {
@@ -133,15 +134,15 @@ export async function getChatMessages(chatId: string) {
 
     return {
       success: true,
-      messages,
+      messages: messages.map((m) => ({ ...m, sender: withImageUrl(m.sender) })),
       userId,
       partner: {
         id: partner.id,
         name: partner.name || "Unknown User",
-        image:
+        image: toPublicUrl(
           partnerGroup?.photos?.[0] ||
           partner.image ||
-          "/images/bg-fallback.jpg",
+          "/images/bg-fallback.jpg"),
       },
     };
   } catch (error) {
@@ -273,10 +274,10 @@ export async function getActiveChats() {
         time: lastMsg?.createdAt || chat.createdAt,
         unread: 0,
         isMatch,
-        image:
+        image: toPublicUrl(
           otherGroup?.photos?.[0] ||
           otherHost.image ||
-          "/images/bg-fallback.jpg",
+          "/images/bg-fallback.jpg"),
       };
     });
 

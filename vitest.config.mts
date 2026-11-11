@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { resolveTestEnv } from './tests/testEnv'
@@ -10,6 +11,13 @@ Object.assign(process.env, testEnv)
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  resolve: {
+    alias: {
+      // `server-only` throws outside React Server Components; tests run the
+      // server modules directly in Node, so use its no-op entry point.
+      'server-only': fileURLToPath(new URL('./node_modules/server-only/empty.js', import.meta.url)),
+    },
+  },
   test: {
     environment: 'node',
     globals: true,

@@ -3,9 +3,16 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Gender } from "@prisma/client";
-import { getOptionalUserId } from "@/lib/session";
-import { supabase } from "@/lib/supabase";
-import { validateImage } from "@/lib/validateImage";
+import { z } from "zod";
+import { getOptionalUserId, requireUserId } from "@/lib/session";
+import { ImageValidationError, validateImage } from "@/lib/validateImage";
+import { processImage } from "@/lib/imageProcessing";
+import { toPublicUrl, upload, withPhotoUrls } from "@/lib/storage";
+import { groupPrefix, isOwnedGroupPhotoKey, newGroupPhotoKey } from "@/lib/storageKeys";
+import { cleanupStorage } from "@/lib/storageCleanup";
+import { type ActionResult, fail } from "@/lib/actionResult";
+
+const MAX_GROUP_PHOTOS = 6;
 
 export async function getGroupByUser() {
   try {
@@ -20,7 +27,7 @@ export async function getGroupByUser() {
     if (!group) return null;
 
     return {
-      ...group,
+      ...withPhotoUrls(group),
       createdAt: group.createdAt.toISOString(),
       updatedAt: group.updatedAt.toISOString(),
     };
@@ -30,10 +37,31 @@ export async function getGroupByUser() {
   }
 }
 
-export async function createGroupAction(formData: FormData, locale: string) {
-  const userId = await getOptionalUserId();
+// Values the client echoes back for photos it wants to keep. They are only
+// used to SELECT from the photos already stored on the caller's group (S6).
+const ExistingPhotosSchema = z.array(z.string().max(2048)).max(50);
 
-  if (!userId) throw new Error("User not found or unauthorized");
+/**
+ * Creates or updates the caller's group. Redirects on success.
+ *
+ * Photos (S6/S7/B15):
+ *  - `existingPhotos` is matched against the photos stored on the caller's own
+ *    group (by stored key or its public URL). Anything else, such as another
+ *    group's photo or an external URL, is ignored.
+ *  - New files are validated (magic bytes), re-encoded to WebP and uploaded
+ *    with the service-role client to `groups/{groupId}/{uuid}.webp`.
+ *  - Photos removed by this edit are deleted from storage after the DB write.
+ *
+ * @returns ActionResult on failure; `messageKey` is a key in the "ImageUpload"
+ * namespace for photo errors.
+ */
+export async function createGroupAction(formData: FormData, locale: string): Promise<ActionResult> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return fail("UNAUTHORIZED");
+  }
 
   const membersCount = Number(formData.get("membersCount")) || 1;
   const groupGender = (formData.get("groupGender") as Gender) || "MIXED";
@@ -61,117 +89,132 @@ export async function createGroupAction(formData: FormData, locale: string) {
     }
   }
 
-  const keptPhotos = formData.getAll("existingPhotos") as string[];
-  const newPhotos: string[] = [];
-  const uploadedFiles = formData.getAll("photos") as File[];
+  const requested = ExistingPhotosSchema.safeParse(formData.getAll("existingPhotos"));
+  if (!requested.success) return fail("VALIDATION", "invalid");
+  const requestedSet = new Set(requested.data);
 
-  // H-2 fix: cap the number of photos to prevent unbounded uploads.
-  const MAX_PHOTOS = 6;
-  const validFiles = uploadedFiles.filter(
-    (file) => file && typeof file === "object" && file.size > 0
-  );
+  const validFiles = formData
+    .getAll("photos")
+    .filter((file): file is File => typeof file === "object" && file !== null && file.size > 0);
+
+  let existing: { id: string; photos: string[] } | null;
+  try {
+    existing = await prisma.group.findUnique({ where: { userId }, select: { id: true, photos: true } });
+  } catch (error) {
+    console.error("Error loading group for edit:", error);
+    return fail("INTERNAL");
+  }
+
+  // Keep = stored photos the client asked to keep, in their stored order.
+  // Never trust the client list itself (S6).
+  const storedPhotos = existing?.photos ?? [];
+  const keptPhotos = storedPhotos.filter((stored) => requestedSet.has(stored) || requestedSet.has(toPublicUrl(stored)));
+  const keptValues = new Set(keptPhotos.flatMap((p) => [p, toPublicUrl(p)]));
+  const ignoredCount = [...requestedSet].filter((value) => !keptValues.has(value)).length;
+  if (ignoredCount > 0) {
+    console.warn(`[group] Ignored ${ignoredCount} existingPhotos value(s) not stored on the caller's group (user ${userId}).`);
+  }
 
   if (keptPhotos.length === 0 && validFiles.length === 0) {
-    throw new Error("At least one photo is required.");
+    return fail("VALIDATION", "photoRequired");
   }
 
-  if (keptPhotos.length + validFiles.length > MAX_PHOTOS) {
-    throw new Error(`A maximum of ${MAX_PHOTOS} photos are allowed.`);
+  if (keptPhotos.length + validFiles.length > MAX_GROUP_PHOTOS) {
+    return fail("VALIDATION", "tooManyPhotos");
   }
 
-  // H-2 fix: validate each file's magic bytes before uploading.
-  // validateImage() throws a user-safe string on failure.
-  const uploadPromises = validFiles.map(async (file) => {
-    let validated;
-    try {
-      validated = await validateImage(file);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Invalid image file.";
-      throw new Error(msg);
-    }
+  // Validate and re-encode everything before any storage write.
+  let processed;
+  try {
+    processed = await Promise.all(
+      validFiles.map(async (file) => processImage(await validateImage(file))),
+    );
+  } catch (error) {
+    if (error instanceof ImageValidationError) return fail("VALIDATION", error.messageKey);
+    console.error("Group photo processing error:", error);
+    return fail("INTERNAL", "uploadFailed");
+  }
 
-    // Use the safe extension from magic-byte detection, not file.name.
-    const fileName = `${userId}-group-${crypto.randomUUID()}.${validated.safeExtension}`;
-    const filePath = `groups/${fileName}`;
+  // New groups get their id up front so photos land under groups/{groupId}/.
+  const groupId = existing?.id ?? crypto.randomUUID();
+  const newKeys = processed.map((image) => newGroupPhotoKey(groupId, image.extension));
 
-    let uploadError;
-    try {
-      ({ error: uploadError } = await supabase.storage
-        .from("gloo-images")
-        .upload(filePath, validated.buffer, {
-          cacheControl: "3600",
-          // upsert: false prevents accidental overwrite if two requests arrive
-          // simultaneously. Each photo gets a UUID-based filename so uploads
-          // from different sessions never collide even on the same account.
-          upsert: false,
-          contentType: validated.mimeType,
-        }));
-    } catch (networkErr) {
-      // Network/DNS failures throw synchronously from the Supabase client.
-      // Log the full error server-side; surface only a generic message to the client.
-      console.error("Group photo upload error:", networkErr);
-      throw new Error("Photo upload failed. Please try again.");
-    }
+  const uploads = await Promise.allSettled(
+    processed.map((image, i) => upload(newKeys[i], image.buffer, image.contentType)),
+  );
+  if (uploads.some((result) => result.status === "rejected")) {
+    console.error(
+      "Group photo upload error:",
+      uploads.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason),
+    );
+    await cleanupStorage(
+      { paths: newKeys.filter((_, i) => uploads[i].status === "fulfilled") },
+      `rollback of failed group photo upload (group ${groupId})`,
+    );
+    return fail("INTERNAL", "uploadFailed");
+  }
 
-    if (uploadError) {
-      // Supabase returned an API-level error (e.g. 4xx/5xx).
-      console.error("Group photo upload error:", uploadError);
-      throw new Error("Photo upload failed. Please try again.");
-    }
+  const finalPhotos = [...keptPhotos, ...newKeys];
 
-    const { data } = supabase.storage
-      .from("gloo-images")
-      .getPublicUrl(filePath);
+  try {
+    // upsert handles both initial group creation and subsequent edits in a single
+    // atomic operation. A user can only have one group (1:1 DB relation), so
+    // separate create/update paths would risk race conditions on concurrent requests.
+    await prisma.group.upsert({
+      where: { userId: userId },
+      update: {
+        membersCount,
+        gender: groupGender,
+        ageMin,
+        ageMax,
+        searchGender,
+        searchAgeMin,
+        searchAgeMax,
+        maxDistance,
+        publicProfile,
+        description,
+        instagram,
+        photos: finalPhotos,
+        // Geolocation is optional at profile creation time. Storing null instead
+        // of NaN ensures the DB accepts the value and the discovery distance
+        // filter can safely skip groups without coordinates.
+        latitude: isNaN(latitude) ? null : latitude,
+        longitude: isNaN(longitude) ? null : longitude,
+      },
+      create: {
+        id: groupId,
+        userId: userId,
+        membersCount,
+        gender: groupGender,
+        ageMin,
+        ageMax,
+        searchGender,
+        searchAgeMin,
+        searchAgeMax,
+        maxDistance,
+        publicProfile,
+        description,
+        instagram,
+        photos: finalPhotos,
+        latitude: isNaN(latitude) ? null : latitude,
+        longitude: isNaN(longitude) ? null : longitude,
+      },
+    });
+  } catch (error) {
+    console.error("Error saving group:", error);
+    // The new objects are not referenced by any row; remove them again.
+    await cleanupStorage({ paths: newKeys }, `rollback of group photos after failed save (group ${groupId})`);
+    return fail("INTERNAL");
+  }
 
-    return data.publicUrl;
-  });
-
-  const uploadedUrls = await Promise.all(uploadPromises);
-
-  const finalPhotos = [...keptPhotos, ...uploadedUrls];
-
-  // upsert handles both initial group creation and subsequent edits in a single
-  // atomic operation. A user can only have one group (1:1 DB relation), so
-  // separate create/update paths would risk race conditions on concurrent requests.
-  await prisma.group.upsert({
-    where: { userId: userId },
-    update: {
-      membersCount,
-      gender: groupGender,
-      ageMin,
-      ageMax,
-      searchGender,
-      searchAgeMin,
-      searchAgeMax,
-      maxDistance,
-      publicProfile,
-      description,
-      instagram,
-      photos: finalPhotos,
-      // Geolocation is optional at profile creation time. Storing null instead
-      // of NaN ensures the DB accepts the value and the discovery distance
-      // filter can safely skip groups without coordinates.
-      latitude: isNaN(latitude) ? null : latitude,
-      longitude: isNaN(longitude) ? null : longitude,
-    },
-    create: {
-      userId: userId,
-      membersCount,
-      gender: groupGender,
-      ageMin,
-      ageMax,
-      searchGender,
-      searchAgeMin,
-      searchAgeMax,
-      maxDistance,
-      publicProfile,
-      description,
-      instagram,
-      photos: finalPhotos,
-      latitude: isNaN(latitude) ? null : latitude,
-      longitude: isNaN(longitude) ? null : longitude,
-    },
-  });
+  // B15: the DB no longer references removed/replaced photos; delete the ones
+  // this group owns (never anything copied from elsewhere).
+  const removed = storedPhotos.filter(
+    (stored) => !keptPhotos.includes(stored) && isOwnedGroupPhotoKey(stored, groupId, userId),
+  );
+  if (removed.length > 0) {
+    await cleanupStorage({ paths: removed }, `removed photos of group ${groupId}`);
+  }
 
   redirect(`/${locale}/search-groups`);
 }
@@ -180,13 +223,18 @@ export async function createGroupAction(formData: FormData, locale: string) {
  * Executes a partial account teardown by deleting only the user's host group and associated media.
  * Relies on Prisma's Cascade constraints to automatically prune related Likes, Blocks, and Chats.
  * The underlying User account and authentication session remain fully intact, reverting the user to spectator mode.
- * * @throws Will silently fail and log if Supabase storage deletion encounters an error, preventing UI blocking.
+ * Storage cleanup (the group's prefix plus its owned legacy keys) runs after the
+ * DB delete and is awaited; failures are logged with the remaining keys and do
+ * not fail the action.
  * @returns Object indicating operation success or authorization failure.
  */
 export async function deleteGroupAction() {
-  const userId = await getOptionalUserId();
-
-  if (!userId) return { error: "Unauthorized" };
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return { error: "Unauthorized" };
+  }
 
   try {
     const group = await prisma.group.findUnique({
@@ -196,23 +244,19 @@ export async function deleteGroupAction() {
 
     if (!group) return { error: "No group found to delete" };
 
-    if (group.photos && group.photos.length > 0) {
-      const filesToDelete = group.photos
-        .map((photoUrl) => {
-          const urlParts = photoUrl.split("/");
-          const fileName = urlParts.pop();
-          return fileName ? `groups/${fileName}` : null;
-        })
-        .filter((file): file is string => file !== null);
-
-      if (filesToDelete.length > 0) {
-        await supabase.storage.from("gloo-images").remove(filesToDelete);
-      }
-    }
-
     await prisma.group.delete({
       where: { userId },
     });
+
+    await cleanupStorage(
+      {
+        prefixes: [groupPrefix(group.id)],
+        paths: group.photos.filter(
+          (key) => isOwnedGroupPhotoKey(key, group.id, userId) && !key.startsWith(groupPrefix(group.id)),
+        ),
+      },
+      `deleted group ${group.id}`,
+    );
 
     return { success: true };
   } catch (error) {
