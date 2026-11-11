@@ -13,27 +13,6 @@ export async function getMapSession() {
   return { userId, groupId: group?.id || null };
 }
 
-export async function getOrCreateChatWithUser(targetUserId: string) {
-  const userId = await getOptionalUserId();
-  if (!userId) return { error: "Not authorized" };
-
-  let chat = await prisma.chat.findFirst({
-    where: {
-      OR: [
-        { hostAId: userId, hostBId: targetUserId },
-        { hostAId: targetUserId, hostBId: userId },
-      ],
-    },
-  });
-
-  if (!chat) {
-    chat = await prisma.chat.create({
-      data: { hostAId: userId, hostBId: targetUserId },
-    });
-  }
-  return { success: true, chatId: chat.id };
-}
-
 export async function getVenues() {
   try {
     const venues = await prisma.venue.findMany({

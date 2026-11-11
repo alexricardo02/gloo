@@ -9,8 +9,9 @@ import { useRouter } from "next/navigation";
 import {
   getVenues, toggleVenueAttendance, getActiveEvents, getMyActiveEvent,
   startPreParty, stopPreParty, getMapSession, requestEventAttendance,
-  respondToEventRequest, getOrCreateChatWithUser
+  respondToEventRequest
 } from "../actions/map";
+import { openExistingChat } from "../actions/chat";
 import { Check, Users, Flame, X, Clock, MessageCircle, MapPinOff, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import GuestPaywall from "./GuestPaywall";
@@ -358,19 +359,16 @@ export default function MapDisplay() {
 
   const handleOpenChat = async (targetUserId: string) => {
     setIsProcessingParty(true);
-    const result = await getOrCreateChatWithUser(targetUserId);
+    // Opens an existing chat only (CHAT_CREATION = match-only); accepted
+    // attendance does not create a chat yet.
+    const result = await openExistingChat(targetUserId);
 
-    if (result && result.error) {
-      const authErrors = ["Not authorized", "Group required", "Gruppe erforderlich", "Nicht autorisiert"];
-
-      if (authErrors.includes(result.error)) {
-        setShowPaywall(true);
-      } else {
-        console.error("Open chat error:", result.error);
-        console.log("ERROR FROM SERVER:", result.error);
-      }
-    } else if (result && result.success && result.chatId) {
-      router.push(`/${locale}/messages/${result.chatId}`);
+    if (result.ok) {
+      router.push(`/${locale}/messages/${result.data.chatId}`);
+    } else if (result.code === "UNAUTHORIZED") {
+      setShowPaywall(true);
+    } else {
+      console.error("Open chat error:", result.code);
     }
 
     setIsProcessingParty(false);

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import { getAuthFile, navigateToTab, waitForAppStable, url } from './fixtures';
+import { ensureMatch } from './helpers/match';
 
 test.describe('Map & Moderation (TC17–TC18, TC22)', () => {
 
@@ -70,6 +71,8 @@ test.describe('Map & Moderation (TC17–TC18, TC22)', () => {
   });
 
   test('TC22: Block a group via chat options', async ({ browser }) => {
+    // Chats only exist after a match (CHAT_CREATION = match-only).
+    await ensureMatch(browser);
     const ctx = await browser.newContext({ storageState: getAuthFile('A') });
     const page = await ctx.newPage();
 
@@ -104,6 +107,7 @@ test.describe('Map & Moderation (TC17–TC18, TC22)', () => {
   });
 
   test('TC22: Report a group', async ({ browser }) => {
+    await ensureMatch(browser);
     const ctx = await browser.newContext({ storageState: getAuthFile('A') });
     const page = await ctx.newPage();
 
@@ -133,5 +137,52 @@ test.describe('Map & Moderation (TC17–TC18, TC22)', () => {
     }
 
     await ctx.close();
+  });
+
+  test('TC22: A confirmed block hides the chat for both users (BLOCKED_CHAT = hidden-for-both)', async ({ browser }) => {
+    await ensureMatch(browser);
+
+    const ctxA = await browser.newContext({ storageState: getAuthFile('A') });
+    const pageA = await ctxA.newPage();
+    const ctxB = await browser.newContext({ storageState: getAuthFile('B') });
+    const pageB = await ctxB.newPage();
+
+    try {
+      // A opens the chat and blocks B's group.
+      await pageA.goto(url('en', '/search-groups'));
+      await waitForAppStable(pageA);
+      await pageA.locator('[data-testid="message-button"]').first().click();
+      await pageA.waitForURL('**/messages/**', { timeout: 10_000 });
+      await waitForAppStable(pageA);
+      const chatPath = new URL(pageA.url()).pathname;
+
+      await pageA.locator('[data-testid="chat-options-btn"]').click();
+      await pageA.locator('[data-testid="block-group-btn"]').click();
+      await pageA.locator('[data-testid="block-confirm-btn"]').click();
+      await pageA.waitForURL(/\/en\/messages$/, { timeout: 10_000 });
+      await waitForAppStable(pageA);
+      await expect(pageA.locator('[data-testid="chat-list-item"]')).toHaveCount(0);
+
+      // B no longer sees the chat, and opening it by URL sends B back to the list.
+      await pageB.goto(url('en', '/messages'));
+      await waitForAppStable(pageB);
+      await expect(pageB.locator('[data-testid="chat-list-item"]')).toHaveCount(0);
+      await pageB.goto(chatPath);
+      await pageB.waitForURL(/\/en\/messages$/, { timeout: 10_000 });
+      await expect(pageB.locator('[data-testid="chat-message-input"]')).toHaveCount(0);
+    } finally {
+      // Clean up: A unblocks B again (Messages → options → Blocked Groups → Unblock).
+      await pageA.goto(url('en', '/messages'));
+      await waitForAppStable(pageA);
+      await pageA.getByRole('button', { name: 'Options' }).click();
+      await pageA.getByRole('button', { name: /Blocked Groups/i }).click();
+      const unblock = pageA.getByRole('button', { name: /^Unblock$/i });
+      if (await unblock.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await unblock.first().click();
+        await expect(unblock).toHaveCount(0, { timeout: 10_000 });
+      }
+      await ctxA.close();
+      await ctxB.close();
+    }
   });
 });

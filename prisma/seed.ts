@@ -197,22 +197,34 @@ async function main() {
   });
   console.log(`  ✅ Saved Like: ${createdUsers[1].name} -> ${createdUsers[0].name}`);
 
-  // --- D. SEED CHATS & MESSAGES ---
-  console.log('➡️  Seeding Chats and Messages...');
-  
-  // Create a chat between party1 and girlsnight
-  const chat = await prisma.chat.upsert({
+  // Group 1 (party1) likes Group 2 back: chats only exist for matches.
+  await prisma.groupLike.upsert({
     where: {
-      hostAId_hostBId: {
-        hostAId: createdUsers[0].id,
-        hostBId: createdUsers[1].id,
+      fromGroupId_toGroupId: {
+        fromGroupId: createdGroups[0].id,
+        toGroupId: createdGroups[1].id,
       }
     },
     update: {},
     create: {
-      hostAId: createdUsers[0].id,
-      hostBId: createdUsers[1].id,
+      fromGroupId: createdGroups[0].id,
+      toGroupId: createdGroups[1].id,
     }
+  });
+  console.log(`  ✅ Saved Like: ${createdUsers[0].name} -> ${createdUsers[1].name} (match)`);
+
+  // --- D. SEED CHATS & MESSAGES ---
+  console.log('➡️  Seeding Chats and Messages...');
+  
+  // Create the match chat between party1 and girlsnight. Host ids are stored
+  // in canonical order (hostAId < hostBId), like lib/chats.ts ensureChat().
+  const [hostAId, hostBId] = [createdUsers[0].id, createdUsers[1].id].sort();
+  const chat = await prisma.chat.upsert({
+    where: {
+      hostAId_hostBId: { hostAId, hostBId }
+    },
+    update: {},
+    create: { hostAId, hostBId, origin: 'MATCH' }
   });
 
   // Populate messages if empty
@@ -220,6 +232,14 @@ async function main() {
   if (messageCount === 0) {
     await prisma.message.createMany({
       data: [
+        {
+          chatId: chat.id,
+          senderId: null,
+          type: 'SYSTEM',
+          systemKey: 'MATCH_CREATED',
+          text: '',
+          createdAt: new Date(Date.now() - 60000 * 10) // 10 mins ago
+        },
         {
           chatId: chat.id,
           senderId: createdUsers[0].id,

@@ -94,13 +94,20 @@ model Event {
   attendees    EventAttendance[]
 }
 
+/// One conversation between two hosts. The pair is stored in canonical order
+/// (hostAId < hostBId, byte order; enforced by the "Chat_canonical_pair_check"
+/// CHECK constraint in migration 20261111130000_chat_origin_and_system_messages),
+/// so @@unique([hostAId, hostBId]) makes the pair unique regardless of who
+/// started the chat. Rows are only created through ensureChat() in lib/chats.ts.
 model Chat {
-  id        String    @id @default(cuid())
+  id        String     @id @default(cuid())
   hostAId   String
   hostBId   String
-  createdAt DateTime  @default(now())
-  hostA     User      @relation("HostA", fields: [hostAId], references: [id], onDelete: Cascade)
-  hostB     User      @relation("HostB", fields: [hostBId], references: [id], onDelete: Cascade)
+  /// Why the chat exists. No default on purpose: every creator must state it.
+  origin    ChatOrigin
+  createdAt DateTime   @default(now())
+  hostA     User       @relation("HostA", fields: [hostAId], references: [id], onDelete: Cascade)
+  hostB     User       @relation("HostB", fields: [hostBId], references: [id], onDelete: Cascade)
   messages  Message[]
 
   @@unique([hostAId, hostBId])
@@ -108,15 +115,23 @@ model Chat {
   @@index([hostBId])
 }
 
+/// USER messages have a sender (null only after the sender's account was
+/// deleted). SYSTEM messages have senderId = null and a systemKey that the UI
+/// renders via i18n (Chat.systemMessages.<key>); their `text` is not shown.
+/// @@unique([chatId, systemKey]) allows at most one notice of each kind per
+/// chat (Postgres treats the NULL systemKey of USER messages as distinct).
 model Message {
-  id        String   @id @default(cuid())
+  id        String            @id @default(cuid())
   text      String
   chatId    String
   senderId  String?
-  createdAt DateTime @default(now())
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender    User?    @relation(fields: [senderId], references: [id], onDelete: SetNull )
+  type      MessageType       @default(USER)
+  systemKey SystemMessageKey?
+  createdAt DateTime          @default(now())
+  chat      Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    User?             @relation(fields: [senderId], references: [id], onDelete: SetNull )
 
+  @@unique([chatId, systemKey])
   @@index([chatId, createdAt(sort: Desc)])
 }
 
@@ -213,6 +228,24 @@ enum Gender {
   FEMALE
   MIXED
   DIVERSE
+}
+
+/// MATCH: created by a mutual like. EVENT_ACCESS: reserved for accepted
+/// pre-party attendance (not implemented yet). LEGACY: existed before chats
+/// required a match; kept fully working.
+enum ChatOrigin {
+  MATCH
+  EVENT_ACCESS
+  LEGACY
+}
+
+enum MessageType {
+  USER
+  SYSTEM
+}
+
+enum SystemMessageKey {
+  MATCH_CREATED
 }
 
 enum GroupType {

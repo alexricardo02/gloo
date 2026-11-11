@@ -11,10 +11,20 @@ import { supabase } from "@/lib/supabase";
 type MessageWithSender = {
   id: string;
   text: string;
-  senderId: string;
+  /** null for system notices and for messages of deleted accounts. */
+  senderId: string | null;
+  /** Missing on rows that arrive over realtime from before the migration. */
+  type?: "USER" | "SYSTEM";
+  systemKey?: string | null;
   createdAt: string | Date;
-  sender: { id: string; name: string; image: string | null };
+  sender?: { id: string; name: string; image: string | null } | null;
 };
+
+type ChatError = { ok: false; code: string; messageKey?: string };
+
+// BLOCKED_CHAT = hidden-for-both: a missing, foreign or blocked chat answers
+// NOT_FOUND and the page goes back to the chat list.
+const isChatGone = (result: ChatError) => result.code === "NOT_FOUND" || result.code === "UNAUTHORIZED";
 
 type Partner = {
   id: string;
@@ -52,25 +62,34 @@ export default function ChatDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  // Typed server errors -> localized text (keys live in the "Chat" namespace).
+  const errorText = useCallback(
+    (result: ChatError, fallback: string) =>
+      t(result.messageKey && t.has(result.messageKey) ? result.messageKey : fallback),
+    [t],
+  );
+
   // ── Load initial data ──
   useEffect(() => {
     async function init() {
       const result = await getChatMessages(chatId);
-      if (result.error) {
-        setError(result.error);
+      if (!result.ok) {
+        if (isChatGone(result)) {
+          router.replace(`/${locale}/messages`);
+          return;
+        }
+        setError(errorText(result, "loadFailed"));
         setIsLoading(false);
         return;
       }
-      if (result.success && result.messages && result.partner) {
-        setMessages(result.messages as MessageWithSender[]);
-        setUserId(result.userId || "");
-        setPartner(result.partner as Partner);
-        setTimeout(scrollToBottom, 100);
-      }
+      setMessages(result.data.messages);
+      setUserId(result.data.userId);
+      setPartner(result.data.partner);
+      setTimeout(scrollToBottom, 100);
       setIsLoading(false);
     }
     init();
-  }, [chatId, scrollToBottom]);
+  }, [chatId, scrollToBottom, errorText, locale, router]);
 
   // ── Supabase real-time subscription (ST0-72) ──
   useEffect(() => {
@@ -85,10 +104,10 @@ export default function ChatDetailPage() {
           filter: `chatId=eq.${chatId}`,
         },
         (payload) => {
-          const msg = payload.new as { id: string; text: string; senderId: string; chatId: string; createdAt: string };
+          const msg = payload.new as MessageWithSender;
           setMessages((prev) => {
             if (prev.some((m) => m.id === msg.id)) return prev;
-            return [...prev, msg as unknown as MessageWithSender];
+            return [...prev, msg];
           });
           setTimeout(scrollToBottom, 100);
         }
@@ -114,8 +133,8 @@ export default function ChatDetailPage() {
         async () => {
           // Re-check if this conversation is now blocked
           const result = await getChatMessages(chatId);
-          if (result.error) {
-            setError(result.error);
+          if (!result.ok) {
+            setError(errorText(result, "blockedChatError"));
             setTimeout(() => {
               router.push(`/${locale}/messages`);
             }, 2000);
@@ -127,29 +146,29 @@ export default function ChatDetailPage() {
     return () => {
       supabase.removeChannel(blockChannel);
     };
-  }, [chatId, locale, router]);
+  }, [chatId, locale, router, errorText]);
 
   // ── Polling fallback: refetch messages every 3s so recipient sees them
   //     even if Supabase Realtime isn't delivering postgres_changes events
   useEffect(() => {
     const interval = setInterval(async () => {
       const result = await getChatMessages(chatId);
-      if (result.success && result.messages) {
+      if (result.ok) {
         setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m.id));
-          const newMsgs = (result.messages as MessageWithSender[]).filter(
-            (m) => !existingIds.has(m.id)
-          );
+          const newMsgs = result.data.messages.filter((m) => !existingIds.has(m.id));
           if (newMsgs.length === 0) return prev;
           return [...prev, ...newMsgs];
         });
-      } else if (result.error) {
-        setError(result.error);
+      } else if (isChatGone(result)) {
+        router.replace(`/${locale}/messages`);
+      } else {
+        setError(errorText(result, "loadFailed"));
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [chatId]);
+  }, [chatId, errorText, locale, router]);
 
   // ── Auto-focus input on load ──
   useEffect(() => {
@@ -185,13 +204,15 @@ export default function ChatDetailPage() {
     setNewMessage("");
 
     const result = await sendMessage(chatId, textToSend);
-    if (result.error) {
-      setError(result.error);
+    if (!result.ok) {
+      setError(errorText(result, "sendFailed"));
+      setToastType("error");
       setNewMessage(textToSend);
-    } else if (result.message) {
+    } else {
+      const sent = result.data.message;
       setMessages((prev) => {
-        if (prev.some((m) => m.id === result.message.id)) return prev;
-        return [...prev, result.message as unknown as MessageWithSender];
+        if (prev.some((m) => m.id === sent.id)) return prev;
+        return [...prev, sent];
       });
       inputRef.current?.focus();
     }
@@ -389,7 +410,18 @@ export default function ChatDetailPage() {
         )}
         <div className="flex flex-col gap-2.5 max-w-lg mx-auto">
           {messages.map((msg) => {
-            const isOwn = msg.senderId === userId;
+            // MATCH_NOTICE = system-message: no sender, localized from its key.
+            if (msg.type === "SYSTEM") {
+              const key = `systemMessages.${msg.systemKey}`;
+              return (
+                <div key={msg.id} data-testid="chat-system-message" className="flex justify-center my-1">
+                  <p className="max-w-[85%] text-center text-xs font-semibold text-muted-foreground bg-muted/50 border border-border rounded-full px-4 py-2">
+                    {t.has(key) ? t(key) : ""}
+                  </p>
+                </div>
+              );
+            }
+            const isOwn = msg.senderId !== null && msg.senderId === userId;
             return (
               <div
                 key={msg.id}

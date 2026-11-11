@@ -474,7 +474,8 @@
     "deleteGroupDesc": "Bist du sicher, dass du deine Gruppe löschen möchtest? Diese Aktion ist permanent. Deine Mitglieder, aktiven Chats und Gruppenfotos werden vollständig entfernt.",
     "deleteGroupConfirm": "Ja, Gruppe löschen",
     "deleting": "Wird gelöscht...",
-    "defaultDescription": "Auf der Suche nach einer Gruppe für heute Nacht!"
+    "defaultDescription": "Auf der Suche nach einer Gruppe für heute Nacht!",
+    "goToChat": "Zum Chat"
   },
   "AccountSettings": {
     "title": "Kontoeinstellungen",
@@ -575,7 +576,8 @@
     "unblock": "Entblocken",
     "noBlockedGroups": "Keine blockierten Gruppen",
     "noBlockedGroupsDesc": "Gruppen, die du blockierst, erscheinen hier. Du kannst sie jederzeit entblocken.",
-    "groupUnblocked": "Gruppe entblockt"
+    "groupUnblocked": "Gruppe entblockt",
+    "noMessagesPreview": "Noch keine Nachrichten"
   },
   "Chat": {
     "backToMessages": "Zurück zu Nachrichten",
@@ -589,7 +591,14 @@
     "cancel": "Abbrechen",
     "groupBlocked": "Gruppe blockiert",
     "groupReported": "Meldung gesendet",
-    "blockedChatError": "Diese Unterhaltung ist nicht mehr verfügbar."
+    "blockedChatError": "Diese Unterhaltung ist nicht mehr verfügbar.",
+    "messageEmpty": "Die Nachricht darf nicht leer sein.",
+    "messageTooLong": "Die Nachricht ist zu lang. Maximal 2000 Zeichen.",
+    "sendFailed": "Nachricht konnte nicht gesendet werden. Bitte prüfe deine Verbindung und versuche es erneut.",
+    "loadFailed": "Nachrichten konnten nicht geladen werden.",
+    "systemMessages": {
+      "MATCH_CREATED": "Es ist ein Match! Eure Gruppen haben sich gegenseitig geliked. Sagt Hallo!"
+    }
   },
   "SearchGroups": {
     "modalButton": "Radius einstellen",

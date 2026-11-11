@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Heart, MessageCircle, Loader2, Flag, Check } from "lucide-react";
 import { toggleLike } from "@/app/actions/discoverGroups";
-import { getOrCreateChat } from "@/app/actions/chat";
 import { reportGroupByGroupIdAction } from "@/app/actions/moderation";
 
 interface GroupCardProps {
@@ -20,7 +19,9 @@ export default function GroupCard({ group }: GroupCardProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [liked, setLiked] = useState(Boolean(group.likedByCurrentUser));
   const [isAnimating, setIsAnimating] = useState(false);
-  const [isOpeningChat, setIsOpeningChat] = useState(false);
+  // CARD_MESSAGE_BUTTON = only-if-chat-exists: set by the discovery payload or
+  // by a like that produced a match.
+  const [chatId, setChatId] = useState<string | null>(group.chatId ?? null);
   const [isReporting, setIsReporting] = useState(false);
   const [reportSent, setReportSent] = useState(false);
   const touchStartX = useRef(0);
@@ -40,7 +41,14 @@ export default function GroupCard({ group }: GroupCardProps) {
     setIsAnimating(true);
 
     try {
-      await toggleLike(id);
+      // Send the desired state so a double click or retry is idempotent.
+      const result = await toggleLike(id, nextLiked);
+      if (result.ok) {
+        setLiked(result.data.liked);
+        setChatId(result.data.chatId);
+      } else {
+        setLiked(!nextLiked);
+      }
     } catch (error) {
       console.error("Error liking group:", error);
       setLiked(!nextLiked);
@@ -189,35 +197,18 @@ export default function GroupCard({ group }: GroupCardProps) {
             className={liked ? "text-secondary" : "text-white"}
           />
         </button>
-        <button
-          type="button"
-          data-testid="message-button"
-          onClick={async () => {
-            if (isOpeningChat) return;
-            setIsOpeningChat(true);
-            try {
-              const targetUserId = group.user?.id;
-              if (!targetUserId) return;
-              const result = await getOrCreateChat(targetUserId);
-              if (result.success && result.chatId) {
-                router.push(`/${locale}/messages/${result.chatId}`);
-              }
-            } catch (err) {
-              console.error("Failed to open chat:", err);
-            } finally {
-              setIsOpeningChat(false);
-            }
-          }}
-          disabled={isOpeningChat}
-          aria-label="Send message"
-          className="w-14 h-14 bg-accent text-on-accent rounded-full shadow-[0_0_20px_rgba(255,114,94,0.5)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
-        >
-          {isOpeningChat ? (
-            <Loader2 className="text-on-accent animate-spin" size={26} />
-          ) : (
+        {chatId && (
+          <button
+            type="button"
+            data-testid="message-button"
+            onClick={() => router.push(`/${locale}/messages/${chatId}`)}
+            aria-label={t("goToChat")}
+            title={t("goToChat")}
+            className="w-14 h-14 bg-accent text-on-accent rounded-full shadow-[0_0_20px_rgba(255,114,94,0.5)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
+          >
             <MessageCircle className="text-on-accent" fill="currentColor" size={26} />
-          )}
-        </button>
+          </button>
+        )}
       </div>
     </div>
   );
