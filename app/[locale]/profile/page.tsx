@@ -255,6 +255,7 @@ export default function ProfilePage() {
 
         <div className="flex justify-center pt-4 pb-8">
           <button
+            data-testid="profile-logout-btn"
             onClick={async () => {
               await logOutAction(locale);
             }}

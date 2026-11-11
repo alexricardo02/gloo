@@ -14,6 +14,8 @@ export type ErrorCode =
   | "VALIDATION"
   | "NOT_FOUND"
   | "FORBIDDEN"
+  // The feature is switched off by a server-side flag (see lib/features.ts).
+  | "FEATURE_DISABLED"
   | "INTERNAL";
 
 export type ActionResult<T = undefined> =

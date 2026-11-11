@@ -1,5 +1,13 @@
 import { test, expect } from './fixtures';
 import { getTestCredentials, waitForAppStable, url } from './fixtures';
+import {
+  emailFlowsEnabled,
+  fillAndSubmitRegister,
+  freshUser,
+  loginViaUi,
+  logoutViaProfile,
+  registerAndSignIn,
+} from './helpers/auth';
 
 test.describe('Auth Flow (TC4–TC7)', () => {
   let creds: ReturnType<typeof getTestCredentials>;
@@ -34,7 +42,21 @@ test.describe('Auth Flow (TC4–TC7)', () => {
     await expect(page.locator('[data-testid="register-error-msg"]')).toBeVisible({ timeout: 5_000 });
   });
 
+  test('Registration – form marks its client instance ready and keeps values typed into it', async ({ page }) => {
+    await page.goto(url('en', '/register'));
+    // The SSR/hydration instance (data-ready="false") is remounted on the client;
+    // input typed before that was lost and blocked submit in global-setup.
+    const form = page.locator('[data-testid="register-form"]');
+    await expect(form).toHaveAttribute('data-ready', 'true');
+
+    await page.fill('[data-testid="register-name-input"]', 'Ready User');
+    await page.waitForTimeout(500);
+    await expect(page.locator('[data-testid="register-name-input"]')).toHaveValue('Ready User');
+    await expect(form).toHaveAttribute('data-ready', 'true');
+  });
+
   test('TC5: Registration – duplicate email does not reveal that the account exists (S14)', async ({ page }) => {
+    test.skip(!emailFlowsEnabled(), 'Only with EMAIL_FLOWS_ENABLED=true ("check your email" screen)');
     await page.goto(url('en', '/register'));
     await waitForAppStable(page);
 
@@ -54,6 +76,18 @@ test.describe('Auth Flow (TC4–TC7)', () => {
     await expect(page.locator('[data-testid="register-error-msg"]')).toHaveCount(0);
   });
 
+  test('TC5: Registration – duplicate email shows "already registered" (email flows off)', async ({ page, baseURL }) => {
+    test.skip(emailFlowsEnabled(), 'Only with email flows off');
+
+    await fillAndSubmitRegister(page, baseURL!, { ...freshUser('dupmail'), email: creds.userA.email });
+
+    await expect(page.locator('[data-testid="register-error-msg"]')).toHaveText(
+      'This email address is already registered.',
+      { timeout: 10_000 }
+    );
+    await expect(page).toHaveURL(/\/en\/register/);
+  });
+
   test('TC4: Registration – valid input', async ({ page }) => {
     await page.goto(url('en', '/register'));
     await waitForAppStable(page);
@@ -71,7 +105,13 @@ test.describe('Auth Flow (TC4–TC7)', () => {
     await termsCheckbox.check();
     await page.locator('[data-testid="register-submit-btn"]').click();
 
-    await expect(page.locator('[data-testid="register-success"]')).toBeVisible({ timeout: 10_000 });
+    if (emailFlowsEnabled()) {
+      await expect(page.locator('[data-testid="register-success"]')).toBeVisible({ timeout: 10_000 });
+    } else {
+      // Email flows off: signed in directly and taken to the discovery page.
+      await page.waitForURL('**/en/search-groups', { timeout: 15_000 });
+      await expect(page.locator('[data-testid="nav-tab-discover"]')).toBeVisible();
+    }
     // The saved draft is cleared entirely after a successful registration.
     expect(await page.evaluate(() => sessionStorage.getItem('gloo_register_data'))).toBeNull();
   });
@@ -142,5 +182,86 @@ test.describe('Auth Flow (TC4–TC7)', () => {
     await expect(page.locator('[data-testid="nav-tab-map"]')).toBeVisible();
     await expect(page.locator('[data-testid="nav-tab-messages"]')).toBeVisible();
     await expect(page.locator('[data-testid="nav-tab-profile"]')).toBeVisible();
+  });
+});
+
+test.describe('Email flows off (default)', () => {
+  test.beforeEach(() => {
+    test.skip(emailFlowsEnabled(), 'Only with EMAIL_FLOWS_ENABLED unset/false');
+  });
+
+  test('register → signed in on discover → log out → log back in with the (unverified) account', async ({ page, baseURL }) => {
+    const user = freshUser('direct');
+
+    await registerAndSignIn(page, baseURL!, user);
+    await expect(page.locator('[data-testid="nav-tab-profile"]')).toBeVisible();
+
+    await logoutViaProfile(page, baseURL!);
+
+    // The account was never verified; login must still work.
+    await loginViaUi(page, baseURL!, user.username, user.password);
+    await page.waitForURL('**/en/search-groups', { timeout: 15_000 });
+    await expect(page.locator('[data-testid="nav-tab-discover"]')).toBeVisible();
+    await expect(page.locator('[data-testid="login-error-msg"]')).toHaveCount(0);
+  });
+
+  test('password recovery is hidden and its pages show "unavailable"', async ({ page }) => {
+    await page.goto(url('en', '/login'));
+    await expect(page.locator('[data-testid="login-form"]')).toBeVisible();
+    await expect(page.locator('[data-testid="login-forgot-password-link"]')).toHaveCount(0);
+
+    for (const path of ['/forgotPassword', '/resetPassword?token=anything']) {
+      await page.goto(url('en', path));
+      await expect(page.locator('[data-testid="password-recovery-unavailable"]')).toBeVisible();
+    }
+    await page.locator('[data-testid="password-recovery-back-to-login"]').click();
+    await page.waitForURL('**/en/login');
+  });
+
+  test('the verify page redirects to login instead of erroring', async ({ page }) => {
+    await page.goto(url('en', '/verify?token=anything'));
+    await page.waitForURL('**/en/login', { timeout: 10_000 });
+    await expect(page.locator('[data-testid="login-form"]')).toBeVisible();
+  });
+});
+
+test.describe('Change password (signed in)', () => {
+  test('wrong current password is rejected; a valid change keeps you signed in; only the new password works', async ({ page, baseURL }) => {
+    const user = freshUser('chpw', 'OldPass123!');
+    const newPassword = 'NewPass456!';
+
+    await registerAndSignIn(page, baseURL!, user);
+    await page.goto(url('en', '/profile/account'));
+    await expect(page.locator('[data-testid="change-password-form"]')).toBeVisible();
+    // The reset-by-email button only exists while email flows are on.
+    await expect(page.locator('[data-testid="account-reset-link-btn"]')).toHaveCount(emailFlowsEnabled() ? 1 : 0);
+
+    // Wrong current password
+    await page.fill('[data-testid="change-password-current-input"]', 'NotMyPass123!');
+    await page.fill('[data-testid="change-password-new-input"]', newPassword);
+    await page.fill('[data-testid="change-password-confirm-input"]', newPassword);
+    await page.locator('[data-testid="change-password-submit-btn"]').click();
+    await expect(page.locator('[data-testid="change-password-error-msg"]')).toHaveText(
+      'Your current password is incorrect.'
+    );
+
+    // Correct change
+    await page.fill('[data-testid="change-password-current-input"]', user.password);
+    await page.fill('[data-testid="change-password-new-input"]', newPassword);
+    await page.fill('[data-testid="change-password-confirm-input"]', newPassword);
+    await page.locator('[data-testid="change-password-submit-btn"]').click();
+    await expect(page.locator('[data-testid="change-password-success"]')).toBeVisible();
+
+    // This session survived the change.
+    await page.reload();
+    await expect(page.locator('[data-testid="change-password-form"]')).toBeVisible();
+
+    await logoutViaProfile(page, baseURL!);
+
+    await loginViaUi(page, baseURL!, user.email, user.password);
+    await expect(page.locator('[data-testid="login-error-msg"]')).toBeVisible();
+
+    await loginViaUi(page, baseURL!, user.email, newPassword);
+    await page.waitForURL('**/en/search-groups', { timeout: 15_000 });
   });
 });

@@ -15,9 +15,12 @@ import {
   SESSION_COOKIE,
   createSession,
   destroyCurrentSession,
+  getCurrentSessionTokenHash,
   getOptionalUserId,
+  requireUserId,
 } from "@/lib/session";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isEmailFlowEnabled } from "@/lib/features";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BCRYPT_ROUNDS = 10;
@@ -84,15 +87,21 @@ const RegisterSchema = z.object({
 /**
  * Registers a new user and establishes their initial security boundaries.
  * Enforces strict age verification (18+) and the shared password policy.
- * Accounts are created in a locked state (isVerified: false) until email confirmation is completed.
+ * Accounts are always created with isVerified: false.
  *
+ * EMAIL_FLOWS_ENABLED on: the account stays locked until email confirmation.
  * S14: the result is identical whether or not the email is already registered
  * ("check your email"), so the form cannot be used to enumerate accounts.
  * The username availability check remains (rate limited).
  *
+ * EMAIL_FLOWS_ENABLED off (default, see lib/features.ts): no verification token;
+ * the user is signed in and redirected like after a login. A taken email
+ * returns `emailExistsError`.
+ *
  * @param formData - Contains email, password, username, name, and birthDate.
- * @param locale - The current routing locale used for generating the verification email link.
- * @returns ActionResult; on failure `messageKey` is a key in the "Register" i18n namespace.
+ * @param locale - The current routing locale (verification link / redirect target).
+ * @returns ActionResult on failure, or with email flows on; redirects on success with them off.
+ *          On failure `messageKey` is a key in the "Register" i18n namespace.
  */
 export async function registerUser(
   formData: FormData,
@@ -123,6 +132,7 @@ export async function registerUser(
     return fail("VALIDATION", firstIssueKey(parsed.error, REGISTER_ERROR_KEYS, "registrationGenericError"));
   }
   const { email, username, password, name, birthDate } = parsed.data;
+  const emailFlows = isEmailFlowEnabled();
 
   try {
     const existingUsername = await prisma.user.findUnique({
@@ -141,6 +151,9 @@ export async function registerUser(
       select: { id: true },
     });
     if (existingEmail) {
+      // Without email there is no "check your inbox" to hide behind, so the
+      // user is told directly (the username check already reveals accounts too).
+      if (!emailFlows) return fail("VALIDATION", "emailExistsError");
       // TODO: email the owner ("someone tried to sign up with your address")
       //       once a mail provider is wired up. Never tell the requester.
       if (process.env.NODE_ENV === "development") {
@@ -149,48 +162,64 @@ export async function registerUser(
       return genericSuccess;
     }
 
-    const verificationToken = crypto.randomUUID();
+    if (emailFlows) {
+      const verificationToken = crypto.randomUUID();
 
-    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await prisma.user.create({
-      data: {
-        email,
-        username,
-        name,
-        password: hashedPassword,
-        birthDate,
-        // Account stays locked until the user confirms their email.
-        // This prevents access with typo'd or stolen email addresse
-        isVerified: false,
-        verificationToken,
-        verificationTokenExpiry,
-      },
-    });
+      await prisma.user.create({
+        data: {
+          email,
+          username,
+          name,
+          password: hashedPassword,
+          birthDate,
+          // Account stays locked until the user confirms their email.
+          // This prevents access with typo'd or stolen email addresse
+          isVerified: false,
+          verificationToken,
+          verificationTokenExpiry,
+        },
+      });
 
-    // DEV-ONLY: log the full verification link so developers can click it
-    // directly from the terminal. The token is intentionally exposed here —
-    // this is a known, accepted trade-off for local development convenience.
-    // TODO: replace this block with Resend / SendGrid in production and
-    //       re-apply the H-5 restriction (token must never appear in logs).
-    if (process.env.NODE_ENV === "development") {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      const verificationUrl = `${baseUrl}/${locale}/verify?token=${verificationToken}`;
-      console.log(`\n[EMAIL SIMULATION] Verification email for: ${email}`);
-      console.log(`[EMAIL SIMULATION] Click to verify → ${verificationUrl}\n`);
+      // DEV-ONLY: log the full verification link so developers can click it
+      // directly from the terminal. The token is intentionally exposed here —
+      // this is a known, accepted trade-off for local development convenience.
+      // TODO: replace this block with Resend / SendGrid in production and
+      //       re-apply the H-5 restriction (token must never appear in logs).
+      if (process.env.NODE_ENV === "development") {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+        const verificationUrl = `${baseUrl}/${locale}/verify?token=${verificationToken}`;
+        console.log(`\n[EMAIL SIMULATION] Verification email for: ${email}`);
+        console.log(`[EMAIL SIMULATION] Click to verify → ${verificationUrl}\n`);
+      }
+
+      return genericSuccess;
     }
 
-    return genericSuccess;
+    // Email flows suspended: no verification token is generated or logged.
+    // isVerified stays truthful (false); login does not require it while the flag is off.
+    const user = await prisma.user.create({
+      data: { email, username, name, password: hashedPassword, birthDate, isVerified: false },
+      select: { id: true },
+    });
+    await createSession(user.id);
+    const cookieStore = await cookies();
+    cookieStore.delete("gloo_is_guest");
   } catch (error) {
     // A concurrent registration hit a unique constraint after our checks.
     if (isUniqueViolation(error)) {
       const target = uniqueViolationTarget(error);
       if (target.includes("username")) return fail("VALIDATION", "usernameTakenError");
-      if (target.includes("email")) return genericSuccess;
+      if (target.includes("email")) return emailFlows ? genericSuccess : fail("VALIDATION", "emailExistsError");
     }
     console.error("Registration critical error:", error);
     return fail("INTERNAL", "registrationGenericError");
   }
+
+  // Only reached with email flows off: signed in, go where a successful login goes.
+  // Outside the try: redirect() works by throwing and must not be caught.
+  redirect(`/${locale}/search-groups`);
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
@@ -203,7 +232,8 @@ const LoginSchema = z.object({
 /**
  * Authenticates a user using either their email or username.
  * Creates a server-side session (lib/session.ts) and sets the HttpOnly session cookie.
- * Rejects authentication if the user's email has not been verified.
+ * Rejects authentication if the user's email has not been verified (only while
+ * EMAIL_FLOWS_ENABLED is on; see lib/features.ts).
  *
  * @param formData - Contains the identifier (email/username) and raw password.
  * @param locale - The current routing locale for redirection after successful login.
@@ -233,7 +263,8 @@ export async function loginUser(formData: FormData, locale: string): Promise<Act
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) return fail("UNAUTHORIZED", "invalidCredentialsError");
 
-    if (!user.isVerified) {
+    // Without email flows nobody can verify, so verification is not required.
+    if (isEmailFlowEnabled() && !user.isVerified) {
       return fail("FORBIDDEN", "emailNotVerifiedError");
     }
 
@@ -495,9 +526,13 @@ function hashResetToken(token: string): string {
 /**
  * Starts a password reset. Always reports success for well-formed emails so
  * the response cannot be used to enumerate accounts.
+ * Returns FEATURE_DISABLED (and does nothing) while EMAIL_FLOWS_ENABLED is off.
  * @returns ActionResult; on failure `messageKey` is a key in the "ForgotPassword" namespace.
  */
 export async function requestPasswordReset(email: string, locale: string): Promise<ActionResult> {
+  // First, before validation/rate limiting: no token is generated, stored or logged.
+  if (!isEmailFlowEnabled()) return fail("FEATURE_DISABLED");
+
   const parsedEmail = ResetRequestSchema.safeParse(email);
   if (!parsedEmail.success) {
     // Return a validation error — this is a client-side input mistake,
@@ -565,9 +600,12 @@ export async function requestPasswordReset(email: string, locale: string): Promi
 /**
  * Completes a password reset. On success the reset token is consumed and ALL
  * of the user's sessions are revoked (any stolen session dies with the old password).
+ * Returns FEATURE_DISABLED (and does nothing) while EMAIL_FLOWS_ENABLED is off.
  * @returns ActionResult; on failure `messageKey` is a key in the "ResetPassword" namespace.
  */
 export async function resetPassword(token: string, newPassword: string): Promise<ActionResult> {
+  if (!isEmailFlowEnabled()) return fail("FEATURE_DISABLED");
+
   if (typeof token !== "string" || token.length === 0 || token.length > 200) {
     return fail("VALIDATION", "tokenInvalidOrExpired");
   }
@@ -618,5 +656,86 @@ export async function resetPassword(token: string, newPassword: string): Promise
   } catch (error) {
     console.error("Error resetting password:", error);
     return fail("INTERNAL", "resetGenericError");
+  }
+}
+
+// ── Change password (signed in) ──────────────────────────────────────────────
+
+const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(1024),
+  newPassword: z.string().max(1024),
+  confirmPassword: z.string().max(1024),
+});
+
+/**
+ * Changes the signed-in user's password. Works whether or not EMAIL_FLOWS_ENABLED is on.
+ * Verifies the current password (bcrypt), applies the shared password policy,
+ * rejects reusing the current password, and revokes every OTHER session of the
+ * user; the session making the change stays signed in. Attempts are rate
+ * limited per user (they are effectively guesses of the current password).
+ * @returns ActionResult; on failure `messageKey` is a key in the "AccountSettings" namespace.
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string,
+): Promise<ActionResult> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return fail("UNAUTHORIZED", "sessionExpiredError");
+  }
+
+  const parsed = ChangePasswordSchema.safeParse({ currentPassword, newPassword, confirmPassword });
+  if (!parsed.success) return fail("VALIDATION", "currentPasswordIncorrect");
+  const input = parsed.data;
+
+  if (input.newPassword !== input.confirmPassword) return fail("VALIDATION", "passwordMismatch");
+
+  const policy = validatePassword(input.newPassword);
+  if (!policy.ok) return fail("VALIDATION", passwordErrorKey(policy.reason));
+
+  try {
+    const allowed = await checkRateLimit("passwordChange", { identifier: userId });
+    if (!allowed) return fail("RATE_LIMITED", TOO_MANY_ATTEMPTS);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    });
+    if (!user) return fail("UNAUTHORIZED", "sessionExpiredError");
+
+    const currentMatches = await bcrypt.compare(input.currentPassword, user.password);
+    if (!currentMatches) return fail("VALIDATION", "currentPasswordIncorrect");
+
+    // The current password was just verified, so equal strings mean "same password".
+    if (input.newPassword === input.currentPassword) {
+      return fail("VALIDATION", "passwordSameAsCurrent");
+    }
+
+    const hashedPassword = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+    const currentTokenHash = await getCurrentSessionTokenHash();
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+          // Any outstanding reset link was issued for the old password.
+          resetPasswordToken: null,
+          resetPasswordExpiry: null,
+        },
+      }),
+      // Every other device is signed out; this one keeps its session.
+      prisma.session.deleteMany({
+        where: currentTokenHash ? { userId, NOT: { tokenHash: currentTokenHash } } : { userId },
+      }),
+    ]);
+
+    return ok();
+  } catch (error) {
+    console.error("Error changing password:", error);
+    return fail("INTERNAL", "changePasswordGenericError");
   }
 }

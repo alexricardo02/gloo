@@ -17,7 +17,10 @@ export default function PageHeader({
     <header className="fixed top-0 left-0 right-0 z-30 bg-card/90 backdrop-blur-md border-b border-border px-6 pt-12 pb-4">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-black italic uppercase tracking-tight text-foreground truncate">
+          <h1
+            data-testid="page-title"
+            className="text-3xl font-black italic uppercase tracking-tight text-foreground truncate"
+          >
             {title}
           </h1>
           {subtitle && (

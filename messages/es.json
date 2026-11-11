@@ -383,7 +383,23 @@
     "confirmDeleteMsg2": "Esta acción es irreversible. Todos los datos se eliminarán de nuestros servidores.",
     "confirmDeleteButton": "Eliminar Mi Cuenta",
     "deleting": "Eliminando...",
-    "cancelButton": "Cancelar"
+    "cancelButton": "Cancelar",
+    "currentPasswordLabel": "Contraseña actual",
+    "newPasswordLabel": "Nueva contraseña",
+    "confirmNewPasswordLabel": "Confirmar nueva contraseña",
+    "updatePasswordButton": "Actualizar contraseña",
+    "updatingPassword": "Actualizando...",
+    "passwordChangedTitle": "Contraseña actualizada",
+    "passwordChangedDesc": "Se ha cerrado la sesión en tus otros dispositivos.",
+    "resetByEmailTitle": "¿Olvidaste tu contraseña actual?",
+    "currentPasswordIncorrect": "Tu contraseña actual es incorrecta.",
+    "passwordMismatch": "Las nuevas contraseñas no coinciden.",
+    "passwordSameAsCurrent": "La nueva contraseña debe ser distinta de la actual.",
+    "passwordWeakError": "La contraseña debe tener al menos 8 caracteres, una letra mayúscula, un número y un carácter especial.",
+    "passwordTooLongError": "La contraseña es demasiado larga (máximo 72 bytes; algunos caracteres especiales cuentan como más de uno).",
+    "tooManyAttemptsError": "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.",
+    "sessionExpiredError": "Tu sesión ha caducado. Vuelve a iniciar sesión.",
+    "changePasswordGenericError": "Algo salió mal. Inténtalo de nuevo."
   },
   "CreateGroup": {
     "title": "Crear Grupo",
@@ -574,5 +590,10 @@
     "troubleshooting": "Para activar los servicios de ubicación: Revisa la configuración de tu navegador o del sistema operativo y permite el acceso a la ubicación para Gloo.",
     "retry": "Reintentar",
     "dismiss": "Continuar de todos modos"
+  },
+  "EmailFlows": {
+    "recoveryUnavailableTitle": "Recuperación de contraseña no disponible",
+    "recoveryUnavailableDesc": "La recuperación de contraseña no está disponible temporalmente. Si has iniciado sesión, puedes cambiar tu contraseña en los ajustes de tu cuenta.",
+    "backToLogin": "Volver a Iniciar sesión"
   }
 }

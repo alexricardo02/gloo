@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { verifyAccountAction } from '@/app/actions/verify';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
@@ -32,6 +32,26 @@ describe('Verify Server Actions (Unit Tests)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Verification only exists while email flows are on (lib/features.ts).
+    vi.stubEnv('EMAIL_FLOWS_ENABLED', 'true');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  describe('with EMAIL_FLOWS_ENABLED off', () => {
+    it('should return FEATURE_DISABLED without reading the token or creating a session', async () => {
+      vi.stubEnv('EMAIL_FLOWS_ENABLED', 'false');
+
+      const result = await verifyAccountAction('valid-token', 'en');
+
+      expect(result).toEqual({ ok: false, code: 'FEATURE_DISABLED' });
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(createSession).not.toHaveBeenCalled();
+      expect(redirect).not.toHaveBeenCalled();
+    });
   });
 
   describe('verifyAccountAction', () => {

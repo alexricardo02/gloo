@@ -6,14 +6,19 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionResult, fail } from "@/lib/actionResult";
 import { createSession } from "@/lib/session";
+import { isEmailFlowEnabled } from "@/lib/features";
 
 const TokenSchema = z.string().min(1).max(200);
 
 /**
  * Confirms an email address, then signs the user in (creates a session) and
  * redirects. Only returns on failure.
+ * Returns FEATURE_DISABLED (and does nothing) while EMAIL_FLOWS_ENABLED is off;
+ * the verify page redirects away before calling it in that case.
  */
 export async function verifyAccountAction(token: string, locale: string): Promise<ActionResult> {
+  if (!isEmailFlowEnabled()) return fail("FEATURE_DISABLED");
+
   const parsedToken = TokenSchema.safeParse(token);
   if (!parsedToken.success) return fail("VALIDATION", "invalidTokenError");
 

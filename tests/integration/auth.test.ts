@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import {
   registerUser,
@@ -8,13 +10,14 @@ import {
   requestPasswordReset,
   resetPassword,
   deleteAccountAction,
+  changePassword,
 } from "@/app/actions/auth";
 import { verifyAccountAction } from "@/app/actions/verify";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { SESSION_COOKIE, hashSessionToken } from "@/lib/session";
 import { resetRateLimiterForTests } from "@/lib/rateLimit";
-import { fakeCookieStore, sessionCookiesFor } from "./helpers/session";
+import { createTestSession, fakeCookieStore, sessionCookiesFor } from "./helpers/session";
 
 const sha256Hex = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -112,6 +115,13 @@ describe("Auth Actions (Integration)", () => {
     // Each test starts with empty in-memory rate-limit buckets.
     resetRateLimiterForTests();
     setCookies();
+    // The suites below cover the behaviour WITH email flows (verification,
+    // password reset). Flag-off behaviour has its own describe at the end.
+    vi.stubEnv("EMAIL_FLOWS_ENABLED", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   afterAll(async () => {
@@ -712,6 +722,306 @@ describe("Auth Actions (Integration)", () => {
       });
 
       await expectRedirect(verifyAccountAction(user.verificationToken!, "de"), "/de/profile/create-group");
+    });
+  });
+
+  // ── EMAIL_FLOWS_ENABLED off (the default) ──────────────────────────────────
+
+  describe("with EMAIL_FLOWS_ENABLED off", () => {
+    beforeEach(() => {
+      vi.stubEnv("EMAIL_FLOWS_ENABLED", "false");
+    });
+
+    const register = (email: string, username: string, locale = "en") =>
+      registerUser(
+        createFormData({
+          name: "No Email User",
+          email,
+          username,
+          password: "ValidPass123!",
+          birthDate: adultBirthDate(),
+        }),
+        locale
+      );
+
+    it("register creates an UNVERIFIED user without a token and signs them in (session + redirect)", async () => {
+      const email = testEmail("noemail");
+      const store = setCookies({ gloo_is_guest: "true" });
+
+      await expectRedirect(register(email, testUsername("noemail")), "/en/search-groups");
+
+      const stored = await prisma.user.findUnique({ where: { email } });
+      expect(stored!.isVerified).toBe(false);
+      expect(stored!.verificationToken).toBeNull();
+      expect(stored!.verificationTokenExpiry).toBeNull();
+
+      const token = store.jar.get(SESSION_COOKIE)!;
+      const session = await prisma.session.findUnique({ where: { tokenHash: hashSessionToken(token) } });
+      expect(session?.userId).toBe(stored!.id);
+      expect(store.jar.has("gloo_is_guest")).toBe(false);
+    });
+
+    it("register keeps the locale prefix in the redirect", async () => {
+      await expectRedirect(register(testEmail("noemailde"), testUsername("noemailde"), "de"), "/de/search-groups");
+    });
+
+    it("an unverified user can log in", async () => {
+      const email = testEmail("unverifiedok");
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name: "Unverified OK",
+          username: testUsername("unverifiedok"),
+          password: await bcrypt.hash("ValidPass123!", 10),
+          birthDate: new Date("2000-01-01"),
+          isVerified: false,
+        },
+      });
+
+      await expectRedirect(
+        loginUser(createFormData({ identifier: email, password: "ValidPass123!" }), "en"),
+        "/en/search-groups"
+      );
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(1);
+    });
+
+    it("login still rejects a wrong password for an unverified user", async () => {
+      const email = testEmail("unverifiedbad");
+      await prisma.user.create({
+        data: {
+          email,
+          name: "Unverified Bad",
+          username: testUsername("unverifiedbad"),
+          password: await bcrypt.hash("ValidPass123!", 10),
+          birthDate: new Date("2000-01-01"),
+          isVerified: false,
+        },
+      });
+
+      const result = await loginUser(createFormData({ identifier: email, password: "WrongPass123!" }), "en");
+      expect(result).toEqual({ ok: false, code: "UNAUTHORIZED", messageKey: "invalidCredentialsError" });
+    });
+
+    it("a duplicate email returns the localized 'already registered' error and creates nothing", async () => {
+      const email = testEmail("dupoff");
+      await expectRedirect(register(email, testUsername("dupoff1")), "/en/search-groups");
+
+      setCookies();
+      const second = await register(email, testUsername("dupoff2"));
+
+      expect(second).toEqual({ ok: false, code: "VALIDATION", messageKey: "emailExistsError" });
+      expect(await prisma.user.count({ where: { email } })).toBe(1);
+
+      // The key is translated in every locale the register page uses.
+      for (const locale of ["en", "de", "es", "fr", "it"]) {
+        const file = path.join(process.cwd(), "messages", `${locale}.json`);
+        const messages = JSON.parse(fs.readFileSync(file, "utf8"));
+        expect(typeof messages.Register.emailExistsError, locale).toBe("string");
+      }
+    });
+
+    it("a duplicate username still returns usernameTakenError", async () => {
+      const username = testUsername("dupuseroff");
+      await expectRedirect(register(testEmail("dupuseroff1"), username), "/en/search-groups");
+
+      setCookies();
+      const second = await register(testEmail("dupuseroff2"), username);
+      expect(second).toEqual({ ok: false, code: "VALIDATION", messageKey: "usernameTakenError" });
+    });
+
+    it("requestPasswordReset returns FEATURE_DISABLED and stores no token", async () => {
+      const email = testEmail("resetoff");
+      await createVerifiedUser({ email });
+
+      const result = await requestPasswordReset(email, "en");
+
+      expect(result).toEqual({ ok: false, code: "FEATURE_DISABLED" });
+      const stored = await prisma.user.findUnique({ where: { email } });
+      expect(stored!.resetPasswordToken).toBeNull();
+      expect(stored!.resetPasswordExpiry).toBeNull();
+    });
+
+    it("resetPassword returns FEATURE_DISABLED and changes nothing, even with a valid stored token", async () => {
+      const email = testEmail("resetsubmitoff");
+      const resetToken = `valid-token-${uid()}`;
+      const oldPassword = "OldValidPass123!";
+      await prisma.user.create({
+        data: {
+          email,
+          name: "Reset Off",
+          username: testUsername("resetsubmitoff"),
+          password: await bcrypt.hash(oldPassword, 10),
+          birthDate: new Date("2000-01-01"),
+          isVerified: true,
+          resetPasswordToken: sha256Hex(resetToken),
+          resetPasswordExpiry: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+
+      const result = await resetPassword(resetToken, "NewSecurePass456!");
+
+      expect(result).toEqual({ ok: false, code: "FEATURE_DISABLED" });
+      const unchanged = await prisma.user.findUnique({ where: { email } });
+      expect(await bcrypt.compare(oldPassword, unchanged!.password)).toBe(true);
+      expect(unchanged!.resetPasswordToken).toBe(sha256Hex(resetToken));
+    });
+
+    it("verifyAccountAction returns FEATURE_DISABLED and leaves the account untouched", async () => {
+      const email = testEmail("verifyoff");
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name: "Verify Off",
+          username: testUsername("verifyoff"),
+          password: await bcrypt.hash("ValidPass123!", 10),
+          birthDate: new Date("2000-01-01"),
+          isVerified: false,
+          verificationToken: `token-${uid()}`,
+          verificationTokenExpiry: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+
+      const result = await verifyAccountAction(user.verificationToken!, "en");
+
+      expect(result).toEqual({ ok: false, code: "FEATURE_DISABLED" });
+      const after = await prisma.user.findUnique({ where: { id: user.id } });
+      expect(after!.isVerified).toBe(false);
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+    });
+
+    it("logs no tokens, links or email addresses (even in development)", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      const spies = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
+        vi.spyOn(console, m).mockImplementation(() => {})
+      );
+      try {
+        const email = testEmail("nolog");
+        await expectRedirect(register(email, testUsername("nolog")), "/en/search-groups");
+        setCookies();
+        await register(email, testUsername("nolog2")); // duplicate email
+        await requestPasswordReset(email, "en");
+        await resetPassword(`some-token-${uid()}`, "NewSecurePass456!");
+
+        const output = spies.flatMap((s) => s.mock.calls).map((args) => args.map(String).join(" ")).join("\n");
+        expect(output).not.toContain(email);
+        // No token-bearing links (the rate limiter's config warning names an env var, which is fine).
+        expect(output).not.toMatch(/token=|\/verify|\/resetPassword/i);
+        expect(output).not.toContain("EMAIL SIMULATION");
+      } finally {
+        spies.forEach((s) => s.mockRestore());
+      }
+    });
+  });
+
+  // ── changePassword (signed in; independent of EMAIL_FLOWS_ENABLED) ──────────
+
+  describe("changePassword", () => {
+    const OLD = "OldValidPass123!";
+    const NEW = "NewValidPass456!";
+
+    /** A user signed in on this "device" plus `otherDevices` extra sessions. */
+    async function signedInUser(otherDevices = 0) {
+      const user = await createVerifiedUser({ plainPassword: OLD });
+      const store = await sessionCookiesFor(user.id);
+      vi.mocked(cookies).mockResolvedValue(store as never);
+      for (let i = 0; i < otherDevices; i++) await createTestSession(user.id);
+      return { user, currentTokenHash: hashSessionToken(store.jar.get(SESSION_COOKIE)!) };
+    }
+
+    const passwordOf = async (id: string) => (await prisma.user.findUnique({ where: { id } }))!.password;
+
+    for (const flag of ["false", "true"]) {
+      it(`changes the password, revokes OTHER sessions and keeps the current one (EMAIL_FLOWS_ENABLED=${flag})`, async () => {
+        vi.stubEnv("EMAIL_FLOWS_ENABLED", flag);
+        const { user, currentTokenHash } = await signedInUser(2);
+        expect(await prisma.session.count({ where: { userId: user.id } })).toBe(3);
+
+        const result = await changePassword(OLD, NEW, NEW);
+
+        expect(result).toEqual({ ok: true, data: undefined });
+        const hash = await passwordOf(user.id);
+        expect(await bcrypt.compare(NEW, hash)).toBe(true);
+        expect(await bcrypt.compare(OLD, hash)).toBe(false);
+
+        const sessions = await prisma.session.findMany({ where: { userId: user.id } });
+        expect(sessions).toHaveLength(1);
+        expect(sessions[0].tokenHash).toBe(currentTokenHash);
+      });
+    }
+
+    it("the new password works for login afterwards (and the old one does not)", async () => {
+      vi.stubEnv("EMAIL_FLOWS_ENABLED", "false");
+      const { user } = await signedInUser();
+      expect(await changePassword(OLD, NEW, NEW)).toEqual({ ok: true, data: undefined });
+
+      setCookies();
+      const withOld = await loginUser(createFormData({ identifier: user.email, password: OLD }), "en");
+      expect(withOld).toEqual({ ok: false, code: "UNAUTHORIZED", messageKey: "invalidCredentialsError" });
+
+      setCookies();
+      await expectRedirect(
+        loginUser(createFormData({ identifier: user.email, password: NEW }), "en"),
+        "/en/search-groups"
+      );
+    });
+
+    it("rejects a wrong current password and changes nothing", async () => {
+      const { user } = await signedInUser(1);
+      const before = await passwordOf(user.id);
+
+      const result = await changePassword("WrongCurrent123!", NEW, NEW);
+
+      expect(result).toEqual({ ok: false, code: "VALIDATION", messageKey: "currentPasswordIncorrect" });
+      expect(await passwordOf(user.id)).toBe(before);
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(2);
+    });
+
+    it("rejects reusing the current password", async () => {
+      const { user } = await signedInUser(1);
+      const before = await passwordOf(user.id);
+
+      const result = await changePassword(OLD, OLD, OLD);
+
+      expect(result).toEqual({ ok: false, code: "VALIDATION", messageKey: "passwordSameAsCurrent" });
+      expect(await passwordOf(user.id)).toBe(before);
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(2);
+    });
+
+    it("rejects a mismatched confirmation and a weak new password (shared validator)", async () => {
+      await signedInUser();
+      expect(await changePassword(OLD, NEW, NEW + "x")).toEqual({
+        ok: false,
+        code: "VALIDATION",
+        messageKey: "passwordMismatch",
+      });
+      expect(await changePassword(OLD, "weak", "weak")).toEqual({
+        ok: false,
+        code: "VALIDATION",
+        messageKey: "passwordWeakError",
+      });
+    });
+
+    it("requires a valid session", async () => {
+      setCookies();
+      expect(await changePassword(OLD, NEW, NEW)).toEqual({
+        ok: false,
+        code: "UNAUTHORIZED",
+        messageKey: "sessionExpiredError",
+      });
+    });
+
+    it("is rate limited per user, even for the correct current password", async () => {
+      const { user } = await signedInUser();
+      const before = await passwordOf(user.id);
+
+      for (let i = 0; i < 5; i++) {
+        const r = await changePassword(`Wrong${i}Current!`, NEW, NEW);
+        expect(r).toEqual({ ok: false, code: "VALIDATION", messageKey: "currentPasswordIncorrect" });
+      }
+      const blocked = await changePassword(OLD, NEW, NEW);
+
+      expect(blocked).toEqual({ ok: false, code: "RATE_LIMITED", messageKey: "tooManyAttemptsError" });
+      expect(await passwordOf(user.id)).toBe(before);
     });
   });
 });
