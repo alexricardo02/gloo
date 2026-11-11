@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { isEmailFlowEnabled } from '../../../lib/features';
 
 /**
@@ -18,7 +19,7 @@ export interface NewUser {
 
 /** A unique, valid user for one test run. */
 export function freshUser(prefix: string, password = 'FreshPass123!'): NewUser {
-  const id = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const id = `${Date.now()}${crypto.randomBytes(4).toString('hex')}`;
   return { name: `${prefix} User`, username: `${prefix}_${id}`, email: `${prefix}_${id}@test.com`, password };
 }
 
