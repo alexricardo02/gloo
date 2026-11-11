@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeft, AlertCircle, CheckCircle, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { resetPassword } from "@/app/actions/auth";
 import { getPasswordCriteria, passwordErrorKey, validatePassword } from "@/lib/password";
 
@@ -20,36 +19,31 @@ export default function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  // Errors from submitting the form. A missing token is derived from the URL below.
+  const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [isValidating, setIsValidating] = useState(true);
 
-  useEffect(() => {
-    if (!token) {
-      setError("tokenMissing");
-    }
-    setIsValidating(false);
-  }, [token]);
+  // The token is known at first render, so this needs no effect or state.
+  const tokenError = token ? null : "tokenMissing";
+  const error = tokenError ?? submitError;
 
   const criteria = getPasswordCriteria(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setSubmitError("");
 
-    if (!token) {
-      setError("tokenMissing");
-      return;
-    }
+    // Unreachable from the UI (the form is not shown without a token); narrows the type.
+    if (!token) return;
 
     if (password !== confirmPassword) {
-      setError("passwordMismatch");
+      setSubmitError("passwordMismatch");
       return;
     }
 
     const passwordCheck = validatePassword(password);
     if (!passwordCheck.ok) {
-      setError(passwordErrorKey(passwordCheck.reason));
+      setSubmitError(passwordErrorKey(passwordCheck.reason));
       return;
     }
 
@@ -60,25 +54,15 @@ export default function ResetPasswordForm() {
       if (result.ok) {
         setSuccess(true);
       } else {
-        setError(result.messageKey ?? "resetGenericError");
+        setSubmitError(result.messageKey ?? "resetGenericError");
       }
     } catch (err) {
       console.error("Error:", err);
-      setError("resetGenericError");
+      setSubmitError("resetGenericError");
     } finally {
       setIsLoading(false);
     }
   };
-
-  if (isValidating) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans py-12">
-        <div className="w-full max-w-md bg-white rounded-[2.5rem] px-8 pb-8 pt-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-gray-100 flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-[#FF725E]" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans py-12">
