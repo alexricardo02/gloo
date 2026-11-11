@@ -19,7 +19,7 @@ test.describe('Guest Flow (TC1–TC3)', () => {
     const groupCards = page.locator('[data-testid="group-card"]');
     // The blur is on the wrapper div, not the card itself.
     // We check that the search-groups page loaded correctly.
-    await expect(page.getByText(/Discover|Entdecken/i)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('page-title')).toHaveText(/Discover|Entdecken/i, { timeout: 5_000 });
 
     // Step 3: Navigate to Games – should be accessible
     await navigateToTab(page, 'games');
@@ -56,7 +56,7 @@ test.describe('Guest Flow (TC1–TC3)', () => {
     await page.waitForURL('**/de', { timeout: 5_000 });
 
     // UI should show German text
-    await expect(page.getByText('Die besten')).toBeVisible();
+    await expect(page.getByTestId('home-hero-title')).toContainText('Die besten');
 
     // Reload – should stay on German
     await page.reload();
@@ -67,7 +67,7 @@ test.describe('Guest Flow (TC1–TC3)', () => {
     await page.locator('[data-testid="language-dropdown"]').click();
     await page.locator('[data-testid="language-option-en"]').click();
     await page.waitForURL('**/en', { timeout: 5_000 });
-    await expect(page.getByText('The best')).toBeVisible();
+    await expect(page.getByTestId('home-hero-title')).toContainText('The best');
   });
 
   test('TC3: Guest sees blurred groups and paywall on interactions', async ({ page }) => {
@@ -75,7 +75,7 @@ test.describe('Guest Flow (TC1–TC3)', () => {
 
     // Groups should be visible with blur applied in guest mode.
     // Note: isGuest is set asynchronously via useEffect, so we wait for the re-render.
-    await expect(page.getByText(/Discover|Entdecken/i)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('page-title')).toHaveText(/Discover|Entdecken/i, { timeout: 5_000 });
 
     // Verify the blur effect is active on the group card wrapper (blur-xl class)
     const groupCards = page.locator('[data-testid="group-card"]');

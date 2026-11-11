@@ -69,12 +69,12 @@ test.describe('Core Flow (TC8–TC14, TC21)', () => {
     await page.goto(url('en', '/search-groups'));
     await waitForAppStable(page);
 
-    await expect(page.getByText(/Discover|Entdecken/i)).toBeVisible();
+    await expect(page.getByTestId('page-title')).toHaveText(/Discover|Entdecken/i);
 
     // Groups should be visible (both users have groups from global-setup)
     const groupCards = page.locator('[data-testid="group-card"]');
     // At least User B's group should be discoverable
-    await expect(page.getByText(/Discover|Entdecken/i)).toBeVisible();
+    await expect(page.getByTestId('page-title')).toHaveText(/Discover|Entdecken/i);
 
     // Test radius modal
     await page.locator('[data-testid="radius-open-btn"]').click();

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   registerUser,
   loginUser,
@@ -72,6 +72,8 @@ vi.mock('@/lib/session', () => ({
   createSession: vi.fn(),
   destroyCurrentSession: vi.fn(),
   getOptionalUserId: vi.fn(),
+  requireUserId: vi.fn(),
+  getCurrentSessionTokenHash: vi.fn(),
 }));
 
 vi.mock('@/lib/rateLimit', () => ({
@@ -123,6 +125,13 @@ describe('Auth Server Actions (Unit Tests)', () => {
     vi.clearAllMocks();
     vi.mocked(checkRateLimit).mockResolvedValue(true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    // The suites below describe the behaviour WITH email flows (verification,
+    // password reset). The flag-off behaviour has its own describe at the end.
+    vi.stubEnv('EMAIL_FLOWS_ENABLED', 'true');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   // 1. REGISTER USER TESTS
@@ -517,6 +526,130 @@ describe('Auth Server Actions (Unit Tests)', () => {
       await verifyAccountAction('valid-token-es', 'es');
 
       expect(redirect).toHaveBeenCalledWith('/es/profile/create-group');
+    });
+  });
+
+  // EMAIL_FLOWS_ENABLED off (the default while there is no email provider)
+  describe('with EMAIL_FLOWS_ENABLED off', () => {
+    beforeEach(() => {
+      vi.stubEnv('EMAIL_FLOWS_ENABLED', 'false');
+    });
+
+    it('register: creates an unverified user WITHOUT a token, signs in and redirects like a login', async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed_password' as never);
+      vi.mocked(prisma.user.create).mockResolvedValue({ id: 'new-user-1' } as never);
+      const store = mockCookieStore();
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      vi.stubEnv('NODE_ENV', 'development');
+
+      const result = await registerUser(validRegistration(), 'en');
+
+      expect(result).toBeUndefined(); // success redirects instead of returning
+      const data = vi.mocked(prisma.user.create).mock.calls[0][0].data;
+      expect(data).toMatchObject({ email: 'new@test.com', username: 'newuser', isVerified: false, password: 'hashed_password' });
+      expect(data).not.toHaveProperty('verificationToken');
+      expect(data).not.toHaveProperty('verificationTokenExpiry');
+      expect(createSession).toHaveBeenCalledWith('new-user-1');
+      expect(store.delete).toHaveBeenCalledWith('gloo_is_guest');
+      expect(redirect).toHaveBeenCalledWith('/en/search-groups');
+      expect(log).not.toHaveBeenCalled();
+      log.mockRestore();
+    });
+
+    it('register: keeps the locale prefix in the redirect', async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed_password' as never);
+      vi.mocked(prisma.user.create).mockResolvedValue({ id: 'new-user-2' } as never);
+      mockCookieStore();
+
+      await registerUser(validRegistration(), 'de');
+      expect(redirect).toHaveBeenCalledWith('/de/search-groups');
+    });
+
+    it('register: an existing email returns emailExistsError, creates nothing and logs nothing', async () => {
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed_password' as never);
+      vi.mocked(prisma.user.findUnique)
+        .mockResolvedValueOnce(null) // username free
+        .mockResolvedValueOnce({ id: 'existing-id' } as never); // email taken
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      vi.stubEnv('NODE_ENV', 'development');
+
+      const result = await registerUser(validRegistration({ email: 'taken@example.com' }), 'en');
+
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'emailExistsError' });
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(createSession).not.toHaveBeenCalled();
+      expect(redirect).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+      log.mockRestore();
+    });
+
+    it('register: an email unique-constraint race also returns emailExistsError', async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+      vi.mocked(bcrypt.hash).mockResolvedValue('hashed_password' as never);
+      vi.mocked(prisma.user.create).mockRejectedValue({ code: 'P2002', meta: { target: ['email'] } });
+
+      const result = await registerUser(validRegistration(), 'en');
+      expect(result).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'emailExistsError' });
+      expect(createSession).not.toHaveBeenCalled();
+    });
+
+    it('register: is still rate limited', async () => {
+      vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
+      const result = await registerUser(validRegistration(), 'en');
+      expect(result).toEqual({ ok: false, code: 'RATE_LIMITED', messageKey: 'tooManyAttemptsError' });
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('login: an unverified account can log in', async () => {
+      vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'unverified-1', password: 'hashed_pw', isVerified: false } as never);
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      mockCookieStore();
+
+      await loginUser(createFormData({ identifier: 'user@test.com', password: 'correctpw' }), 'en');
+
+      expect(createSession).toHaveBeenCalledWith('unverified-1');
+      expect(redirect).toHaveBeenCalledWith('/en/search-groups');
+    });
+
+    it('login: a wrong password is still rejected', async () => {
+      vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'u', password: 'hashed_pw', isVerified: false } as never);
+      vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+
+      const result = await loginUser(createFormData({ identifier: 'user@test.com', password: 'wrong' }), 'en');
+      expect(result).toEqual({ ok: false, code: 'UNAUTHORIZED', messageKey: 'invalidCredentialsError' });
+      expect(createSession).not.toHaveBeenCalled();
+    });
+
+    it('requestPasswordReset: returns FEATURE_DISABLED without rate limiting, DB work or logging', async () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const result = await requestPasswordReset('someone@test.com', 'en');
+
+      expect(result).toEqual({ ok: false, code: 'FEATURE_DISABLED' });
+      expect(checkRateLimit).not.toHaveBeenCalled();
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+      log.mockRestore();
+    });
+
+    it('resetPassword: returns FEATURE_DISABLED without touching the DB', async () => {
+      const result = await resetPassword('some-token', 'NewSecurePass123!');
+
+      expect(result).toEqual({ ok: false, code: 'FEATURE_DISABLED' });
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('verifyAccountAction: returns FEATURE_DISABLED without touching the DB', async () => {
+      const result = await verifyAccountAction('some-token', 'en');
+
+      expect(result).toEqual({ ok: false, code: 'FEATURE_DISABLED' });
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(createSession).not.toHaveBeenCalled();
     });
   });
 

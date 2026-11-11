@@ -155,7 +155,10 @@ export default function Home() {
           </div>
 
           <div className="text-center space-y-3">
-            <h1 className="text-3xl font-extrabold tracking-tight drop-shadow-lg text-foreground">
+            <h1
+              data-testid="home-hero-title"
+              className="text-3xl font-extrabold tracking-tight drop-shadow-lg text-foreground"
+            >
               {t("titleStart")}
               <span className="text-secondary font-bold"> {t("titleHighlight")} </span>
               {t("titleEnd")}

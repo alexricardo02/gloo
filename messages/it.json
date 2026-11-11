@@ -147,7 +147,23 @@
     "confirmDeleteMsg2": "Questa azione è irreversibile. Tutti i dati verranno eliminati dai nostri server.",
     "confirmDeleteButton": "Elimina Il Mio Account",
     "deleting": "Eliminazione in corso...",
-    "cancelButton": "Annulla"
+    "cancelButton": "Annulla",
+    "currentPasswordLabel": "Password attuale",
+    "newPasswordLabel": "Nuova password",
+    "confirmNewPasswordLabel": "Conferma nuova password",
+    "updatePasswordButton": "Aggiorna password",
+    "updatingPassword": "Aggiornamento...",
+    "passwordChangedTitle": "Password aggiornata",
+    "passwordChangedDesc": "Sei stato disconnesso dagli altri dispositivi.",
+    "resetByEmailTitle": "Hai dimenticato la password attuale?",
+    "currentPasswordIncorrect": "La password attuale non è corretta.",
+    "passwordMismatch": "Le nuove password non coincidono.",
+    "passwordSameAsCurrent": "La nuova password deve essere diversa da quella attuale.",
+    "passwordWeakError": "La password deve contenere almeno 8 caratteri, una lettera maiuscola, un numero e un carattere speciale.",
+    "passwordTooLongError": "La password è troppo lunga (massimo 72 byte; alcuni caratteri speciali contano più di uno).",
+    "tooManyAttemptsError": "Troppi tentativi. Attendi qualche minuto e riprova.",
+    "sessionExpiredError": "La tua sessione è scaduta. Accedi di nuovo.",
+    "changePasswordGenericError": "Qualcosa è andato storto. Riprova."
   },
   "CreateGroup": {
     "title": "Crea Gruppo",
@@ -275,5 +291,10 @@
     "troubleshooting": "Per attivare la geolocalizzazione: Controlla le impostazioni del browser o del sistema operativo e consenti l'accesso alla posizione per Gloo.",
     "retry": "Riprova",
     "dismiss": "Continua comunque"
+  },
+  "EmailFlows": {
+    "recoveryUnavailableTitle": "Recupero password non disponibile",
+    "recoveryUnavailableDesc": "Il recupero della password non è temporaneamente disponibile. Se hai effettuato l'accesso, puoi cambiare la password nelle impostazioni dell'account.",
+    "backToLogin": "Torna al Login"
   }
 }

@@ -49,6 +49,10 @@ export default defineConfig({
       DIRECT_URL: testEnv.TEST_DATABASE_URL,
       E2E_ENABLED: '1',
       E2E_TEST_SECRET: process.env.E2E_TEST_SECRET,
+      // Pinned explicitly so a value in `.env` (which `next dev` also loads)
+      // can't change the run. Default run: email flows off. To run with them
+      // on: EMAIL_FLOWS_ENABLED=true npx playwright test
+      EMAIL_FLOWS_ENABLED: process.env.EMAIL_FLOWS_ENABLED ?? 'false',
     },
   },
 

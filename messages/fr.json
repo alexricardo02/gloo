@@ -383,7 +383,23 @@
     "confirmDeleteMsg2": "Cette action est irréversible. Toutes les données seront supprimées de nos serveurs.",
     "confirmDeleteButton": "Supprimer Mon Compte",
     "deleting": "Suppression...",
-    "cancelButton": "Annuler"
+    "cancelButton": "Annuler",
+    "currentPasswordLabel": "Mot de passe actuel",
+    "newPasswordLabel": "Nouveau mot de passe",
+    "confirmNewPasswordLabel": "Confirmer le nouveau mot de passe",
+    "updatePasswordButton": "Mettre à jour le mot de passe",
+    "updatingPassword": "Mise à jour...",
+    "passwordChangedTitle": "Mot de passe mis à jour",
+    "passwordChangedDesc": "Vos autres appareils ont été déconnectés.",
+    "resetByEmailTitle": "Mot de passe actuel oublié ?",
+    "currentPasswordIncorrect": "Votre mot de passe actuel est incorrect.",
+    "passwordMismatch": "Les nouveaux mots de passe ne correspondent pas.",
+    "passwordSameAsCurrent": "Le nouveau mot de passe doit être différent de l'actuel.",
+    "passwordWeakError": "Le mot de passe doit contenir au moins 8 caractères, une majuscule, un chiffre et un caractère spécial.",
+    "passwordTooLongError": "Le mot de passe est trop long (72 octets maximum ; certains caractères spéciaux comptent pour plus d'un).",
+    "tooManyAttemptsError": "Trop de tentatives. Veuillez patienter quelques minutes et réessayer.",
+    "sessionExpiredError": "Votre session a expiré. Veuillez vous reconnecter.",
+    "changePasswordGenericError": "Une erreur est survenue. Veuillez réessayer."
   },
   "CreateGroup": {
     "title": "Créer un Groupe",
@@ -574,5 +590,10 @@
     "troubleshooting": "Pour activer la localisation : Vérifiez les paramètres de votre navigateur ou de votre système et autorisez l'accès à la localisation pour Gloo.",
     "retry": "Réessayer",
     "dismiss": "Continuer quand même"
+  },
+  "EmailFlows": {
+    "recoveryUnavailableTitle": "Récupération du mot de passe indisponible",
+    "recoveryUnavailableDesc": "La récupération du mot de passe est temporairement indisponible. Si vous êtes connecté, vous pouvez changer votre mot de passe dans les paramètres de votre compte.",
+    "backToLogin": "Retour à la connexion"
   }
 }

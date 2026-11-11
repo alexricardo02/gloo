@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import http from 'http';
 import { assertSafeTestDb } from '../assertSafeTestDb';
+import { callE2eApi as postE2eApi, emailFlowsEnabled, registerAndSignIn } from './helpers/auth';
 
 const AUTH_DIR = path.join(__dirname, '.auth');
 const AUTH_FILE_A = path.join(AUTH_DIR, 'userA.json');
@@ -11,15 +12,7 @@ const AUTH_FILE_B = path.join(AUTH_DIR, 'userB.json');
 const PROJECT_ROOT = path.join(__dirname, '../..');
 
 async function callE2eApi(baseURL: string, action: string, email: string, label?: string) {
-  const res = await fetch(`${baseURL}/api/e2e`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-e2e-secret': process.env.E2E_TEST_SECRET! },
-    body: JSON.stringify({ action, email, label }),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) {
-    throw new Error(`E2E API ${action} failed for ${email}: ${data.error || res.statusText}`);
-  }
+  await postE2eApi(baseURL, action, email, label);
   console.log(`[global-setup] E2E API: ${action} OK for ${email}`);
 }
 
@@ -47,35 +40,14 @@ async function registerAndLogin(
   user: { name: string; username: string; email: string; password: string },
   label: string
 ) {
-  console.log(`[global-setup] Registering ${label}: ${user.email}`);
+  console.log(
+    `[global-setup] Registering ${label}: ${user.email} (email flows ${emailFlowsEnabled() ? 'ON: verify + login' : 'OFF: signed in directly'})`
+  );
 
-  await page.goto(`${baseURL}/en/register`);
-  await page.waitForSelector('[data-testid="register-form"]', { timeout: 10_000 });
-  await page.fill('[data-testid="register-name-input"]', user.name);
-  await page.fill('[data-testid="register-email-input"]', user.email);
-  await page.fill('[data-testid="register-username-input"]', user.username);
-  await page.fill('[data-testid="register-password-input"]', user.password);
-  await page.fill('[data-testid="register-dob-input"]', '2000-01-01');
-
-  const termsCheckbox = page.locator('input[type="checkbox"]').first();
-  await termsCheckbox.check();
-  await page.locator('[data-testid="register-submit-btn"]').click();
-
-  await page.waitForSelector('[data-testid="register-success"]', { timeout: 15_000 });
-  console.log(`[global-setup] ${label} registration successful`);
-
-  // Verify user via E2E API route (uses Next.js server's DB connection)
-  await callE2eApi(baseURL, 'verify', user.email);
-
-  // Login
-  console.log(`[global-setup] Logging in ${label}...`);
-  await page.goto(`${baseURL}/en/login`);
-  await page.waitForSelector('[data-testid="login-form"]', { timeout: 10_000 });
-  await page.fill('[data-testid="login-identifier-input"]', user.email);
-  await page.fill('[data-testid="login-password-input"]', user.password);
-  await page.locator('[data-testid="login-submit-btn"]').click();
-  await page.waitForURL('**/en/search-groups', { timeout: 15_000 });
-  console.log(`[global-setup] ${label} login successful`);
+  // Email flows off (default): registration signs the user in directly.
+  // Email flows on: verified via the E2E API route, then logged in.
+  await registerAndSignIn(page, baseURL, user);
+  console.log(`[global-setup] ${label} registered and signed in`);
 
   return user;
 }

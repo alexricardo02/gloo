@@ -19,6 +19,7 @@ GLOO is a mobile-first social nightlife app that connects groups of people befor
   - [Prerequisites](#1-prerequisites)
   - [Step-by-Step Installation](#2-step-by-step-installation)
 - [Group Discovery](#group-discovery)
+- [Email Flows](#email-flows)
 - [Deployment](#deployment)
   - [Environment Configuration & Twelve-Factor Compliance](#environment-configuration--twelve-factor-compliance)
   - [Required Environment Variables (`.env`)](#required-environment-variables-env)
@@ -53,7 +54,8 @@ The app supports a **guest mode** that lets anyone browse content without an acc
 
 ###  Authentication & Security
 - Custom Auth system (Bcrypt password hashing, secure HTTP-only cookies).
-- Email verification flow.
+- Email verification and password recovery flows (currently suspended, see [Email Flows](#email-flows)).
+- Change password while signed in (Account Settings); other devices are signed out.
 - Guest Mode with limited access (Paywall integration).
 
 ###  Internationalization (i18n)
@@ -210,6 +212,25 @@ The discovery algorithm in `discoverGroups.ts`:
 
 ---
 
+## Email Flows
+
+Everything that depends on sending email sits behind one server-side flag, `EMAIL_FLOWS_ENABLED` (read in `lib/features.ts`). It is **off by default** (unset or anything other than `true` / `1`), because there is no email provider or verified sending domain yet.
+
+While it is off:
+
+- **Registration** creates the account (with `isVerified = false`; no verification token is created) and signs the user in straight away. An email or username that is already taken gets an "already registered" error.
+- **Login** does not require a verified email. Password checks, rate limiting and sessions work as usual.
+- **Email verification** is disabled: `/verify` redirects to the login page (or to the discovery feed when signed in).
+- **Password recovery** is disabled: the "Forgot password?" link is hidden, `/forgotPassword` and `/resetPassword` show an "unavailable" notice, and the reset actions return `FEATURE_DISABLED` without creating a token.
+- Nothing logs tokens, links or email addresses.
+- Signed-in users can still **change their password** under Profile, Account Settings.
+
+Setting `EMAIL_FLOWS_ENABLED=true` restores verification and password recovery unchanged (in development the links are printed to the terminal). Turning it on for real users requires an email provider and a verified sending domain, which is planned for later. Accounts created while the flag was off are still unverified, so they would need to verify (or be migrated) before login requires it again.
+
+The flag is server-side only. Client components receive it as a prop from their server `page.tsx`; do not add a `NEXT_PUBLIC_` copy.
+
+---
+
 ## Deployment
 
 Gloo is built as a highly available, decoupled Full-Stack Web Application optimized for mobile-first clients. The architecture follows modern cloud-native patterns split into three core layers:
@@ -231,6 +252,7 @@ To spin up the application infrastructure, the following variables must be defin
 | `DIRECT_URL` | Direct connection URL bypassing connection poolers, strictly required for database schema migrations. | `postgresql://user:pass@host:5432/postgres` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public API gateway endpoint for the Supabase project instance. | `https://your-project.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anonymous client-side cryptographic key for initializing real-time WebSocket listeners. | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| `EMAIL_FLOWS_ENABLED` | Optional. Enables email verification and password recovery; off when unset. See [Email Flows](#email-flows). | `false` |
 
 ---
 

@@ -515,7 +515,23 @@
     "successMessage": "If an account exists with that email, we've sent a password reset link.",
     "checkSpam": "Please check your spam folder if you don't see the email in your inbox.",
     "resetLinkSentTitle": "Reset link sent!",
-    "resetLinkSentDesc": "Check your email for the password reset link."
+    "resetLinkSentDesc": "Check your email for the password reset link.",
+    "currentPasswordLabel": "Current password",
+    "newPasswordLabel": "New password",
+    "confirmNewPasswordLabel": "Confirm new password",
+    "updatePasswordButton": "Update password",
+    "updatingPassword": "Updating...",
+    "passwordChangedTitle": "Password updated",
+    "passwordChangedDesc": "Your other devices have been signed out.",
+    "resetByEmailTitle": "Forgot your current password?",
+    "currentPasswordIncorrect": "Your current password is incorrect.",
+    "passwordMismatch": "The new passwords do not match.",
+    "passwordSameAsCurrent": "Your new password must be different from your current one.",
+    "passwordWeakError": "Password must be at least 8 characters long, contain an uppercase letter, a number, and a special character.",
+    "passwordTooLongError": "Password is too long (maximum 72 bytes; some special characters count as more than one).",
+    "tooManyAttemptsError": "Too many attempts. Please wait a few minutes and try again.",
+    "sessionExpiredError": "Your session has expired. Please sign in again.",
+    "changePasswordGenericError": "Something went wrong. Please try again."
   },
   "CreateGroup": {
     "title": "Create Group",
@@ -734,5 +750,10 @@
     "troubleshooting": "To enable location services: Check your browser's site settings or your operating system's privacy settings and allow location access for Gloo.",
     "retry": "Try Again",
     "dismiss": "Continue Anyway"
+  },
+  "EmailFlows": {
+    "recoveryUnavailableTitle": "Password recovery unavailable",
+    "recoveryUnavailableDesc": "Password recovery is temporarily unavailable. If you are signed in, you can change your password in your account settings.",
+    "backToLogin": "Back to Sign in"
   }
 }

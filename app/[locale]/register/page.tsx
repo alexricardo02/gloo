@@ -91,8 +91,13 @@ function RegisterForm({ restoreDraft }: { restoreDraft: boolean }) {
 
 
   async function handleSubmit(formData: FormData) {
+    // With email flows off, a successful registration redirects (no result comes
+    // back), so the draft is cleared up front and restored only on failure.
+    clearRegisterDraft(sessionStorage);
     const result = await registerUser(formData, locale);
+    if (!result) return;
     if (!result.ok) {
+      saveRegisterDraft(sessionStorage, { name, email, dob, username, agreed });
       setError(result.messageKey ?? "registrationGenericError");
     } else {
       // Same result for new and already-registered emails (S14).
@@ -165,7 +170,14 @@ function RegisterForm({ restoreDraft }: { restoreDraft: boolean }) {
           </div>
         )}
 
-        <form action={handleSubmit} className="flex flex-col gap-4" data-testid="register-form">
+        {/* data-ready="true" only on the client instance: the server/hydration
+            instance is replaced (and its input lost) when RegisterPage remounts. */}
+        <form
+          action={handleSubmit}
+          className="flex flex-col gap-4"
+          data-testid="register-form"
+          data-ready={restoreDraft ? "true" : "false"}
+        >
 
           <div className="flex gap-4">
             <div className="relative flex items-center bg-background border border-border rounded-2xl px-4 py-4 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all w-full">

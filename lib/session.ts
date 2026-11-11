@@ -136,6 +136,15 @@ export async function destroyCurrentSession(): Promise<void> {
   }
 }
 
+/**
+ * SHA-256 hash of the current browser's session token (null without a
+ * well-formed cookie). Lets callers revoke every OTHER session of a user.
+ */
+export async function getCurrentSessionTokenHash(): Promise<string | null> {
+  const token = await readSessionToken();
+  return token ? hashSessionToken(token) : null;
+}
+
 /** Revokes every session of a user (password reset / password change). */
 export async function revokeAllSessions(userId: string): Promise<void> {
   await prisma.session.deleteMany({ where: { userId } });
