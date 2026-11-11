@@ -32,6 +32,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("Profile");
+  const tUpload = useTranslations("ImageUpload");
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -100,7 +101,12 @@ export default function ProfilePage() {
       setPreviewUrl(null);
       setIsModalOpen(false);
     } else {
-      setUploadError(result?.error || "Upload failed. Please try again.");
+      const messageKey = result && "messageKey" in result ? result.messageKey : undefined;
+      setUploadError(
+        messageKey && tUpload.has(messageKey)
+          ? tUpload(messageKey)
+          : result?.error || "Upload failed. Please try again.",
+      );
     }
 
     setIsUploading(false);

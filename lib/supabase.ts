@@ -9,6 +9,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 /**
+ * Public (anon key) client for REALTIME ONLY. It must never be used for
+ * Supabase Storage: all storage access goes through lib/storage.ts with the
+ * server-only service-role key, and the bucket rejects anon writes.
+ *
  * Global Supabase client instance dedicated to managing the WebSocket connection lifecycle.
  * This client handles real-time data replication, connection state retries, and channel multiplexing.
  */

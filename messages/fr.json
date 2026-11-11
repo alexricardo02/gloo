@@ -595,5 +595,14 @@
     "recoveryUnavailableTitle": "Récupération du mot de passe indisponible",
     "recoveryUnavailableDesc": "La récupération du mot de passe est temporairement indisponible. Si vous êtes connecté, vous pouvez changer votre mot de passe dans les paramètres de votre compte.",
     "backToLogin": "Retour à la connexion"
+  },
+  "ImageUpload": {
+    "empty": "Veuillez choisir une image.",
+    "tooLarge": "L'image dépasse 5 Mo. Veuillez choisir un fichier plus petit.",
+    "unsupportedType": "Ce type d'image n'est pas pris en charge. Utilisez une image JPEG, PNG ou WebP.",
+    "invalid": "Cette image n'a pas pu être traitée. Veuillez essayer un autre fichier.",
+    "uploadFailed": "Le téléversement de la photo a échoué. Veuillez réessayer.",
+    "photoRequired": "Veuillez ajouter au moins une photo.",
+    "tooManyPhotos": "Vous pouvez ajouter jusqu'à 6 photos."
   }
 }

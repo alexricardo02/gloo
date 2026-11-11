@@ -755,5 +755,14 @@
     "recoveryUnavailableTitle": "Password recovery unavailable",
     "recoveryUnavailableDesc": "Password recovery is temporarily unavailable. If you are signed in, you can change your password in your account settings.",
     "backToLogin": "Back to Sign in"
+  },
+  "ImageUpload": {
+    "empty": "Please choose an image.",
+    "tooLarge": "The image is larger than 5 MB. Please choose a smaller file.",
+    "unsupportedType": "This image type is not supported. Please use a JPEG, PNG or WebP image.",
+    "invalid": "This image could not be processed. Please try another file.",
+    "uploadFailed": "The photo upload failed. Please try again.",
+    "photoRequired": "Please add at least one photo.",
+    "tooManyPhotos": "You can add up to 6 photos."
   }
 }

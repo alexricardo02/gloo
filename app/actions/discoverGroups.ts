@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
  * development; refuses to run in production without Upstash).
  */
 import { checkRateLimit } from "@/lib/rateLimit";
+import { toPublicUrls, withImageUrl, withPhotoUrls } from "@/lib/storage";
 
 async function getBlockedGroupIds(
   userId: string,
@@ -181,7 +182,8 @@ export async function getDiscoveryGroups({
     const nextCursor = pageSlice.length === limit ? pageSlice[pageSlice.length - 1].id : null;
 
     const groups = pageSlice.map((group) => ({
-      ...group,
+      ...withPhotoUrls(group),
+      user: withImageUrl(group.user),
       createdAt: group.createdAt.toISOString(),
       updatedAt: group.updatedAt.toISOString(),
       likedByCurrentUser: likedGroupIds.has(group.id),
@@ -343,8 +345,8 @@ export async function getGroupsThatLikedMe() {
       .map((like) => ({
         id: like.fromGroup.id,
         userId: like.fromGroup.userId,
-        user: like.fromGroup.user,
-        photos: like.fromGroup.photos,
+        user: withImageUrl(like.fromGroup.user),
+        photos: toPublicUrls(like.fromGroup.photos),
         description: like.fromGroup.description,
         membersCount: like.fromGroup.membersCount,
         gender: like.fromGroup.gender,

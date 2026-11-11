@@ -53,6 +53,13 @@ export default defineConfig({
       // can't change the run. Default run: email flows off. To run with them
       // on: EMAIL_FLOWS_ENABLED=true npx playwright test
       EMAIL_FLOWS_ENABLED: process.env.EMAIL_FLOWS_ENABLED ?? 'false',
+      // Never let E2E touch real photos: `next dev` also loads `.env`, which may
+      // hold the service-role key and the production/dev bucket. Pin a
+      // throwaway bucket and blank the key, so any upload attempt fails
+      // instead of writing to Supabase (NEXT_PUBLIC_SUPABASE_URL is the dummy
+      // value from .env.test as well).
+      SUPABASE_STORAGE_BUCKET: 'gloo-images-e2e',
+      SUPABASE_SERVICE_ROLE_KEY: '',
     },
   },
 

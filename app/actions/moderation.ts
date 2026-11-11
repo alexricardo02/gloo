@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getOptionalUserId } from "@/lib/session";
+import { toPublicUrls, withImageUrl } from "@/lib/storage";
 
 export async function blockGroupAction(chatId: string) {
   const userId = await getOptionalUserId();
@@ -196,8 +197,8 @@ export async function getBlockedGroupsAction() {
       blockId: block.id,
       blockedGroupId: block.blockedGroup.id,
       userId: block.blockedGroup.userId,
-      user: block.blockedGroup.user,
-      photos: block.blockedGroup.photos,
+      user: withImageUrl(block.blockedGroup.user),
+      photos: toPublicUrls(block.blockedGroup.photos),
       description: block.blockedGroup.description,
       membersCount: block.blockedGroup.membersCount,
       gender: block.blockedGroup.gender,

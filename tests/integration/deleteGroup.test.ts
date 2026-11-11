@@ -3,14 +3,17 @@ import { deleteGroupAction } from "@/app/actions/group";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { sessionCookiesFor } from "./helpers/session";
+import { remove, removePrefix } from "@/lib/storage";
 
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 
-// Mock Supabase storage
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    storage: { from: vi.fn().mockReturnValue({ remove: vi.fn().mockResolvedValue({ data: null, error: null }) }) }
-  }
+// lib/storage.ts is the only module that talks to Supabase Storage; mock it.
+vi.mock("@/lib/storage", () => ({
+  remove: vi.fn().mockResolvedValue(undefined),
+  removePrefix: vi.fn().mockResolvedValue([]),
+  upload: vi.fn(),
+  toPublicUrl: (v: string) => v,
+  withPhotoUrls: <T,>(g: T) => g,
 }));
 
 describe("Group Deletion Capability (Integration)", () => {
@@ -20,7 +23,7 @@ describe("Group Deletion Capability (Integration)", () => {
   beforeAll(async () => {
     const user = await prisma.user.create({
       data: { email: testEmail, password: "123", name: "Host to Spectator", birthDate: new Date(), 
-        group: { create: { membersCount: 3, photos: ["https://dummy.com/photo.jpg"] } }
+        group: { create: { membersCount: 3, photos: ["https://dummy.com/photo.jpg", "groups/someone-else-group-x.jpg"] } }
       }
     });
     testUserId = user.id;
@@ -40,6 +43,10 @@ describe("Group Deletion Capability (Integration)", () => {
     // Execute Delete Group Action
     const result = await deleteGroupAction();
     expect(result.success).toBe(true);
+
+    // Storage: only this group's own prefix; never the foreign key or external URL.
+    expect(removePrefix).toHaveBeenCalledWith(`groups/${groupCheck!.id}/`);
+    expect(remove).not.toHaveBeenCalled();
 
     // Verify group is gone
     groupCheck = await prisma.group.findUnique({ where: { userId: testUserId } });
