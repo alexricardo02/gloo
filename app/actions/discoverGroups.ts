@@ -1,7 +1,8 @@
 "use server";
 
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getOptionalUserId } from "@/lib/session";
+import { getOptionalUserId, requireUserId } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -11,33 +12,27 @@ import { revalidatePath } from "next/cache";
  */
 import { checkRateLimit } from "@/lib/rateLimit";
 import { toPublicUrls, withImageUrl, withPhotoUrls } from "@/lib/storage";
+import { getBlockSet, isBlockedPair } from "@/lib/blocks";
+import { ensureChat, findChatBetween, lockPair } from "@/lib/chats";
+import { type ActionResult, fail, ok } from "@/lib/actionResult";
 
-async function getBlockedGroupIds(
-  userId: string,
-  myGroupId: string,
-): Promise<Set<string>> {
-  const blocksByMe = await prisma.groupBlock.findMany({
-    where: { blockerId: userId },
-    select: { blockedGroupId: true },
+/**
+ * Maps each of `otherUserIds` to the id of the chat the caller has with them
+ * (only chats that exist; blocked counterparts are filtered out by callers).
+ * Lets cards show "go to chat" without exposing anything new.
+ */
+async function getChatIdsWith(userId: string, otherUserIds: string[]): Promise<Map<string, string>> {
+  if (otherUserIds.length === 0) return new Map();
+  const chats = await prisma.chat.findMany({
+    where: {
+      OR: [
+        { hostAId: userId, hostBId: { in: otherUserIds } },
+        { hostBId: userId, hostAId: { in: otherUserIds } },
+      ],
+    },
+    select: { id: true, hostAId: true, hostBId: true },
   });
-  const blockedByMeIds = new Set(blocksByMe.map((b) => b.blockedGroupId));
-
-  const blocksOnMe = await prisma.groupBlock.findMany({
-    where: { blockedGroupId: myGroupId },
-    select: { blockerId: true },
-  });
-  const blockedMeUserIds = new Set(blocksOnMe.map((b) => b.blockerId));
-
-  let blockedMeGroupIds = new Set<string>();
-  if (blockedMeUserIds.size > 0) {
-    const blockedMeGroups = await prisma.group.findMany({
-      where: { userId: { in: [...blockedMeUserIds] } },
-      select: { id: true },
-    });
-    blockedMeGroupIds = new Set(blockedMeGroups.map((g) => g.id));
-  }
-
-  return new Set([...blockedByMeIds, ...blockedMeGroupIds]);
+  return new Map(chats.map((c) => [c.hostAId === userId ? c.hostBId : c.hostAId, c.id]));
 }
 
 /**
@@ -156,7 +151,7 @@ export async function getDiscoveryGroups({
       likedGroupRecords.map((like) => like.toGroupId),
     );
 
-    const allBlockedGroupIds = await getBlockedGroupIds(userId, userGroup.id);
+    const { groupIds: allBlockedGroupIds } = await getBlockSet(userId);
 
     const mutualLikeRecords = await prisma.groupLike.findMany({
       where: {
@@ -181,6 +176,8 @@ export async function getDiscoveryGroups({
 
     const nextCursor = pageSlice.length === limit ? pageSlice[pageSlice.length - 1].id : null;
 
+    const chatIds = await getChatIdsWith(userId, pageSlice.map((group) => group.userId));
+
     const groups = pageSlice.map((group) => ({
       ...withPhotoUrls(group),
       user: withImageUrl(group.user),
@@ -188,6 +185,8 @@ export async function getDiscoveryGroups({
       updatedAt: group.updatedAt.toISOString(),
       likedByCurrentUser: likedGroupIds.has(group.id),
       isMutualLike: mutualLikeGroupIds.has(group.id),
+      // CARD_MESSAGE_BUTTON = only-if-chat-exists: the card shows "go to chat" only when set.
+      chatId: chatIds.get(group.userId) ?? null,
     }));
 
     return { groups, nextCursor };
@@ -197,99 +196,107 @@ export async function getDiscoveryGroups({
   }
 }
 
+const toggleLikeInput = z.object({
+  toGroupId: z.string().min(1).max(64),
+  liked: z.boolean().optional(),
+});
+
+export type ToggleLikeResult = ActionResult<{
+  liked: boolean;
+  matched: boolean;
+  /** The chat with the target group's host, if one exists after this call. */
+  chatId: string | null;
+}>;
+
 /**
- * Toggles a symbolic like between groups.
+ * Likes or unlikes a group.
+ *
+ * `liked` is the desired state (the UI always sends it), which makes double
+ * clicks and retries idempotent; without it the current state is toggled.
+ *
+ * Like: refused for the caller's own group (FORBIDDEN) and when either side
+ * blocked the other (NOT_FOUND, so a block is indistinguishable from a missing
+ * group). Inside ONE transaction, holding a per-pair lock: create the like
+ * (no-op if it exists) -> check the reciprocal like -> ensureChat(MATCH) ->
+ * create the match notice (SYSTEM message, at most one per chat). The lock
+ * makes simultaneous A->B and B->A likes produce exactly one chat and notice.
+ *
+ * Unlike: removes the like only. UNLIKE_AFTER_MATCH = keep-chat: an existing
+ * chat stays untouched and fully usable.
  */
-export async function toggleLike(toGroupId: string) {
-  const userId = await getOptionalUserId();
-  if (!userId) return { error: "Unauthorized" };
+export async function toggleLike(toGroupId: string, liked?: boolean): Promise<ToggleLikeResult> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return fail("UNAUTHORIZED");
+  }
+
+  const input = toggleLikeInput.safeParse({ toGroupId, liked });
+  if (!input.success) return fail("VALIDATION");
 
   // H-4 / S8: 10 likes per 60 s per user via the shared limiter (lib/rateLimit.ts).
   if (!(await checkRateLimit("like", { identifier: userId }))) {
-    return {
-      error: "Rate limit exceeded. Please wait a moment before liking again.",
-    };
+    return fail("RATE_LIMITED");
   }
 
-  const fromGroup = await prisma.group.findUnique({ where: { userId } });
-  if (!fromGroup) return { error: "Group not found" };
+  try {
+    const result = await prisma.$transaction(async (tx): Promise<ToggleLikeResult> => {
+      const fromGroup = await tx.group.findUnique({ where: { userId }, select: { id: true } });
+      if (!fromGroup) return fail("NOT_FOUND");
+      if (fromGroup.id === toGroupId) return fail("FORBIDDEN");
 
-  const existingLike = await prisma.groupLike.findUnique({
-    where: {
-      fromGroupId_toGroupId: {
-        fromGroupId: fromGroup.id,
-        toGroupId,
-      },
-    },
-  });
+      const toGroup = await tx.group.findUnique({
+        where: { id: toGroupId },
+        select: { id: true, userId: true },
+      });
+      if (!toGroup) return fail("NOT_FOUND");
 
-  if (existingLike) {
-    await prisma.groupLike.delete({ where: { id: existingLike.id } });
-    revalidatePath("/");
-    return { liked: false };
-  }
+      await lockPair(tx, userId, toGroup.userId);
 
-  const toGroup = await prisma.group.findUnique({
-    where: { id: toGroupId },
-    select: { id: true, userId: true },
-  });
+      const blocked = await isBlockedPair(userId, toGroup.userId, tx);
+      const likeKey = { fromGroupId: fromGroup.id, toGroupId: toGroup.id };
+      const wantLiked =
+        liked ??
+        !(await tx.groupLike.findUnique({ where: { fromGroupId_toGroupId: likeKey }, select: { id: true } }));
 
-  if (!toGroup) {
-    return { error: "Target group not found" };
-  }
+      if (!wantLiked) {
+        await tx.groupLike.deleteMany({ where: likeKey });
+        const chat = blocked ? null : await findChatBetween(userId, toGroup.userId, tx);
+        return ok({ liked: false, matched: false, chatId: chat?.id ?? null });
+      }
 
-  const createdLike = await prisma.groupLike.create({
-    data: { fromGroupId: fromGroup.id, toGroupId },
-  });
+      if (blocked) return fail("NOT_FOUND");
 
-  const reciprocalLike = await prisma.groupLike.findUnique({
-    where: {
-      fromGroupId_toGroupId: {
-        fromGroupId: toGroupId,
-        toGroupId: fromGroup.id,
-      },
-    },
-  });
+      await tx.groupLike.createMany({ data: [likeKey], skipDuplicates: true });
 
-  let matched = false;
-  if (reciprocalLike) {
-    matched = true;
+      const reciprocal = await tx.groupLike.findUnique({
+        where: { fromGroupId_toGroupId: { fromGroupId: toGroup.id, toGroupId: fromGroup.id } },
+        select: { id: true },
+      });
 
-    const existingChat = await prisma.chat.findFirst({
-      where: {
-        OR: [
-          { hostAId: userId, hostBId: toGroup.userId },
-          { hostAId: toGroup.userId, hostBId: userId },
-        ],
-      },
+      if (!reciprocal) {
+        const chat = await findChatBetween(userId, toGroup.userId, tx);
+        return ok({ liked: true, matched: false, chatId: chat?.id ?? null });
+      }
+
+      const chatId = await ensureChat(fromGroup.id, toGroup.id, "MATCH", tx);
+      // MATCH_NOTICE = system-message: no sender, rendered via i18n. Skipped if
+      // the chat already has one (unique chatId + systemKey).
+      await tx.message.createMany({
+        data: [{ chatId, senderId: null, type: "SYSTEM", systemKey: "MATCH_CREATED", text: "" }],
+        skipDuplicates: true,
+      });
+
+      return ok({ liked: true, matched: true, chatId });
     });
 
-    // A race condition is possible if both groups like each other at the same
-    // instant. Checking for an existing chat before creating prevents duplicate
-    // chat rooms between the same pair of users.
-    if (!existingChat) {
-      const newChat = await prisma.chat.create({
-        data: {
-          hostAId: userId,
-          hostBId: toGroup.userId,
-        },
-      });
-
-      // An empty chat would be confusing — users need confirmation that a match
-      // occurred. This system message serves as the conversation opener and
-      // ensures the chat list is never blank after a mutual like.
-      await prisma.message.create({
-        data: {
-          chatId: newChat.id,
-          senderId: userId,
-          text: "Your groups matched! Start chatting now.",
-        },
-      });
-    }
+    if (result.ok) revalidatePath("/");
+    return result;
+  } catch (error) {
+    console.error("Error toggling like:", error);
+    return fail("INTERNAL");
   }
-
-  revalidatePath("/");
-  return { liked: true, matched };
 }
 
 /**
@@ -310,7 +317,7 @@ export async function getGroupsThatLikedMe() {
 
     if (!myGroup) return { groups: [] };
 
-    const allBlockedGroupIds = await getBlockedGroupIds(userId, myGroup.id);
+    const { groupIds: allBlockedGroupIds } = await getBlockSet(userId);
 
     const incomingLikes = await prisma.groupLike.findMany({
       where: { toGroupId: myGroup.id },
@@ -340,8 +347,10 @@ export async function getGroupsThatLikedMe() {
 
     const likedBackIds = new Set(outgoingLikes.map((l) => l.toGroupId));
 
-    const groups = incomingLikes
-      .filter((like) => !allBlockedGroupIds.has(like.fromGroup.id))
+    const visibleLikes = incomingLikes.filter((like) => !allBlockedGroupIds.has(like.fromGroup.id));
+    const chatIds = await getChatIdsWith(userId, visibleLikes.map((like) => like.fromGroup.userId));
+
+    const groups = visibleLikes
       .map((like) => ({
         id: like.fromGroup.id,
         userId: like.fromGroup.userId,
@@ -357,6 +366,7 @@ export async function getGroupsThatLikedMe() {
         createdAt: like.fromGroup.createdAt.toISOString(),
         likedByCurrentUser: likedBackIds.has(like.fromGroup.id),
         isMutualLike: likedBackIds.has(like.fromGroup.id),
+        chatId: chatIds.get(like.fromGroup.userId) ?? null,
       }));
 
     return { groups };

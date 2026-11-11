@@ -1,301 +1,244 @@
 "use server";
 
+import { z } from "zod";
+import type { ChatOrigin, MessageType, SystemMessageKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getOptionalUserId } from "@/lib/session";
+import { requireUserId } from "@/lib/session";
 import { toPublicUrl, withImageUrl } from "@/lib/storage";
+import { getBlockSet, isBlockedPair } from "@/lib/blocks";
+import { findChatBetween, getAccessibleChat } from "@/lib/chats";
+import { type ActionResult, fail, ok } from "@/lib/actionResult";
 
 /**
- * Checks both directions of the block relationship before allowing chat access.
- * A block must be invisible to both parties — the blocked user should not know
- * they are blocked, and the blocker should not see the conversation either.
+ * Chat server actions. They never create chats: chats only come from a
+ * mutual like (lib/chats.ts ensureChat, called by toggleLike).
+ *
+ * A chat that does not exist, that the caller is not part of, or whose
+ * participants blocked each other (BLOCKED_CHAT = hidden-for-both) all answer
+ * NOT_FOUND with messageKey "blockedChatError" (Chat namespace), so a blocked
+ * user cannot tell a block from a missing chat. Messages stay in the DB.
  */
-async function isChatBlocked(userId: string, otherUserId: string) {
-  const [myGroup, otherGroup] = await Promise.all([
-    prisma.group.findUnique({ where: { userId }, select: { id: true } }),
-    prisma.group.findUnique({
-      where: { userId: otherUserId },
-      select: { id: true },
-    }),
-  ]);
 
-  if (!myGroup || !otherGroup) return false;
+const MAX_MESSAGE_LENGTH = 2000;
+const idSchema = z.string().min(1).max(64);
 
-  const block = await prisma.groupBlock.findFirst({
-    where: {
-      OR: [
-        { blockerId: userId, blockedGroupId: otherGroup.id },
-        { blockerId: otherUserId, blockedGroupId: myGroup.id },
-      ],
-    },
-  });
+export type ChatMessage = {
+  id: string;
+  text: string;
+  /** null for SYSTEM messages and for messages of deleted accounts. */
+  senderId: string | null;
+  type: MessageType;
+  /** Set for SYSTEM messages; rendered via Chat.systemMessages.<key>. */
+  systemKey: SystemMessageKey | null;
+  createdAt: Date;
+  sender: { id: string; name: string; image: string | null } | null;
+};
 
-  return block !== null;
-}
+export type ChatPreview = {
+  id: string;
+  name: string;
+  /** null when the chat has no messages or the last one is a SYSTEM message. */
+  lastMessage: string | null;
+  lastMessageSystemKey: SystemMessageKey | null;
+  time: Date;
+  unread: number;
+  isMatch: boolean;
+  image: string;
+};
+
+const messageSelect = {
+  id: true,
+  text: true,
+  senderId: true,
+  type: true,
+  systemKey: true,
+  createdAt: true,
+  sender: { select: { id: true, name: true, image: true } },
+} as const;
+
+const chatUnavailable = () => fail("NOT_FOUND", "blockedChatError");
 
 /**
- * Handles outgoing chat messages securely.
- * Enforces Horizontal Privilege Escalation prevention by verifying the sender is an active participant in the specific chat.
- * Checks the moderation ledger to silently abort if either user has blocked the other.
- * * @param chatId - The unique identifier of the target conversation.
- * @param text - The raw message content payload.
- * @returns The newly created message object for optimistic UI updates, or an error state.
+ * Sends a message. Only participants of a chat that is not blocked can send
+ * (LEGACY chats keep working: EXISTING_UNMATCHED_CHATS = keep-as-legacy).
+ * On VALIDATION, messageKey is "messageEmpty" or "messageTooLong".
  */
-export async function sendMessage(chatId: string, text: string) {
-  const userId = await getOptionalUserId();
-
-  if (!userId) return { error: "Unauthorized" };
-
-  const trimmed = text.trim();
-  if (!trimmed) return { error: "Message cannot be empty" };
-
-  // Hard cap at 2000 characters to prevent oversized DB writes and
-  // large payloads being returned to all participants on every fetch.
-  const MAX_MESSAGE_LENGTH = 2000;
-  if (trimmed.length > MAX_MESSAGE_LENGTH) {
-    return { error: "Message is too long. Maximum length is 2000 characters." };
+export async function sendMessage(
+  chatId: string,
+  text: string,
+): Promise<ActionResult<{ message: ChatMessage }>> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return fail("UNAUTHORIZED");
   }
 
+  if (!idSchema.safeParse(chatId).success || typeof text !== "string") return fail("VALIDATION");
+  const trimmed = text.trim();
+  if (!trimmed) return fail("VALIDATION", "messageEmpty");
+  // Hard cap to prevent oversized DB writes and payloads on every fetch.
+  if (trimmed.length > MAX_MESSAGE_LENGTH) return fail("VALIDATION", "messageTooLong");
+
   try {
-    const chat = await prisma.chat.findUnique({
-      where: { id: chatId },
-      select: { hostAId: true, hostBId: true },
-    });
-
-    if (!chat) return { error: "Chat not found" };
-    if (chat.hostAId !== userId && chat.hostBId !== userId) {
-      return { error: "Forbidden" };
-    }
-
-    const otherUserId = chat.hostAId === userId ? chat.hostBId : chat.hostAId;
-
-    const blocked = await isChatBlocked(userId, otherUserId);
-    if (blocked) return { error: "This conversation is no longer available." };
+    const chat = await getAccessibleChat(chatId, userId);
+    if (!chat) return chatUnavailable();
 
     const message = await prisma.message.create({
-      data: {
-        chatId,
-        senderId: userId,
-        text: trimmed,
-      },
-      include: {
-        sender: { select: { id: true, name: true, image: true } },
-      },
+      data: { chatId: chat.id, senderId: userId, text: trimmed, type: "USER" },
+      select: messageSelect,
     });
 
-    return { success: true, message: { ...message, sender: withImageUrl(message.sender) } };
+    return ok({ message: { ...message, sender: message.sender ? withImageUrl(message.sender) : null } });
   } catch (error) {
     console.error("Error sending message:", error);
-    return {
-      error:
-        "Failed to send message. Please check your connection and try again.",
-    };
+    return fail("INTERNAL", "sendFailed");
   }
 }
 
 /**
- * Loads all messages for a specific chat, ordered chronologically,
- * along with the chat partner's info.
- * Only returns data if the current user is a participant.
+ * Loads all messages of a chat (oldest first) plus the chat partner's info.
+ * NOT_FOUND for missing, foreign or blocked chats; the page redirects.
  */
-export async function getChatMessages(chatId: string) {
-  const userId = await getOptionalUserId();
+export async function getChatMessages(chatId: string): Promise<
+  ActionResult<{
+    messages: ChatMessage[];
+    userId: string;
+    origin: ChatOrigin;
+    partner: { id: string; name: string; image: string };
+  }>
+> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return fail("UNAUTHORIZED");
+  }
 
-  if (!userId) return { error: "Unauthorized" };
+  if (!idSchema.safeParse(chatId).success) return chatUnavailable();
 
   try {
-    const chat = await prisma.chat.findUnique({
-      where: { id: chatId },
-      include: {
-        hostA: { include: { group: true } },
-        hostB: { include: { group: true } },
-      },
-    });
+    const chat = await getAccessibleChat(chatId, userId);
+    if (!chat) return chatUnavailable();
 
-    if (!chat) return { error: "Chat not found" };
-    if (chat.hostAId !== userId && chat.hostBId !== userId) {
-      return { error: "Forbidden" };
-    }
+    const [messages, partner] = await Promise.all([
+      prisma.message.findMany({
+        where: { chatId: chat.id },
+        orderBy: { createdAt: "asc" },
+        select: messageSelect,
+      }),
+      prisma.user.findUnique({
+        where: { id: chat.partnerId },
+        select: { id: true, name: true, image: true, group: { select: { photos: true } } },
+      }),
+    ]);
 
-    const otherUserId = chat.hostAId === userId ? chat.hostBId : chat.hostAId;
-
-    const blocked = await isChatBlocked(userId, otherUserId);
-    if (blocked) return { error: "This conversation is no longer available." };
-
-    const messages = await prisma.message.findMany({
-      where: { chatId },
-      orderBy: { createdAt: "asc" },
-      include: {
-        sender: { select: { id: true, name: true, image: true } },
-      },
-    });
-
-    const partner = chat.hostAId === userId ? chat.hostB : chat.hostA;
-    const partnerGroup = partner.group;
-
-    return {
-      success: true,
-      messages: messages.map((m) => ({ ...m, sender: withImageUrl(m.sender) })),
+    return ok({
+      messages: messages.map((m) => ({ ...m, sender: m.sender ? withImageUrl(m.sender) : null })),
       userId,
+      origin: chat.origin,
       partner: {
-        id: partner.id,
-        name: partner.name || "Unknown User",
-        image: toPublicUrl(
-          partnerGroup?.photos?.[0] ||
-          partner.image ||
-          "/images/bg-fallback.jpg"),
+        id: chat.partnerId,
+        name: partner?.name || "Unknown User",
+        image: toPublicUrl(partner?.group?.photos?.[0] || partner?.image || "/images/bg-fallback.jpg"),
       },
-    };
+    });
   } catch (error) {
     console.error("Error fetching messages:", error);
-    return { error: "Failed to load messages" };
+    return fail("INTERNAL", "loadFailed");
   }
 }
 
 /**
- * Finds an existing chat between the current user and the target group's
- * host, or creates a new one. Returns the chatId for navigation.
+ * Returns the id of an EXISTING chat with `targetUserId`. Never creates one
+ * (CHAT_CREATION = match-only): NOT_FOUND if there is no chat, it is blocked,
+ * or the target is the caller.
  */
-export async function getOrCreateChat(targetUserId: string) {
-  const userId = await getOptionalUserId();
+export async function openExistingChat(targetUserId: string): Promise<ActionResult<{ chatId: string }>> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return fail("UNAUTHORIZED");
+  }
 
-  if (!userId) return { error: "Unauthorized" };
-
-  if (targetUserId === userId) return { error: "Cannot chat with yourself" };
+  if (!idSchema.safeParse(targetUserId).success || targetUserId === userId) return chatUnavailable();
 
   try {
-    const existing = await prisma.chat.findFirst({
-      where: {
-        OR: [
-          { hostAId: userId, hostBId: targetUserId },
-          { hostAId: targetUserId, hostBId: userId },
-        ],
-      },
-      select: { id: true },
-    });
-
-    if (existing) return { success: true, chatId: existing.id };
-
-    const chat = await prisma.chat.create({
-      data: { hostAId: userId, hostBId: targetUserId },
-      select: { id: true },
-    });
-
-    return { success: true, chatId: chat.id };
+    const chat = await findChatBetween(userId, targetUserId);
+    if (!chat || (await isBlockedPair(userId, targetUserId))) return chatUnavailable();
+    return ok({ chatId: chat.id });
   } catch (error) {
-    console.error("Error getting or creating chat:", error);
-    return { error: "Failed to open chat" };
+    console.error("Error opening chat:", error);
+    return fail("INTERNAL");
   }
 }
 
-export async function getActiveChats() {
-  const userId = await getOptionalUserId();
-
-  if (!userId) return { error: "Unauthorized" };
+/**
+ * The caller's chats, matches first, then newest activity first. Chats with
+ * blocked counterparts are hidden for both sides.
+ */
+export async function getActiveChats(): Promise<ActionResult<{ chats: ChatPreview[] }>> {
+  let userId: string;
+  try {
+    userId = await requireUserId();
+  } catch {
+    return fail("UNAUTHORIZED");
+  }
 
   try {
-    const myGroup = await prisma.group.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-
-    let blockedGroupIds: string[] = [];
-    let blockedByUserIds: string[] = [];
-
-    if (myGroup) {
-      const blocksByMe = await prisma.groupBlock.findMany({
-        where: { blockerId: userId },
-        select: { blockedGroupId: true },
-      });
-      blockedGroupIds = blocksByMe.map((b) => b.blockedGroupId);
-
-      const blocksOnMe = await prisma.groupBlock.findMany({
-        where: { blockedGroupId: myGroup.id },
-        select: { blockerId: true },
-      });
-      blockedByUserIds = blocksOnMe.map((b) => b.blockerId);
-    }
-
-    let blockedUserIds: string[] = [];
-    if (blockedGroupIds.length > 0) {
-      const blockedGroups = await prisma.group.findMany({
-        where: { id: { in: blockedGroupIds } },
-        select: { userId: true },
-      });
-      blockedUserIds = blockedGroups.map((g) => g.userId);
-    }
-
-    const allBlockedUserIds = [
-      ...new Set([...blockedUserIds, ...blockedByUserIds]),
-    ];
+    const { userIds } = await getBlockSet(userId);
+    userIds.delete(userId);
+    const blockedUserIds = [...userIds];
 
     const chats = await prisma.chat.findMany({
       where: {
         OR: [{ hostAId: userId }, { hostBId: userId }],
-        ...(allBlockedUserIds.length > 0
-          ? {
-              NOT: [
-                { hostAId: { in: allBlockedUserIds }, hostBId: userId },
-                { hostAId: userId, hostBId: { in: allBlockedUserIds } },
-              ],
-            }
+        ...(blockedUserIds.length > 0
+          ? { NOT: [{ hostAId: { in: blockedUserIds } }, { hostBId: { in: blockedUserIds } }] }
           : {}),
       },
-      include: {
-        hostA: {
-          include: { group: true },
-        },
-        hostB: {
-          include: { group: true },
-        },
+      select: {
+        id: true,
+        origin: true,
+        createdAt: true,
+        hostAId: true,
+        hostA: { select: { name: true, image: true, group: { select: { photos: true } } } },
+        hostB: { select: { name: true, image: true, group: { select: { photos: true } } } },
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
+          select: { text: true, type: true, systemKey: true, createdAt: true },
         },
       },
     });
 
-    const formattedChats = chats.map((chat) => {
-      const isUserHostA = chat.hostAId === userId;
-      const otherHost = isUserHostA ? chat.hostB : chat.hostA;
-
-      const otherGroup = otherHost.group;
+    const formattedChats: ChatPreview[] = chats.map((chat) => {
+      const otherHost = chat.hostAId === userId ? chat.hostB : chat.hostA;
       const lastMsg = chat.messages[0];
-      const lastMessageText = lastMsg?.text || "No messages yet";
-      // There is no dedicated isMatch column in the schema. When two groups
-      // mutually like each other, the system creates a first message with a
-      // known text. Detecting that text here is the cheapest way to flag
-      // matched chats without an extra DB query per chat.
-      const isMatch = lastMessageText.toLowerCase().includes("match");
+      const isSystem = lastMsg?.type === "SYSTEM";
 
       return {
         id: chat.id,
         name: otherHost.name || "Unknown User",
-        lastMessage: lastMessageText,
+        lastMessage: lastMsg && !isSystem ? lastMsg.text : null,
+        lastMessageSystemKey: isSystem ? lastMsg.systemKey : null,
         time: lastMsg?.createdAt || chat.createdAt,
         unread: 0,
-        isMatch,
-        image: toPublicUrl(
-          otherGroup?.photos?.[0] ||
-          otherHost.image ||
-          "/images/bg-fallback.jpg"),
+        isMatch: chat.origin === "MATCH",
+        image: toPublicUrl(otherHost.group?.photos?.[0] || otherHost.image || "/images/bg-fallback.jpg"),
       };
     });
 
-    // Prisma's orderBy supports a single sort dimension. Matches must appear
-    // first regardless of time, so a two-level sort is applied in JS instead
-    // of SQL — it cannot be expressed in a single ORDER BY clause without a subquery.
+    // Matches first, then newest activity first (two-level sort in JS).
     formattedChats.sort((a, b) => {
-      if (a.isMatch !== b.isMatch) {
-        return a.isMatch ? -1 : 1;
-      }
-      const timeA = new Date(a.time).getTime();
-      const timeB = new Date(b.time).getTime();
-      return timeB - timeA;
+      if (a.isMatch !== b.isMatch) return a.isMatch ? -1 : 1;
+      return new Date(b.time).getTime() - new Date(a.time).getTime();
     });
 
-    return { success: true, chats: formattedChats };
+    return ok({ chats: formattedChats });
   } catch (error) {
     console.error("Error fetching chats:", error);
-    return { error: "Failed to fetch chats" };
+    return fail("INTERNAL");
   }
 }

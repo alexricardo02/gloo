@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { MessageCircle, Heart, Loader2 } from "lucide-react";
-import { getOrCreateChat } from "@/app/actions/chat";
+import { MessageCircle, Heart } from "lucide-react";
 
 interface LikedGroup {
   id: string;
@@ -29,6 +27,8 @@ interface LikedGroup {
   createdAt: string;
   likedByCurrentUser: boolean;
   isMutualLike: boolean;
+  /** Existing chat with this group's host (match-only: no chat, no button). */
+  chatId: string | null;
 }
 
 interface LikedGroupsMapProps {
@@ -50,25 +50,11 @@ function createLikeMarkerIcon() {
 
 function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
   const router = useRouter();
-  const [isOpeningChat, setIsOpeningChat] = useState(false);
 
   const displayName =
     group.user?.username || group.user?.name || "Group";
 
-  const handleOpenChat = async () => {
-    if (isOpeningChat) return;
-    setIsOpeningChat(true);
-    try {
-      const result = await getOrCreateChat(group.userId);
-      if (result.success && result.chatId) {
-        router.push(`/${locale}/messages/${result.chatId}`);
-      }
-    } catch (err) {
-      console.error("Failed to open chat from map:", err);
-    } finally {
-      setIsOpeningChat(false);
-    }
-  };
+  const chatId = group.chatId;
 
   return (
     <div className="w-56 p-2 text-foreground font-sans flex flex-col">
@@ -111,20 +97,15 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
         </div>
       )}
 
-      <button
-        onClick={handleOpenChat}
-        disabled={isOpeningChat}
-        className="w-full mt-1 bg-accent hover:opacity-90 text-on-accent text-xs font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-1.5 transition-opacity disabled:opacity-50 cursor-pointer min-h-[44px]"
-      >
-        {isOpeningChat ? (
-          <Loader2 size={14} className="animate-spin text-on-accent" />
-        ) : (
-          <>
-            <MessageCircle size={14} />
-            Open Chat
-          </>
-        )}
-      </button>
+      {chatId && (
+        <button
+          onClick={() => router.push(`/${locale}/messages/${chatId}`)}
+          className="w-full mt-1 bg-accent hover:opacity-90 text-on-accent text-xs font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-1.5 transition-opacity disabled:opacity-50 cursor-pointer min-h-[44px]"
+        >
+          <MessageCircle size={14} />
+          Open Chat
+        </button>
+      )}
     </div>
   );
 }

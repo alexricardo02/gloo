@@ -358,7 +358,8 @@
     "deleteGroupDesc": "Êtes-vous sûr de vouloir supprimer votre groupe ? Cette action est définitive. Vos membres, chats actifs et l'historique des photos du groupe seront complètement effacés.",
     "deleteGroupConfirm": "Oui, supprimer le groupe",
     "deleting": "Suppression...",
-    "defaultDescription": "À la recherche d'une bonne soirée !"
+    "defaultDescription": "À la recherche d'une bonne soirée !",
+    "goToChat": "Aller au chat"
   },
   "AccountSettings": {
     "title": "Paramètres du Compte",
@@ -459,7 +460,8 @@
     "unblock": "Débloquer",
     "noBlockedGroups": "Aucun groupe bloqué",
     "noBlockedGroupsDesc": "Les groupes que vous bloquez apparaîtront ici. Vous pouvez les débloquer à tout moment.",
-    "groupUnblocked": "Groupe débloqué"
+    "groupUnblocked": "Groupe débloqué",
+    "noMessagesPreview": "Pas encore de messages"
   },
   "Chat": {
     "backToMessages": "Retour aux messages",
@@ -473,7 +475,14 @@
     "cancel": "Annuler",
     "groupBlocked": "Groupe bloqué",
     "groupReported": "Signalement envoyé",
-    "blockedChatError": "Cette conversation n'est plus disponible."
+    "blockedChatError": "Cette conversation n'est plus disponible.",
+    "messageEmpty": "Le message ne peut pas être vide.",
+    "messageTooLong": "Le message est trop long. 2000 caractères maximum.",
+    "sendFailed": "Impossible d'envoyer le message. Vérifiez votre connexion et réessayez.",
+    "loadFailed": "Impossible de charger les messages.",
+    "systemMessages": {
+      "MATCH_CREATED": "C'est un match ! Vos groupes se sont plu mutuellement. Dites bonjour !"
+    }
   },
   "SearchGroups": {
     "modalButton": "Définir le rayon",

@@ -122,7 +122,8 @@
     "updatePhoto": "Aggiorna Foto",
     "tapToSelect": "Tocca per selezionare",
     "uploadNow": "Carica Ora",
-    "cancel": "Annulla"
+    "cancel": "Annulla",
+    "goToChat": "Vai alla chat"
   },
   "AccountSettings": {
     "title": "Impostazioni Account",
@@ -199,12 +200,21 @@
   "Messages": {
     "emptyDesc": "Fai match con altri gruppi nel carosello per iniziare una conversazione.",
     "emptyTitle": "Nessun messaggio",
-    "title": "Messaggi"
+    "title": "Messaggi",
+    "noMessagesPreview": "Ancora nessun messaggio"
   },
   "Chat": {
     "backToMessages": "Torna ai messaggi",
     "emptyChat": "Nessun messaggio. Saluta!",
-    "typeMessage": "Scrivi un messaggio..."
+    "typeMessage": "Scrivi un messaggio...",
+    "blockedChatError": "Questa conversazione non è più disponibile.",
+    "messageEmpty": "Il messaggio non può essere vuoto.",
+    "messageTooLong": "Il messaggio è troppo lungo. Massimo 2000 caratteri.",
+    "sendFailed": "Impossibile inviare il messaggio. Controlla la connessione e riprova.",
+    "loadFailed": "Impossibile caricare i messaggi.",
+    "systemMessages": {
+      "MATCH_CREATED": "È un match! I vostri gruppi si sono piaciuti a vicenda. Salutatevi!"
+    }
   },
   "SearchGroups": {
     "modalButton": "Imposta Raggio",

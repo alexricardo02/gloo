@@ -4,6 +4,7 @@ import { getDiscoveryGroups } from "@/app/actions/discoverGroups";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { sessionCookiesFor } from "./helpers/session";
+import { canonicalPair } from "@/lib/chats";
 
 // Mocking cookies to simulate sessions
 vi.mock("next/headers", () => ({
@@ -33,8 +34,9 @@ describe("Moderation & Security Flow (Integration)", () => {
     userBId = userB.id;
 
     // 2. Create a chat between them to enable blocking
+    const [hostAId, hostBId] = canonicalPair(userAId, userBId);
     const chat = await prisma.chat.create({
-      data: { hostAId: userAId, hostBId: userBId }
+      data: { hostAId, hostBId, origin: "LEGACY" }
     });
     sharedChatId = chat.id;
   });

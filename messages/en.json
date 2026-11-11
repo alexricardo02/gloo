@@ -480,7 +480,8 @@
     "deleteGroupDesc": "Are you sure you want to delete your group? This action is permanent. Your members, active chats, and group photo history will be completely removed.",
     "deleteGroupConfirm": "Yes, Delete Group",
     "deleting": "Deleting...",
-    "defaultDescription": "Looking for a fun night out!"
+    "defaultDescription": "Looking for a fun night out!",
+    "goToChat": "Go to chat"
   },
   "AccountSettings": {
     "title": "Account Settings",
@@ -591,7 +592,8 @@
     "unblock": "Unblock",
     "noBlockedGroups": "No blocked groups",
     "noBlockedGroupsDesc": "Groups you block will appear here. You can unblock them anytime.",
-    "groupUnblocked": "Group unblocked"
+    "groupUnblocked": "Group unblocked",
+    "noMessagesPreview": "No messages yet"
   },
   "Chat": {
     "backToMessages": "Back to Messages",
@@ -605,7 +607,14 @@
     "cancel": "Cancel",
     "groupBlocked": "Group blocked",
     "groupReported": "Report sent",
-    "blockedChatError": "This conversation is no longer available."
+    "blockedChatError": "This conversation is no longer available.",
+    "messageEmpty": "Message cannot be empty.",
+    "messageTooLong": "Message is too long. Maximum length is 2000 characters.",
+    "sendFailed": "Failed to send message. Please check your connection and try again.",
+    "loadFailed": "Failed to load messages.",
+    "systemMessages": {
+      "MATCH_CREATED": "It's a match! Your groups liked each other. Say hi!"
+    }
   },
   "SearchGroups": {
     "modalButton": "Set Radius",

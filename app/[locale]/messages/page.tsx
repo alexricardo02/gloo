@@ -16,7 +16,10 @@ import { supabase } from "@/lib/supabase";
 type ChatPreview = {
   id: string;
   name: string;
-  lastMessage: string;
+  /** null: no messages yet, or the last message is a system notice. */
+  lastMessage: string | null;
+  /** Set when the last message is a system notice (Chat.systemMessages.<key>). */
+  lastMessageSystemKey: string | null;
   time: Date | string;
   unread: number;
   image: string;
@@ -43,12 +46,14 @@ type LikedGroup = {
   createdAt: string;
   likedByCurrentUser: boolean;
   isMutualLike: boolean;
+  chatId: string | null;
 };
 
 export default function MessagesPage() {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("Messages");
+  const tChat = useTranslations("Chat");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"chats" | "likes">("chats");
 
@@ -81,8 +86,8 @@ export default function MessagesPage() {
 
   const loadChats = useCallback(async () => {
     const response = await getActiveChats();
-    if (response.success && response.chats) {
-      setChats(response.chats as ChatPreview[]);
+    if (response.ok) {
+      setChats(response.data.chats);
     }
     setIsLoadingChats(false);
   }, []);
@@ -124,9 +129,11 @@ export default function MessagesPage() {
           setChats((currentChats) => {
             const chatIndex = currentChats.findIndex((c) => c.id === newMessage.chatId);
             if (chatIndex > -1) {
+              const isSystem = newMessage.type === "SYSTEM";
               const updatedChat = {
                 ...currentChats[chatIndex],
-                lastMessage: newMessage.text,
+                lastMessage: isSystem ? null : newMessage.text,
+                lastMessageSystemKey: isSystem ? newMessage.systemKey : null,
                 time: newMessage.createdAt,
                 unread: currentChats[chatIndex].unread + 1,
               };
@@ -223,6 +230,15 @@ export default function MessagesPage() {
   });
 
   const likesCount = likedGroups.length;
+
+  // System notices have no sender and are rendered from their key, never from `text`.
+  const previewText = (chat: ChatPreview) => {
+    if (chat.lastMessageSystemKey) {
+      const key = `systemMessages.${chat.lastMessageSystemKey}`;
+      return tChat.has(key) ? tChat(key) : "";
+    }
+    return chat.lastMessage ?? t("noMessagesPreview");
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans pb-32">
@@ -341,6 +357,7 @@ export default function MessagesPage() {
                 filteredChats.map((chat) => (
                   <button
                     key={chat.id}
+                    data-testid="chat-list-item"
                     onClick={() => router.push(`/${locale}/messages/${chat.id}`)}
                     className="w-full min-h-[72px] flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/40 transition-colors text-left group cursor-pointer"
                   >
@@ -385,7 +402,7 @@ export default function MessagesPage() {
                           className={`text-sm line-clamp-1 flex-1 pr-4 ${chat.unread > 0 ? "text-foreground font-medium" : "text-muted-foreground"
                             }`}
                         >
-                          {chat.lastMessage}
+                          {previewText(chat)}
                         </p>
                         {chat.unread > 0 ? (
                           <div className="bg-primary text-on-primary text-[10px] font-black min-w-[22px] h-[22px] px-1.5 rounded-full flex items-center justify-center">

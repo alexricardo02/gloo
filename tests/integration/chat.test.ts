@@ -3,6 +3,7 @@ import { sendMessage, getChatMessages } from "@/app/actions/chat";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { sessionCookiesFor } from "./helpers/session";
+import { canonicalPair } from "@/lib/chats";
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
@@ -30,9 +31,11 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
     const hacker = await prisma.user.create({ data: { email: emailHacker, password: "123", name: "Hacker", birthDate: new Date() } });
     hackerUserId = hacker.id;
 
-    // 3. Establish a private chat between A and B
+    // 3. Establish a private (pre-existing, unmatched) chat between A and B.
+    // EXISTING_UNMATCHED_CHATS = keep-as-legacy: it must keep working.
+    const [hostAId, hostBId] = canonicalPair(userAId, userBId);
     const chat = await prisma.chat.create({
-      data: { hostAId: userAId, hostBId: userBId }
+      data: { hostAId, hostBId, origin: "LEGACY" }
     });
     sharedChatId = chat.id;
   });
@@ -47,13 +50,13 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
 
     // Standard Requirement: Sending a message must succeed
     const sendResult = await sendMessage(sharedChatId, "Hello securely!");
-    expect(sendResult.error).toBeUndefined();
+    expect(sendResult.ok).toBe(true);
 
     // Standard Requirement: Retrieving messages must return the data
     const messagesResult = await getChatMessages(sharedChatId);
-    expect(messagesResult.messages).toBeDefined();
-    expect(messagesResult.messages!.length).toBeGreaterThan(0);
-    expect(messagesResult.messages![0].text).toBe("Hello securely!");
+    if (!messagesResult.ok) throw new Error(`expected ok, got ${messagesResult.code}`);
+    expect(messagesResult.data.messages.length).toBeGreaterThan(0);
+    expect(messagesResult.data.messages[0].text).toBe("Hello securely!");
   });
 
   it("SECURITY BOUNDARY: should strictly block non-participants from reading messages", async () => {
@@ -62,8 +65,7 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
 
     // Standard Requirement: Access must be explicitly denied (Horizontal Privilege Escalation prevention)
     const messagesResult = await getChatMessages(sharedChatId);
-    expect(messagesResult.error).toBeDefined();
-    expect(messagesResult.messages).toBeUndefined();
+    expect(messagesResult).toEqual({ ok: false, code: "NOT_FOUND", messageKey: "blockedChatError" });
   });
 
   it("SECURITY BOUNDARY: should strictly block non-participants from sending messages", async () => {
@@ -72,7 +74,7 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
 
     // Standard Requirement: Writing to another user's chat must fail and not hit the database
     const sendResult = await sendMessage(sharedChatId, "Malicious injection!");
-    expect(sendResult.error).toBeDefined();
+    expect(sendResult).toEqual({ ok: false, code: "NOT_FOUND", messageKey: "blockedChatError" });
 
     // Verify database integrity: the message must not exist
     const unauthorizedMessages = await prisma.message.findMany({

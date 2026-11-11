@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { Heart, MessageCircle, Loader2, MapPin } from "lucide-react";
+import { Heart, MessageCircle, MapPin } from "lucide-react";
 import { toggleLike } from "@/app/actions/discoverGroups";
-import { getOrCreateChat } from "@/app/actions/chat";
 
 interface LikedGroup {
   id: string;
@@ -27,6 +26,8 @@ interface LikedGroup {
   createdAt: string;
   likedByCurrentUser: boolean;
   isMutualLike: boolean;
+  /** Existing chat with this group's host (match-only: no chat, no button). */
+  chatId: string | null;
 }
 
 interface LikedMeCardProps {
@@ -38,7 +39,7 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
   const locale = useLocale();
   const [liked, setLiked] = useState(Boolean(group.likedByCurrentUser));
   const [isAnimating, setIsAnimating] = useState(false);
-  const [isOpeningChat, setIsOpeningChat] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(group.chatId ?? null);
 
   const photo: string =
     group.photos && group.photos.length > 0
@@ -55,7 +56,13 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
     setIsAnimating(true);
 
     try {
-      await toggleLike(group.id);
+      const result = await toggleLike(group.id, nextLiked);
+      if (result.ok) {
+        setLiked(result.data.liked);
+        setChatId(result.data.chatId);
+      } else {
+        setLiked(!nextLiked);
+      }
     } catch (error) {
       console.error("Error liking group:", error);
       setLiked(!nextLiked);
@@ -64,22 +71,9 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
     }
   };
 
-  const handleOpenChat = async (e: React.MouseEvent) => {
+  const handleOpenChat = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isOpeningChat) return;
-    setIsOpeningChat(true);
-    try {
-      const targetUserId = group.userId;
-      if (!targetUserId) return;
-      const result = await getOrCreateChat(targetUserId);
-      if (result.success && result.chatId) {
-        router.push(`/${locale}/messages/${result.chatId}`);
-      }
-    } catch (err) {
-      console.error("Failed to open chat:", err);
-    } finally {
-      setIsOpeningChat(false);
-    }
+    if (chatId) router.push(`/${locale}/messages/${chatId}`);
   };
 
   return (
@@ -134,19 +128,16 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
             className={liked ? "text-secondary" : "text-muted-foreground"}
           />
         </button>
-        <button
-          type="button"
-          onClick={handleOpenChat}
-          disabled={isOpeningChat}
-          aria-label="Open chat"
-          className="min-w-[44px] min-h-[44px] bg-accent text-on-accent rounded-full shadow-[0_0_15px_rgba(255,114,94,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
-        >
-          {isOpeningChat ? (
-            <Loader2 className="text-on-accent animate-spin" size={18} />
-          ) : (
+        {chatId && (
+          <button
+            type="button"
+            onClick={handleOpenChat}
+            aria-label="Open chat"
+            className="min-w-[44px] min-h-[44px] bg-accent text-on-accent rounded-full shadow-[0_0_15px_rgba(255,114,94,0.4)] hover:scale-105 active:scale-95 flex items-center justify-center transition-all cursor-pointer disabled:opacity-70 disabled:scale-100"
+          >
             <MessageCircle className="text-on-accent" fill="currentColor" size={18} />
-          )}
-        </button>
+          </button>
+        )}
       </div>
     </div>
   );
