@@ -34,4 +34,4 @@ export const fetchUnread = async () => read<UnreadSummary>(await getUnread());
 
 export const fetchLikes = async () => read<{ groups: LikedMeGroupDTO[] }>(await getLikes());
 
-export const fetchMap = async () => read<MapDataDTO>(await getMap());
+export const fetchMap = async (query = "") => read<MapDataDTO>(await getMap(request(`/api/map${query}`)));

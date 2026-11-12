@@ -79,19 +79,29 @@ model GroupLike {
   @@index([toGroupId])
 }
 
+/// A pre-party. `latitude` / `longitude` are the EXACT point (usually a
+/// private home): only the host and accepted groups ever receive it. Everyone
+/// else gets `maskedLatitude` / `maskedLongitude`, a point moved by a random
+/// 0..MASK_RADIUS_METERS offset that is computed ONCE at creation
+/// (lib/eventMask.ts) and never recomputed, so reloads can't be averaged.
 model Event {
-  id           String            @id @default(cuid())
-  title        String
-  description  String?
-  locationName String
-  latitude     Float
-  longitude    Float
-  startTime    DateTime
-  endTime      DateTime?
-  ownerId      String
-  createdAt    DateTime          @default(now())
-  owner        User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  attendees    EventAttendance[]
+  id              String            @id @default(cuid())
+  title           String?
+  description     String?
+  locationName    String?
+  latitude        Float
+  longitude       Float
+  maskedLatitude  Float
+  maskedLongitude Float
+  startTime       DateTime
+  endTime         DateTime?
+  ownerId         String
+  createdAt       DateTime          @default(now())
+  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  attendees       EventAttendance[]
+
+  @@index([endTime])
+  @@index([ownerId])
 }
 
 /// One conversation between two hosts. The pair is stored in canonical order
@@ -153,11 +163,11 @@ model GameScore {
 }
 
 model EventAttendance {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   groupId   String
   eventId   String
-  createdAt DateTime @default(now())
-  status    String   @default("Pending")
+  createdAt DateTime         @default(now())
+  status    AttendanceStatus @default(PENDING)
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
@@ -174,15 +184,20 @@ model Venue {
   attendees VenueAttendance[]
 }
 
+/// "Going here tonight". `night` is the calendar date the night started on
+/// (VENUE_NIGHT_BOUNDARY = 06:00 Europe/Berlin, see lib/venueNight.ts). One
+/// venue per group per night.
 model VenueAttendance {
   id        String   @id @default(cuid())
   groupId   String
   venueId   String
+  night     DateTime @db.Date
   createdAt DateTime @default(now())
   group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
-  @@unique([groupId, venueId])
+  @@unique([groupId, night])
+  @@index([venueId, night])
 }
 
 model GroupBlock {
@@ -242,6 +257,14 @@ enum ChatOrigin {
   MATCH
   EVENT_ACCESS
   LEGACY
+}
+
+/// Pre-party access request (B8: was free text "Pending"/"PENDING").
+enum AttendanceStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
 }
 
 enum MessageType {

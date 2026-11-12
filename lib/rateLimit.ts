@@ -46,6 +46,11 @@ export const RATE_LIMIT_RULES = {
   // location changes per 24 h, against trilateration by moving your own group.
   // A limit of 0 disables the check in createGroupAction.
   locationChange: { identifier: { limit: LOCATION_CHANGE_LIMIT_PER_DAY, windowSec: 24 * 60 * 60 } },
+  // Pre-party access requests, per requesting group (identifier = group id).
+  eventRequest: { identifier: { limit: 20, windowSec: 60 * 60 } },
+  // Server-side reverse geocoding (GET /api/geocode), per IP. Nominatim itself
+  // is additionally throttled to 1 request/s per process (lib/reverseGeocode.ts).
+  reverseGeocode: { ip: { limit: 30, windowSec: 60 } },
 } satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMIT_RULES;
