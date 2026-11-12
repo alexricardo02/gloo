@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { blockGroupAction } from "@/app/actions/moderation";
-import { getDiscoveryGroups } from "@/app/actions/discoverGroups";
+import { fullDiscoveryFeed } from "./helpers/discovery";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { sessionCookiesFor } from "./helpers/session";
@@ -32,6 +32,7 @@ describe("Moderation & Security Flow (Integration)", () => {
       }}
     });
     userBId = userB.id;
+    groupBId = (await prisma.group.findUnique({ where: { userId: userBId } }))!.id;
 
     // 2. Create a chat between them to enable blocking
     const [hostAId, hostBId] = canonicalPair(userAId, userBId);
@@ -50,8 +51,9 @@ describe("Moderation & Security Flow (Integration)", () => {
     vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(userAId)) as never);
 
     // Verify that BEFORE blocking, User B appears in User A's discovery feed
-    const preBlockFeed = await getDiscoveryGroups({ distance: 10 });
-    const isUserBPresentBefore = preBlockFeed.groups?.some(g => g.userId === userBId);
+    // Cards carry no user ids (S4); match on the group id.
+    const preBlockFeed = await fullDiscoveryFeed(10);
+    const isUserBPresentBefore = preBlockFeed.some(g => g.id === groupBId);
     expect(isUserBPresentBefore).toBe(true);
 
     // Step 2: Execute the Block Action
@@ -59,14 +61,14 @@ describe("Moderation & Security Flow (Integration)", () => {
     expect(blockResult.success).toBe(true);
 
     // Step 3: Verify that AFTER blocking, User B no longer appears
-    const postBlockFeedA = await getDiscoveryGroups({ distance: 10 });
-    const isUserBPresentAfter = postBlockFeedA.groups?.some(g => g.userId === userBId);
+    const postBlockFeedA = await fullDiscoveryFeed(10);
+    const isUserBPresentAfter = postBlockFeedA.some(g => g.id === groupBId);
     expect(isUserBPresentAfter).toBe(false);
 
     // Step 4: Bidirectional isolation (User B should not see User A either)
     vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(userBId)) as never);
-    const postBlockFeedB = await getDiscoveryGroups({ distance: 10 });
-    const isUserAPresentAfter = postBlockFeedB.groups?.some(g => g.userId === userAId);
+    const postBlockFeedB = await fullDiscoveryFeed(10);
+    const isUserAPresentAfter = postBlockFeedB.some(g => g.id === groupAId);
     expect(isUserAPresentAfter).toBe(false);
   });
 });

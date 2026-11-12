@@ -3,21 +3,25 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Heart, MessageCircle, Loader2, Flag, Check } from "lucide-react";
+import { Heart, MessageCircle, Loader2, Flag, Check, MapPin } from "lucide-react";
 import { toggleLike } from "@/app/actions/discoverGroups";
 import { reportGroupByGroupIdAction } from "@/app/actions/moderation";
+import type { DiscoveryGroupDTO } from "@/lib/apiTypes";
 
 interface GroupCardProps {
-  group: any;
+  group: DiscoveryGroupDTO;
 }
 
 export default function GroupCard({ group }: GroupCardProps) {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("Profile");
+  const tSearch = useTranslations("SearchGroups");
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [liked, setLiked] = useState(Boolean(group.likedByCurrentUser));
+  // ALREADY_LIKED = show-with-badge: the server says whether my group already
+  // likes this one, so the heart and badge are right on the first render.
+  const [liked, setLiked] = useState(group.likedByMe);
   const [isAnimating, setIsAnimating] = useState(false);
   // CARD_MESSAGE_BUTTON = only-if-chat-exists: set by the discovery payload or
   // by a like that produced a match.
@@ -146,6 +150,22 @@ export default function GroupCard({ group }: GroupCardProps) {
           <span className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white">
             {group.ageMin}-{group.ageMax}
           </span>
+          <span
+            data-testid="group-card-distance"
+            className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white inline-flex items-center gap-1"
+          >
+            <MapPin size={10} aria-hidden="true" />
+            {group.distanceKm < 1 ? tSearch("distanceUnder1") : tSearch("distanceKm", { km: group.distanceKm })}
+          </span>
+          {liked && (
+            <span
+              data-testid="group-card-liked-badge"
+              className="bg-accent text-on-accent px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 shadow-[0_0_12px_rgba(255,114,94,0.45)]"
+            >
+              <Heart size={10} fill="currentColor" aria-hidden="true" />
+              {tSearch("likedBadge")}
+            </span>
+          )}
         </div>
         <p className="text-sm text-gray-100 line-clamp-3 drop-shadow-md font-medium mt-1">
           {group.description || t("defaultDescription")}

@@ -535,6 +535,7 @@
     "changePasswordGenericError": "Something went wrong. Please try again."
   },
   "CreateGroup": {
+    "locationChangeLimit": "You changed your location too often today. Please try again tomorrow.",
     "title": "Create Group",
     "createGroupButton": "Create Group Profile",
     "uploadPhotos": "Upload group photos",
@@ -617,6 +618,15 @@
     }
   },
   "SearchGroups": {
+    "distanceKm": "{km} km away",
+    "distanceUnder1": "< 1 km away",
+    "likedBadge": "Liked",
+    "teaserNames": {
+      "a": "Sunset Crew",
+      "b": "Rooftop Squad",
+      "c": "Late Night Club",
+      "d": "Weekend Gang"
+    },
     "modalButton": "Set Radius",
     "endOfList": "You've seen all the groups near Mainz.",
     "emptyDesc": "Try increasing your search distance or check back later for new groups.",
@@ -723,6 +733,7 @@
     "sending": "Sending..."
   },
   "Preferences": {
+    "locationChangeLimit": "You changed your location too often today. Please try again tomorrow.",
     "title": "Search Preferences",
     "howItWorksTitle": "How it works",
     "howItWorksDesc": "These filters control which groups you see in the discovery feed. Changes apply immediately after saving.",

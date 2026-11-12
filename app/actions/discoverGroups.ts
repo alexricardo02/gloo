@@ -11,169 +11,90 @@ import { revalidatePath } from "next/cache";
  * development; refuses to run in production without Upstash).
  */
 import { checkRateLimit } from "@/lib/rateLimit";
-import { withImageUrl, withPhotoUrls } from "@/lib/storage";
-import { getBlockSet, isBlockedPair } from "@/lib/blocks";
-import { ensureChat, findChatBetween, getChatIdsWith, lockPair } from "@/lib/chats";
+import { isBlockedPair } from "@/lib/blocks";
+import { ensureChat, findChatBetween, lockPair } from "@/lib/chats";
 import { type ActionResult, fail, ok } from "@/lib/actionResult";
+import { clampDistanceKm } from "@/lib/geo";
+import { InvalidDiscoveryCursorError, queryDiscoveryPage } from "@/lib/discovery";
+import { DISCOVERY_TEASER } from "@/lib/discoveryTeaser";
+import type { DiscoveryFeedPage } from "@/lib/apiTypes";
+
+const discoveryInput = z.object({
+  cursor: z.string().min(1).max(512).optional(),
+  // Clamped, not rejected: getDiscoveryGroups({ distance: 20000 }) searches MAX_DISTANCE_KM.
+  distance: z.number().finite().transform(clampDistanceKm),
+});
+
+export type DiscoveryResult = ActionResult<DiscoveryFeedPage>;
 
 /**
- * Core matching algorithm for the discovery feed.
- * Retrieves nearby groups based on the user's set preferences (age, gender, distance constraint).
- * Utilizes the Haversine formula directly within PostgreSQL via Prisma $queryRaw for highly performant geofencing.
- * Strictly enforces data isolation by excluding the user's own group and all mutually blocked groups.
- * * @param filters - An object containing 'page' (for pagination offset) and 'distance' (search radius in km).
- * @returns A structured array of group profiles authorized for the current user's feed.
+ * Discovery feed (see lib/discovery.ts for the query).
+ *
+ * All filtering runs in one parameterized PostgreSQL query: bounding box,
+ * exact haversine distance (lib/geo.ts), age and gender preferences in both
+ * directions, publicProfile, own group and blocked pairs excluded. Results
+ * are ordered nearest first with keyset pagination; groups I already liked
+ * stay in the feed with `likedByMe: true`.
+ *
+ * Privacy (S4): cards carry a distance rounded to whole km, never
+ * coordinates or user ids. Guests and signed-in users without a group get
+ * `{ hasNoGroup: true, teaser }` with static placeholder cards only (D5).
+ *
+ * @param input.distance - search radius in km, clamped to 1..MAX_DISTANCE_KM.
+ * @param input.cursor - opaque `nextCursor` of the previous page.
+ * @returns VALIDATION for a malformed distance or an invalid/stale cursor.
  */
-export async function getDiscoveryGroups({
-  cursor,
-  distance,
-  isPartyMode = false,
-}: {
-  cursor?: string;
-  distance: number;
-  isPartyMode?: boolean;
-}) {
-  const userId = await getOptionalUserId();
+export async function getDiscoveryGroups(input: { cursor?: string; distance: number }): Promise<DiscoveryResult> {
+  const parsed = discoveryInput.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION");
+  const { cursor, distance } = parsed.data;
 
-  if (!userId) return { error: "Unauthorized" };
+  const teaser = () => ok<DiscoveryFeedPage>({ hasNoGroup: true, teaser: [...DISCOVERY_TEASER] });
 
   try {
-    const userGroup = await prisma.group.findUnique({ where: { userId } });
-    if (!userGroup || userGroup.latitude === null || userGroup.longitude === null) {
-      return { groups: [] };
+    const userId = await getOptionalUserId();
+    if (!userId) return teaser();
+
+    const myGroup = await prisma.group.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        latitude: true,
+        longitude: true,
+        gender: true,
+        searchGender: true,
+        ageMin: true,
+        ageMax: true,
+        searchAgeMin: true,
+        searchAgeMax: true,
+      },
+    });
+    if (!myGroup) return teaser();
+    if (myGroup.latitude === null || myGroup.longitude === null) {
+      return ok<DiscoveryFeedPage>({ hasNoGroup: false, groups: [], nextCursor: null });
     }
 
-    function getDistanceKm(
-      lat1: number,
-      lon1: number,
-      lat2: number,
-      lon2: number,
-    ) {
-      const toRad = (deg: number) => (deg * Math.PI) / 180;
-      const R = 6371;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    const rawGroups = await prisma.group.findMany({
-      where: {
-        userId: { not: userId },
-        isPartyMode: isPartyMode,
-        publicProfile: true,
-        gender:
-          userGroup.searchGender === "MIXED"
-            ? undefined
-            : userGroup.searchGender,
-
-        OR: [{ searchGender: "MIXED" }, { searchGender: userGroup.gender }],
-        latitude: {
-          gte: userGroup.latitude - distance / 111,
-          lte: userGroup.latitude + distance / 111,
-        },
-        longitude: {
-          gte: userGroup.longitude - distance / 111,
-          lte: userGroup.longitude + distance / 111,
-        },
+    const page = await queryDiscoveryPage(
+      {
+        userId,
+        groupId: myGroup.id,
+        latitude: myGroup.latitude,
+        longitude: myGroup.longitude,
+        gender: myGroup.gender,
+        searchGender: myGroup.searchGender,
+        ageMin: myGroup.ageMin,
+        ageMax: myGroup.ageMax,
+        searchAgeMin: myGroup.searchAgeMin,
+        searchAgeMax: myGroup.searchAgeMax,
       },
-      // Prisma's where clause applies a rectangular bounding box (lat/lon range),
-      // not a true circular radius. We overfetch up to 100 candidates, then apply
-      // precise Haversine filtering in JS below. 100 balances coverage vs. memory.
-      take: 100,
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: {
-          select: { id: true, name: true, image: true },
-        },
-      },
-    });
-
-    const filteredGroups = rawGroups
-      .map((group) => ({
-        ...group,
-        distance: getDistanceKm(
-          userGroup.latitude ?? 0,
-          userGroup.longitude ?? 0,
-          group.latitude ?? 0,
-          group.longitude ?? 0,
-        ),
-      }))
-      .filter((group) => {
-        if (group.distance > distance) return false;
-
-        // Both age preferences must overlap for matching to make sense.
-        // Showing a group that doesn't want to meet your age range would cause
-        // rejected interactions — the filter must be enforced in both directions.
-        const matchesYourAgePref =
-          userGroup.searchAgeMin == null || userGroup.searchAgeMax == null
-            ? true
-            : group.ageMax >= userGroup.searchAgeMin &&
-              group.ageMin <= userGroup.searchAgeMax;
-
-        const matchesTheirAgePref =
-          group.searchAgeMin == null || group.searchAgeMax == null
-            ? true
-            : userGroup.ageMax >= group.searchAgeMin &&
-              userGroup.ageMin <= group.searchAgeMax;
-
-        return matchesYourAgePref && matchesTheirAgePref;
-      });
-
-    const likedGroupRecords = await prisma.groupLike.findMany({
-      where: { fromGroupId: userGroup.id },
-      select: { toGroupId: true },
-    });
-
-    const likedGroupIds = new Set(
-      likedGroupRecords.map((like) => like.toGroupId),
+      distance,
+      cursor,
     );
-
-    const { groupIds: allBlockedGroupIds } = await getBlockSet(userId);
-
-    const mutualLikeRecords = await prisma.groupLike.findMany({
-      where: {
-        fromGroupId: { in: filteredGroups.map((group) => group.id) },
-        toGroupId: userGroup.id,
-      },
-      select: { fromGroupId: true },
-    });
-    const mutualLikeGroupIds = new Set(
-      mutualLikeRecords.map((like) => like.fromGroupId),
-    );
-
-    const startIndex = cursor
-    ? filteredGroups.findIndex((g) => g.id === cursor) + 1
-    : 0;
-
-    const limit = 10;
-
-    const pageSlice = filteredGroups
-    .filter((group) => !allBlockedGroupIds.has(group.id))
-    .slice(startIndex, startIndex + limit);
-
-    const nextCursor = pageSlice.length === limit ? pageSlice[pageSlice.length - 1].id : null;
-
-    const chatIds = await getChatIdsWith(userId, pageSlice.map((group) => group.userId));
-
-    const groups = pageSlice.map((group) => ({
-      ...withPhotoUrls(group),
-      user: withImageUrl(group.user),
-      createdAt: group.createdAt.toISOString(),
-      updatedAt: group.updatedAt.toISOString(),
-      likedByCurrentUser: likedGroupIds.has(group.id),
-      isMutualLike: mutualLikeGroupIds.has(group.id),
-      // CARD_MESSAGE_BUTTON = only-if-chat-exists: the card shows "go to chat" only when set.
-      chatId: chatIds.get(group.userId) ?? null,
-    }));
-
-    return { groups, nextCursor };
+    return ok<DiscoveryFeedPage>({ hasNoGroup: false, ...page });
   } catch (error) {
+    if (error instanceof InvalidDiscoveryCursorError) return fail("VALIDATION", "staleCursor");
     console.error("Critical error in getDiscoveryGroups:", error);
-    return { error: "Failed to fetch groups" };
+    return fail("INTERNAL");
   }
 }
 

@@ -519,6 +519,7 @@
     "changePasswordGenericError": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
   },
   "CreateGroup": {
+    "locationChangeLimit": "Du hast deinen Standort heute zu oft geändert. Bitte versuche es morgen erneut.",
     "title": "Gruppe erstellen",
     "createGroupButton": "Gruppenprofil erstellen",
     "uploadPhotos": "Gruppenfotos hochladen",
@@ -601,6 +602,15 @@
     }
   },
   "SearchGroups": {
+    "distanceKm": "{km} km entfernt",
+    "distanceUnder1": "< 1 km entfernt",
+    "likedBadge": "Geliked",
+    "teaserNames": {
+      "a": "Sonnenuntergang-Crew",
+      "b": "Dachterrassen-Truppe",
+      "c": "Nachteulen-Club",
+      "d": "Wochenend-Gang"
+    },
     "modalButton": "Radius einstellen",
     "endOfList": "Du hast alle Party-Gruppen in der Nähe von Mainz gesehen.",
     "emptyDesc": "Versuche deinen Suchradius zu erweitern oder schau später wieder vorbei.",
@@ -707,6 +717,7 @@
     "sending": "Wird gesendet..."
   },
   "Preferences": {
+    "locationChangeLimit": "Du hast deinen Standort heute zu oft geändert. Bitte versuche es morgen erneut.",
     "title": "Sucheinstellungen",
     "howItWorksTitle": "Wie es funktioniert",
     "howItWorksDesc": "Diese Filter steuern, welche Gruppen du im Entdecken-Feed siehst. Änderungen werden sofort nach dem Speichern angewendet.",

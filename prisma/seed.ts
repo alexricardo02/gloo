@@ -1,5 +1,6 @@
 import { Gender, Role } from '@prisma/client'
 import { prisma } from '../lib/prisma'
+import { coarsenCoordinate } from '../lib/geo'
 
 // 1. Defined Groups and Users Data
 const GROUPS = [
@@ -143,14 +144,18 @@ async function main() {
       },
     });
 
+    // S4: group coordinates are stored coarsened (lib/geo.ts), like createGroupAction does.
+    const groupData = {
+      ...data.group,
+      latitude: coarsenCoordinate(data.group.latitude),
+      longitude: coarsenCoordinate(data.group.longitude),
+    };
     const group = await prisma.group.upsert({
       where: { userId: user.id },
-      update: {
-        ...data.group
-      },
+      update: groupData,
       create: {
         userId: user.id,
-        ...data.group,
+        ...groupData,
       },
     });
 

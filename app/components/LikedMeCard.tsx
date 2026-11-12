@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Heart, MessageCircle, MapPin } from "lucide-react";
 import { toggleLike } from "@/app/actions/discoverGroups";
 import type { LikedMeGroupDTO } from "@/lib/apiTypes";
@@ -18,6 +18,7 @@ interface LikedMeCardProps {
 export default function LikedMeCard({ group, onLikeChange }: LikedMeCardProps) {
   const router = useRouter();
   const locale = useLocale();
+  const tSearch = useTranslations("SearchGroups");
   const [liked, setLiked] = useState(Boolean(group.likedByCurrentUser));
   const [isAnimating, setIsAnimating] = useState(false);
   const [chatId, setChatId] = useState<string | null>(group.chatId ?? null);
@@ -87,6 +88,15 @@ export default function LikedMeCard({ group, onLikeChange }: LikedMeCardProps) {
           <span className="text-[10px] text-muted-foreground font-bold">
             {group.ageMin}–{group.ageMax}
           </span>
+          {group.distanceKm !== null && (
+            <span
+              data-testid="liked-me-distance"
+              className="text-[10px] text-muted-foreground font-bold inline-flex items-center gap-0.5"
+            >
+              <MapPin size={10} aria-hidden="true" />
+              {group.distanceKm < 1 ? tSearch("distanceUnder1") : tSearch("distanceKm", { km: group.distanceKm })}
+            </span>
+          )}
         </div>
         {group.description && (
           <p className="text-xs text-muted-foreground line-clamp-1 mt-1">

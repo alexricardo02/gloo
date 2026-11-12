@@ -239,6 +239,7 @@
     "restart": "Joueur Suivant"
   },
   "Preferences": {
+    "locationChangeLimit": "Tu as changé ta position trop souvent aujourd'hui. Réessaie demain.",
     "title": "Préférences de recherche",
     "howItWorksTitle": "Comment ça marche",
     "howItWorksDesc": "Ces filtres contrôlent les groupes que vous voyez. Les modifications s'appliquent immédiatement après l'enregistrement.",
@@ -403,6 +404,7 @@
     "changePasswordGenericError": "Une erreur est survenue. Veuillez réessayer."
   },
   "CreateGroup": {
+    "locationChangeLimit": "Tu as changé ta position trop souvent aujourd'hui. Réessaie demain.",
     "title": "Créer un Groupe",
     "createGroupButton": "Créer un Profil de Groupe",
     "uploadPhotos": "Télécharger des photos du groupe",
@@ -485,6 +487,15 @@
     }
   },
   "SearchGroups": {
+    "distanceKm": "à {km} km",
+    "distanceUnder1": "à < 1 km",
+    "likedBadge": "Aimé",
+    "teaserNames": {
+      "a": "Crew du Couchant",
+      "b": "Bande du Rooftop",
+      "c": "Club des Noctambules",
+      "d": "Gang du Week-end"
+    },
     "modalButton": "Définir le rayon",
     "endOfList": "Vous avez vu tous les groupes près de Mayence.",
     "emptyDesc": "Essayez d'augmenter votre distance de recherche ou revenez plus tard.",

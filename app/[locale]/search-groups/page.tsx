@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import Navigation from "@/app/components/Navigation";
 import GroupCard from "@/app/components/GroupCard";
+import TeaserCard from "@/app/components/TeaserCard";
 import { getDiscoveryGroups } from "@/app/actions/discoverGroups";
 import { getGroupByUser } from "@/app/actions/group";
 import { checkIsGuest } from "@/app/actions/guest";
@@ -18,19 +19,22 @@ import {
 } from "lucide-react";
 import GuestPaywall from "@/app/components/GuestPaywall";
 import PageHeader from "@/app/components/PageHeader";
+import type { DiscoveryGroupDTO, DiscoveryTeaserCardDTO } from "@/lib/apiTypes";
+
+const DEFAULT_RADIUS_KM = 10;
 
 export default function PrePartyPage() {
   const locale = useLocale();
   const t = useTranslations("SearchGroups");
   const dashboardT = useTranslations("Dashboard");
 
-  type DiscoveryGroup = { id: string } & Record<string, unknown>;
-  const [groups, setGroups] = useState<DiscoveryGroup[]>([]);
-  const [distance, setDistance] = useState(10);
+  const [groups, setGroups] = useState<DiscoveryGroupDTO[]>([]);
+  // D5: placeholder cards for guests and users without a group (no real data).
+  const [teaser, setTeaser] = useState<DiscoveryTeaserCardDTO[]>([]);
+  const [distance, setDistance] = useState(DEFAULT_RADIUS_KM);
 
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [cursor, setCursor] = useState<string | null>(null);
 
   const [isDistanceModalOpen, setIsDistanceModalOpen] = useState(false);
   const [tempDistance, setTempDistance] = useState(distance);
@@ -43,12 +47,68 @@ export default function PrePartyPage() {
 
   const [isReady, setIsReady] = useState(false);
 
+  const lastGroupElementRef = useRef<HTMLDivElement | null>(null);
+
+  // B3: pagination state lives in refs so the observer and overlapping
+  // requests always see the latest values. Every reset bumps requestIdRef;
+  // responses of older requests are dropped, so a slow first page can never
+  // be appended after (or on top of) a newer one.
+  const requestIdRef = useRef(0);
+  const inFlightRef = useRef(false);
+  const cursorRef = useRef<string | null>(null);
+  const hasMoreRef = useRef(true);
+
+  const loadPage = useCallback(async (radius: number, reset: boolean) => {
+    if (!reset && (inFlightRef.current || !hasMoreRef.current)) return;
+    const requestId = ++requestIdRef.current;
+    inFlightRef.current = true;
+    if (reset) cursorRef.current = null;
+    setLoading(true);
+
+    try {
+      const result = await getDiscoveryGroups({
+        distance: radius,
+        cursor: cursorRef.current ?? undefined,
+      });
+      if (requestId !== requestIdRef.current) return;
+
+      // An invalid or stale cursor ends the feed; it never restarts it.
+      const page = result.ok ? result.data : null;
+      if (!page || page.hasNoGroup) {
+        cursorRef.current = null;
+        hasMoreRef.current = false;
+        setHasMore(false);
+        if (page?.hasNoGroup) {
+          setGroups([]);
+          setTeaser(page.teaser);
+        } else if (reset) {
+          setGroups([]);
+        }
+        return;
+      }
+
+      setTeaser([]);
+      setGroups((prev) => (reset ? page.groups : [...prev, ...page.groups]));
+      cursorRef.current = page.nextCursor;
+      hasMoreRef.current = page.nextCursor !== null;
+      setHasMore(page.nextCursor !== null);
+    } catch (error) {
+      console.error("Error loading discovery feed:", error);
+    } finally {
+      if (requestId === requestIdRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     async function init() {
       const guestStatus = await checkIsGuest();
       setIsGuest(guestStatus);
 
       const savedDistance = localStorage.getItem("gloo_search_radius");
+      let radius = DEFAULT_RADIUS_KM;
 
       if (!guestStatus) {
         const userGroup = await getGroupByUser();
@@ -58,49 +118,41 @@ export default function PrePartyPage() {
         } else {
           setHasNoGroup(false);
           if (savedDistance) {
-            setDistance(Number(savedDistance));
-            setTempDistance(Number(savedDistance));
+            radius = Number(savedDistance);
+            setDistance(radius);
+            setTempDistance(radius);
           } else {
             const defaultDistance = userGroup.maxDistance || 10;
+            radius = defaultDistance;
             setDistance(defaultDistance);
             setTempDistance(defaultDistance);
           }
         }
       } else {
         if (savedDistance) {
-          setDistance(Number(savedDistance));
-          setTempDistance(Number(savedDistance));
+          radius = Number(savedDistance);
+          setDistance(radius);
+          setTempDistance(radius);
         }
       }
       setIsReady(true);
+      // First page only once the saved radius is known (B3: no second,
+      // overlapping "first page" request with the default radius).
+      void loadPage(radius, true);
     }
     init();
-  }, []);
-
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const lastGroupElementRef = useRef<HTMLDivElement | null>(null);
+  }, [loadPage]); // loadPage is stable: runs once on mount.
 
   useEffect(() => {
-    fetchGroups(true);
-  }, [distance, isGuest]);
+    const lastCard = lastGroupElementRef.current;
+    if (loading || hasNoGroup || !hasMore || !lastCard) return;
 
-  useEffect(() => {
-    if (loading || hasNoGroup) return;
-
-    if (observerRef.current) observerRef.current.disconnect();
-
-    observerRef.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore) {
-        fetchGroups();
-      }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) void loadPage(distance, false);
     });
-
-    if (lastGroupElementRef.current) {
-      observerRef.current.observe(lastGroupElementRef.current);
-    }
-
-    return () => observerRef.current?.disconnect();
-  }, [loading, hasMore, groups, hasNoGroup]);
+    observer.observe(lastCard);
+    return () => observer.disconnect();
+  }, [loading, hasMore, groups, hasNoGroup, distance, loadPage]);
 
   const handleInteractionAttempt = () => {
     if (isGuest) {
@@ -110,29 +162,6 @@ export default function PrePartyPage() {
     }
   };
 
-  async function fetchGroups(reset = false) {
-    if (loading || (!hasMore && !reset)) return;
-    setLoading(true);
-
-    try {
-      const response = await getDiscoveryGroups({
-        cursor: reset ? undefined : cursor ?? undefined,
-        distance: tempDistance,
-      });
-
-      if (response.error === "Unauthorized") { setGroups([]); setLoading(false); return; }
-
-
-      if (response.groups) {
-      setGroups((prev) => reset ? response.groups : [...prev, ...response.groups]);
-      setHasMore(!!response.nextCursor);
-      setCursor(response.nextCursor ?? null);
-    }
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const openDistanceModal = () => {
     setTempDistance(distance);
     setIsDistanceModalOpen(true);
@@ -141,10 +170,9 @@ export default function PrePartyPage() {
   const applyDistance = () => {
     setDistance(tempDistance);
     localStorage.setItem("gloo_search_radius", tempDistance.toString());
+    void loadPage(tempDistance, true);
 
     setIsDistanceModalOpen(false);
-    setCursor(null);
-    setHasMore(true);
   };
 
   return (
@@ -190,7 +218,17 @@ export default function PrePartyPage() {
           );
         })}
 
-        {!loading && groups.length === 0 && (
+        {teaser.map((card) => (
+          <div
+            key={card.id}
+            className="h-full w-full snap-center snap-always relative pb-24 blur-xl select-none"
+            aria-hidden="true"
+          >
+            <TeaserCard card={card} />
+          </div>
+        ))}
+
+        {!loading && groups.length === 0 && teaser.length === 0 && (
           <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center snap-center pb-24">
             <div className="w-20 h-20 bg-card rounded-full border border-border flex items-center justify-center mb-6">
               <MapPin size={32} className="text-primary" />

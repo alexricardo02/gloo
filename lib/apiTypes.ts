@@ -8,6 +8,7 @@
  * participant is never exposed (READ_RECEIPTS = no).
  */
 import type { Gender, SystemMessageKey } from "@prisma/client";
+import type { ApproximateArea } from "@/lib/geo";
 
 /** A message written by a user. `isOwn` is false for the partner and for deleted accounts. */
 export type UserChatMessage = {
@@ -76,7 +77,12 @@ export type UnreadSummary = {
 
 // ── GET /api/likes ──────────────────────────────────────────────────────
 
-/** One group that liked the caller's group (no user ids). */
+/**
+ * One group that liked the caller's group. No user ids and no coordinates
+ * (S4): `distanceKm` is rounded to whole km (0 = "< 1 km"; null when either
+ * group has no location) and `area` is an approximate ~1 km circle around the
+ * group's coarsened point (LIKED_ME_MAP = approximate-circles).
+ */
 export type LikedMeGroupDTO = {
   id: string;
   user: { name: string; image: string | null; username: string | null };
@@ -86,14 +92,57 @@ export type LikedMeGroupDTO = {
   gender: Gender;
   ageMin: number;
   ageMax: number;
-  latitude: number | null;
-  longitude: number | null;
+  distanceKm: number | null;
+  area: ApproximateArea | null;
   createdAt: string;
   likedByCurrentUser: boolean;
   isMutualLike: boolean;
   /** Existing chat with this group's host (match-only: no chat, no button). */
   chatId: string | null;
 };
+
+// ── Discovery feed (server action getDiscoveryGroups) ───────────────────
+
+/**
+ * One discovery card. The group id is the only id (needed to like and
+ * report); no user ids and no coordinates (S4).
+ */
+export type DiscoveryGroupDTO = {
+  id: string;
+  user: { name: string; image: string | null; username: string | null };
+  photos: string[];
+  description: string | null;
+  membersCount: number;
+  gender: Gender;
+  ageMin: number;
+  ageMax: number;
+  /** DISTANCE_DISPLAY = rounded-km: whole km, 0 = "< 1 km". */
+  distanceKm: number;
+  /** ALREADY_LIKED = show-with-badge: my group already likes this group. */
+  likedByMe: boolean;
+  /** Existing chat with this group's host (CARD_MESSAGE_BUTTON = only-if-chat-exists). */
+  chatId: string | null;
+};
+
+/**
+ * GUEST_TEASER = static-placeholders: invented cards for guests and users
+ * without a group. No real data; `nameKey` is a key of
+ * SearchGroups.teaserNames, `tone` picks a neutral gradient.
+ */
+export type DiscoveryTeaserCardDTO = {
+  id: string;
+  nameKey: "a" | "b" | "c" | "d";
+  tone: number;
+  membersCount: number;
+  gender: Gender;
+  ageMin: number;
+  ageMax: number;
+  distanceKm: number;
+};
+
+export type DiscoveryFeedPage =
+  | { hasNoGroup: false; groups: DiscoveryGroupDTO[]; nextCursor: string | null }
+  | { hasNoGroup: true; teaser: DiscoveryTeaserCardDTO[] };
 
 // ── GET /api/map ────────────────────────────────────────────────────────
 
