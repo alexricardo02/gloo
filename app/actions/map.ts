@@ -1,57 +1,12 @@
 "use server";
 
+/**
+ * Map writes. Reads (venues, events, my event) are served by GET /api/map
+ * (lib/mapData.ts) so the map can poll without queueing server actions.
+ */
+
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { getOptionalUserId } from "@/lib/session";
-import { withPhotoUrls } from "@/lib/storage";
-
-export async function getMapSession() {
-  const userId = await getOptionalUserId();
-  if (!userId) return null;
-
-  const group = await prisma.group.findUnique({ where: { userId } });
-  return { userId, groupId: group?.id || null };
-}
-
-export async function getVenues() {
-  try {
-    const venues = await prisma.venue.findMany({
-      include: {
-        attendees: {
-          include: {
-            group: {
-              select: {
-                id: true,
-                membersCount: true,
-                gender: true,
-                photos: true,
-                user: {
-                  select: {
-                    name: true,
-                    username: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return venues.map((venue) => ({
-      ...venue,
-      createdAt: venue.createdAt.toISOString(),
-      attendees: venue.attendees.map((a) => ({
-        ...a,
-        group: withPhotoUrls(a.group),
-        createdAt: a.createdAt.toISOString(),
-      })),
-    }));
-  } catch (error) {
-    console.error("Error fetching venues:", error);
-    return [];
-  }
-}
 
 export async function toggleVenueAttendance(venueId: string) {
   const userId = await getOptionalUserId();
@@ -151,59 +106,6 @@ export async function stopPreParty() {
   } catch (error) {
     console.error("Error stopping pre-party:", error);
     return { error: "Error stopping pre-party" };
-  }
-}
-
-export async function getActiveEvents() {
-  const cookieStore = await cookies();
-  const isGuest = cookieStore.get("gloo_is_guest")?.value === "true";
-  // Pre-party pins show approximate real-world addresses. Exposing them to
-  // unauthenticated users would be a privacy risk for hosts, so guests are
-  // blocked at the data layer, not just the UI layer.
-  if (isGuest) return [];
-
-  const now = new Date();
-  try {
-    const events = await prisma.event.findMany({
-      where: { endTime: { gt: now } },
-      include: {
-        owner: { select: { name: true, group: true } },
-        attendees: {
-          include: {
-            group: {
-              select: {
-                id: true,
-                membersCount: true,
-                photos: true,
-                gender: true,
-                user: { select: { name: true, username: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-    return events.map((event) => ({
-      ...event,
-      owner: { ...event.owner, group: withPhotoUrls(event.owner.group) },
-      attendees: event.attendees.map((a) => ({ ...a, group: withPhotoUrls(a.group) })),
-    }));
-  } catch (error) {
-    return [];
-  }
-}
-
-export async function getMyActiveEvent() {
-  const userId = await getOptionalUserId();
-  if (!userId) return null;
-
-  const now = new Date();
-  try {
-    return await prisma.event.findFirst({
-      where: { ownerId: userId, endTime: { gt: now } },
-    });
-  } catch (error) {
-    return null;
   }
 }
 

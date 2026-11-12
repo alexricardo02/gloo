@@ -17,18 +17,7 @@ vi.mock("next/headers", () => {
   };
 });
 
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    storage: {
-      from: vi.fn().mockReturnValue({
-        remove: vi.fn().mockResolvedValue({ data: null, error: null }),
-      })
-    }
-  }
-}));
-
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://dummy.supabase.co";
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "dummy-key";
 
 describe.skip("Account Deletion - ST0-122", () => {
   let prisma: PrismaClient;

@@ -49,7 +49,7 @@ function create(rawUrl) {
   }
 }
 
-function prepare(rawUrl) {
+async function prepare(rawUrl) {
   // NOTE: uses `db push` (not `migrate deploy`) because prisma/migrations
   // currently drifts from schema.prisma; see README → Testing.
   // No --accept-data-loss: if a change would drop data, Prisma stops and you
@@ -61,14 +61,21 @@ function prepare(rawUrl) {
     // Explicit URLs so prisma.config.ts' dotenv can never fall back to .env.
     env: { ...process.env, DATABASE_URL: rawUrl, DIRECT_URL: rawUrl },
   });
-  process.exit(result.status ?? 1);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+
+  // `db push` never runs raw-SQL migrations: apply the deny-all RLS migration
+  // so tests run against the same lockdown as production.
+  const { applyRlsLockdown } = await import("../tests/applyRlsLockdown.ts");
+  await applyRlsLockdown(rawUrl);
+  console.log("[test-db] Applied the deny-all RLS migration.");
+  process.exit(0);
 }
 
 const command = process.argv[2];
 try {
   const testDbUrl = resolveTestDbUrl();
   if (command === "create") create(testDbUrl);
-  else if (command === "prepare") prepare(testDbUrl);
+  else if (command === "prepare") await prepare(testDbUrl);
   else {
     console.error("Usage: node scripts/test-db.mjs <create|prepare>");
     process.exit(1);

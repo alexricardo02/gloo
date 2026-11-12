@@ -17,7 +17,7 @@ import {
   UnauthorizedError,
 } from "@/lib/session";
 import { logOutAction } from "@/app/actions/auth";
-import { getMapSession } from "@/app/actions/map";
+import { fetchUnread } from "./helpers/api";
 import { createTestSession, fakeCookieStore } from "./helpers/session";
 
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
@@ -26,7 +26,6 @@ vi.mock("next/navigation", () => ({
     throw new Error(`NEXT_REDIRECT:${url}`);
   }),
 }));
-vi.mock("@/lib/supabase", () => ({ supabase: { storage: { from: vi.fn() } } }));
 
 const DOMAIN = "@session-integration.test";
 let userId: string;
@@ -98,8 +97,8 @@ describe("Server-side sessions (integration)", () => {
   it("gives NO access with the old gloo_user_id cookie, even with a real user id", async () => {
     setCookies({ gloo_user_id: userId });
     expect(await getOptionalUserId()).toBeNull();
-    // A real action behind the boundary sees an anonymous caller.
-    expect(await getMapSession()).toBeNull();
+    // A real route handler behind the boundary sees an anonymous caller.
+    expect((await fetchUnread()).status).toBe(401);
   });
 
   it("rejects and deletes an expired session", async () => {

@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { sendMessage, getChatMessages } from "@/app/actions/chat"; 
+import { sendMessage } from "@/app/actions/chat";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { sessionCookiesFor } from "./helpers/session";
+import { fetchMessages } from "./helpers/api";
 import { canonicalPair } from "@/lib/chats";
 
 vi.mock("next/headers", () => ({
@@ -53,10 +54,10 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
     expect(sendResult.ok).toBe(true);
 
     // Standard Requirement: Retrieving messages must return the data
-    const messagesResult = await getChatMessages(sharedChatId);
-    if (!messagesResult.ok) throw new Error(`expected ok, got ${messagesResult.code}`);
-    expect(messagesResult.data.messages.length).toBeGreaterThan(0);
-    expect(messagesResult.data.messages[0].text).toBe("Hello securely!");
+    const messagesResult = await fetchMessages(sharedChatId);
+    expect(messagesResult.status).toBe(200);
+    expect(messagesResult.body.messages.length).toBeGreaterThan(0);
+    expect(messagesResult.body.messages[0]).toMatchObject({ type: "USER", text: "Hello securely!", isOwn: true });
   });
 
   it("SECURITY BOUNDARY: should strictly block non-participants from reading messages", async () => {
@@ -64,8 +65,9 @@ describe("Chat Security & Data Boundaries (Integration)", () => {
     vi.mocked(cookies).mockResolvedValue((await sessionCookiesFor(hackerUserId)) as never);
 
     // Standard Requirement: Access must be explicitly denied (Horizontal Privilege Escalation prevention)
-    const messagesResult = await getChatMessages(sharedChatId);
-    expect(messagesResult).toEqual({ ok: false, code: "NOT_FOUND", messageKey: "blockedChatError" });
+    const messagesResult = await fetchMessages(sharedChatId);
+    expect(messagesResult.status).toBe(404);
+    expect(messagesResult.body).toEqual({ error: "NOT_FOUND" });
   });
 
   it("SECURITY BOUNDARY: should strictly block non-participants from sending messages", async () => {

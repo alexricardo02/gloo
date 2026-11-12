@@ -7,68 +7,19 @@ import "leaflet/dist/leaflet.css";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
-  getVenues, toggleVenueAttendance, getActiveEvents, getMyActiveEvent,
-  startPreParty, stopPreParty, getMapSession, requestEventAttendance,
+  toggleVenueAttendance, startPreParty, stopPreParty, requestEventAttendance,
   respondToEventRequest
 } from "../actions/map";
 import { openExistingChat } from "../actions/chat";
 import { Check, Users, Flame, X, Clock, MessageCircle, MapPinOff, RefreshCw } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import GuestPaywall from "./GuestPaywall";
+import { usePolling } from "@/lib/usePolling";
+import { getJson } from "@/lib/apiClient";
+import { SLOW_POLL_MS } from "@/lib/liveUpdates";
+import type { MapDataDTO, MapEventDTO, VenueDTO } from "@/lib/apiTypes";
 
-interface EventAttendance {
-  id: string;
-  status: string;
-  groupId: string;
-  group: AttendeeGroup;
-}
-
-interface GroupUser {
-  name: string;
-  username: string;
-}
-
-interface AttendeeGroup {
-  id: string;
-  membersCount: number;
-  gender: string;
-  photos: string[];
-  user: GroupUser;
-}
-
-interface VenueAttendance {
-  id: string;
-  groupId: string;
-  group: AttendeeGroup;
-}
-
-interface Venue {
-  id: string;
-  name: string;
-  type: string;
-  latitude: number;
-  longitude: number;
-  attendees: VenueAttendance[];
-}
-
-interface PrePartyEvent {
-  id: string;
-  title: string;
-  description: string | null;
-  locationName: string;
-  latitude: number;
-  longitude: number;
-  endTime: string | Date;
-  ownerId: string;
-  attendees: EventAttendance[];
-  owner: {
-    name: string;
-    group: {
-      id: string;
-      membersCount: number;
-    } | null;
-  };
-}
+type Venue = VenueDTO;
+type PrePartyEvent = MapEventDTO;
 
 export default function MapDisplay() {
   const t = useTranslations("Map");
@@ -79,12 +30,21 @@ export default function MapDisplay() {
   const centerPosition: [number, number] = [49.9929, 8.2473]; // Mainz Central Coordinates
 
   const [showPaywall, setShowPaywall] = useState(false);
-  const [userPosition, setUserPosition] = useState<[number, number]>(centerPosition);
+  // Last known position from a previous visit (MapDisplay is client-only: ssr: false).
+  const [userPosition, setUserPosition] = useState<[number, number]>(() => {
+    try {
+      const lat = parseFloat(localStorage.getItem("gloo_user_lat") ?? "");
+      const lng = parseFloat(localStorage.getItem("gloo_user_lng") ?? "");
+      if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+    } catch {
+      // ignore storage error
+    }
+    return centerPosition;
+  });
   const [locationName, setLocationName] = useState<string>(t("mainzLocation"));
-  const [session, setSession] = useState<{ userId: string, groupId: string | null } | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [preParties, setPreParties] = useState<PrePartyEvent[]>([]);
-  const [myEvent, setMyEvent] = useState<PrePartyEvent | null>(null);
+  const [myEvent, setMyEvent] = useState<MapDataDTO["myEvent"]>(null);
   const [loadingActionId, setLoadingActionId] = useState<string | null>(null);
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -99,19 +59,18 @@ export default function MapDisplay() {
   const [geoError, setGeoError] = useState<number | null>(null);
   const [isLocating, setIsLocating] = useState(false);
 
-  const loadMapData = async () => {
+  // P2: no realtime-triggered reloads. One request (GET /api/map, loaders run
+  // in parallel on the server) every SLOW_POLL_MS while the page is visible,
+  // on focus, and right after the user's own map actions (loadMapData()).
+  const loadMapData = usePolling(async (signal) => {
     if (isGuest) {
       setShowPaywall(true);
     }
-    const sess = await getMapSession();
-    setSession(sess);
-    const venuesData = await getVenues();
-    setVenues(venuesData as Venue[]);
-    const partiesData = await getActiveEvents();
-    setPreParties(partiesData as PrePartyEvent[]);
-    const myActive = await getMyActiveEvent();
-    setMyEvent(myActive as PrePartyEvent | null);
-  };
+    const data = await getJson<MapDataDTO>("/api/map", signal);
+    setVenues(data.venues);
+    setPreParties(data.events);
+    setMyEvent(data.myEvent);
+  }, SLOW_POLL_MS);
 
   const requestLocation = () => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -183,69 +142,18 @@ export default function MapDisplay() {
   };
 
   useEffect(() => {
-    loadMapData();
-
-    if (typeof window !== "undefined") {
-      try {
-        const cachedLat = localStorage.getItem("gloo_user_lat");
-        const cachedLng = localStorage.getItem("gloo_user_lng");
-        if (cachedLat && cachedLng) {
-          const lat = parseFloat(cachedLat);
-          const lng = parseFloat(cachedLng);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            setUserPosition([lat, lng]);
-          }
-        }
-      } catch {
-        // ignore storage error
-      }
-    }
-
     requestLocation();
   }, []);
 
   useEffect(() => {
-    // We listen to ANY changes on the EventAttendance table.
-    // When someone requests access (INSERT), gets accepted (UPDATE), or rejected (DELETE),
-    // we trigger a silent background reload of the map data.
-    const attendanceChannel = supabase
-      .channel("map_event_attendance_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "EventAttendance" },
-        () => {
-          console.log("Realtime update: EventAttendance changed. Reloading map data...");
-          loadMapData();
-        }
-      )
-      .subscribe();
-
-    // Also listen to new Events being created or deleted
-    const eventChannel = supabase
-      .channel("map_event_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "Event" },
-        () => {
-          console.log("Realtime update: Events changed. Reloading map data...");
-          loadMapData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(attendanceChannel);
-      supabase.removeChannel(eventChannel);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!myEvent) return;
+    const endTime = myEvent?.endTime;
+    if (!endTime) return;
     const interval = setInterval(() => {
-      const diff = new Date(myEvent.endTime).getTime() - new Date().getTime();
+      const diff = new Date(endTime).getTime() - new Date().getTime();
       if (diff <= 0) {
         setTimeLeft("00:00:00");
         loadMapData();
+        clearInterval(interval);
       } else {
         const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -253,7 +161,7 @@ export default function MapDisplay() {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [myEvent]);
+  }, [myEvent, loadMapData]);
 
 
   // Custom DivIcon generator to render clean Tailwind circles instead of default image flags
@@ -281,7 +189,7 @@ export default function MapDisplay() {
     const result = await toggleVenueAttendance(venueId);
 
     if (result && 'success' in result && result.success) {
-      await loadMapData();
+      loadMapData();
     } else if (result && 'error' in result && result.error) {
 
       const authErrors = ["Not authorized", "Group required", "Gruppe erforderlich", "Nicht autorisiert"];
@@ -316,7 +224,7 @@ export default function MapDisplay() {
     } else {
       setPartyDescription("");
       setIsSheetOpen(false);
-      await loadMapData();
+      loadMapData();
     }
 
     setIsProcessingParty(false);
@@ -327,7 +235,7 @@ export default function MapDisplay() {
     const result = await stopPreParty();
     if (!result.error) {
       setIsSheetOpen(false);
-      await loadMapData();
+      loadMapData();
     }
     setIsProcessingParty(false);
   };
@@ -346,7 +254,7 @@ export default function MapDisplay() {
         console.log("ERROR FROM SERVER:", result.error);
       }
     } else {
-      await loadMapData();
+      loadMapData();
     }
 
     setLoadingActionId(null);
@@ -354,7 +262,7 @@ export default function MapDisplay() {
 
   const handleRespondRequest = async (attendanceId: string, accept: boolean) => {
     await respondToEventRequest(attendanceId, accept);
-    await loadMapData();
+    loadMapData();
   };
 
   const handleOpenChat = async (targetUserId: string) => {
@@ -427,10 +335,9 @@ export default function MapDisplay() {
 
         {preParties.map((party) => {
 
-          const isHost = party.ownerId === session?.userId;
-          const myAttendance = party.attendees?.find(a => a.groupId === session?.groupId);
-          const isAccepted = myAttendance?.status === "ACCEPTED";
-          const isPending = myAttendance?.status === "PENDING";
+          const isHost = party.isHost;
+          const isAccepted = party.myStatus === "ACCEPTED";
+          const isPending = party.myStatus === "PENDING";
 
           const acceptedAttendees = party.attendees?.filter(a => a.status === "ACCEPTED") || [];
           const pendingAttendees = party.attendees?.filter(a => a.status === "PENDING") || [];
@@ -483,7 +390,7 @@ export default function MapDisplay() {
                   {!isHost && (
                     <div className="mt-2">
                       {isAccepted ? (
-                        <button onClick={() => handleOpenChat(party.ownerId)} disabled={isProcessingParty} className="w-full bg-accent hover:opacity-90 text-on-accent text-xs font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer min-h-[44px]">
+                        <button onClick={() => party.ownerId && handleOpenChat(party.ownerId)} disabled={isProcessingParty} className="w-full bg-accent hover:opacity-90 text-on-accent text-xs font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer min-h-[44px]">
                           {isProcessingParty ? t("opening") : <><MessageCircle size={14} /> {t("chatInfo")}</>}
                         </button>
                       ) : isPending ? (

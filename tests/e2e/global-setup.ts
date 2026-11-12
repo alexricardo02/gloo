@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import http from 'http';
 import { assertSafeTestDb } from '../assertSafeTestDb';
+import { applyRlsLockdown } from '../applyRlsLockdown';
 import { callE2eApi as postE2eApi, emailFlowsEnabled, registerAndSignIn } from './helpers/auth';
 
 const AUTH_DIR = path.join(__dirname, '.auth');
@@ -78,6 +79,9 @@ async function globalSetup(config: FullConfig) {
     env: { ...process.env, DATABASE_URL: testDbUrl, DIRECT_URL: testDbUrl },
     stdio: 'inherit',
   });
+  // `db push` skips raw-SQL migrations; run E2E with the production RLS lockdown.
+  await applyRlsLockdown(testDbUrl, PROJECT_ROOT);
+  console.log('[global-setup] Applied the deny-all RLS migration.');
 
   const timestamp = Date.now();
 

@@ -11,29 +11,10 @@ import { revalidatePath } from "next/cache";
  * development; refuses to run in production without Upstash).
  */
 import { checkRateLimit } from "@/lib/rateLimit";
-import { toPublicUrls, withImageUrl, withPhotoUrls } from "@/lib/storage";
+import { withImageUrl, withPhotoUrls } from "@/lib/storage";
 import { getBlockSet, isBlockedPair } from "@/lib/blocks";
-import { ensureChat, findChatBetween, lockPair } from "@/lib/chats";
+import { ensureChat, findChatBetween, getChatIdsWith, lockPair } from "@/lib/chats";
 import { type ActionResult, fail, ok } from "@/lib/actionResult";
-
-/**
- * Maps each of `otherUserIds` to the id of the chat the caller has with them
- * (only chats that exist; blocked counterparts are filtered out by callers).
- * Lets cards show "go to chat" without exposing anything new.
- */
-async function getChatIdsWith(userId: string, otherUserIds: string[]): Promise<Map<string, string>> {
-  if (otherUserIds.length === 0) return new Map();
-  const chats = await prisma.chat.findMany({
-    where: {
-      OR: [
-        { hostAId: userId, hostBId: { in: otherUserIds } },
-        { hostBId: userId, hostAId: { in: otherUserIds } },
-      ],
-    },
-    select: { id: true, hostAId: true, hostBId: true },
-  });
-  return new Map(chats.map((c) => [c.hostAId === userId ? c.hostBId : c.hostAId, c.id]));
-}
 
 /**
  * Core matching algorithm for the discovery feed.
@@ -299,79 +280,3 @@ export async function toggleLike(toGroupId: string, liked?: boolean): Promise<To
   }
 }
 
-/**
- * Retrieves all groups that have liked the current user's group.
- * Returns group details including user info, photos, and mutual like status.
- * Used by the "Gruppen, die dich suchen" / "Groups that like you" feature (ST0-87).
- */
-export async function getGroupsThatLikedMe() {
-  const userId = await getOptionalUserId();
-
-  if (!userId) return { error: "Unauthorized" };
-
-  try {
-    const myGroup = await prisma.group.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-
-    if (!myGroup) return { groups: [] };
-
-    const { groupIds: allBlockedGroupIds } = await getBlockSet(userId);
-
-    const incomingLikes = await prisma.groupLike.findMany({
-      where: { toGroupId: myGroup.id },
-      include: {
-        fromGroup: {
-          include: {
-            user: {
-              select: { id: true, name: true, image: true, username: true },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (incomingLikes.length === 0) return { groups: [] };
-
-    const fromGroupIds = incomingLikes.map((like) => like.fromGroup.id);
-
-    const outgoingLikes = await prisma.groupLike.findMany({
-      where: {
-        fromGroupId: myGroup.id,
-        toGroupId: { in: fromGroupIds },
-      },
-      select: { toGroupId: true },
-    });
-
-    const likedBackIds = new Set(outgoingLikes.map((l) => l.toGroupId));
-
-    const visibleLikes = incomingLikes.filter((like) => !allBlockedGroupIds.has(like.fromGroup.id));
-    const chatIds = await getChatIdsWith(userId, visibleLikes.map((like) => like.fromGroup.userId));
-
-    const groups = visibleLikes
-      .map((like) => ({
-        id: like.fromGroup.id,
-        userId: like.fromGroup.userId,
-        user: withImageUrl(like.fromGroup.user),
-        photos: toPublicUrls(like.fromGroup.photos),
-        description: like.fromGroup.description,
-        membersCount: like.fromGroup.membersCount,
-        gender: like.fromGroup.gender,
-        ageMin: like.fromGroup.ageMin,
-        ageMax: like.fromGroup.ageMax,
-        latitude: like.fromGroup.latitude,
-        longitude: like.fromGroup.longitude,
-        createdAt: like.fromGroup.createdAt.toISOString(),
-        likedByCurrentUser: likedBackIds.has(like.fromGroup.id),
-        isMutualLike: likedBackIds.has(like.fromGroup.id),
-        chatId: chatIds.get(like.fromGroup.userId) ?? null,
-      }));
-
-    return { groups };
-  } catch (error) {
-    console.error("Error fetching groups that liked me:", error);
-    return { error: "Failed to fetch groups" };
-  }
-}

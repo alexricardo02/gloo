@@ -24,7 +24,6 @@ jobs:
       # Vitest refuses to run unless this is a localhost "*_test" database (tests/assertSafeTestDb.ts).
       TEST_DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/gloo_test"
       NEXT_PUBLIC_SUPABASE_URL: "https://dummy-project.supabase.co"
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key-for-testing-purposes"
     steps:
       - uses: actions/checkout@v4
       - name: Install Node
@@ -38,7 +37,6 @@ jobs:
           echo "DATABASE_URL=postgresql://dummy:dummy@localhost:5432/gloo_test" > .env
           echo "DIRECT_URL=postgresql://dummy:dummy@localhost:5432/gloo_test" >> .env
           echo "NEXT_PUBLIC_SUPABASE_URL=https://dummy-project.supabase.co" >> .env
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy-anon-key" >> .env
       - name: Block Copyleft Licenses (GPL/AGPL)
         run: npx --yes license-checker --failOn "GPL;GPL-1.0;GPL-2.0;GPL-3.0;AGPL;AGPL-1.0;AGPL-3.0"
 
@@ -51,6 +49,7 @@ jobs:
         run: npm audit --audit-level=high --omit=dev
       - run: npx prisma validate
       - run: npx prisma generate
-      - run: npx prisma db push
+      # db push + the deny-all RLS migration (tests run with RLS on, like production)
+      - run: npm run test:db:prepare
       - run: npm run test:ci
       - run: npm run build

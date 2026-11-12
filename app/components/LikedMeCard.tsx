@@ -5,36 +5,17 @@ import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { Heart, MessageCircle, MapPin } from "lucide-react";
 import { toggleLike } from "@/app/actions/discoverGroups";
+import type { LikedMeGroupDTO } from "@/lib/apiTypes";
 
-interface LikedGroup {
-  id: string;
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    image: string | null;
-    username: string | null;
-  };
-  photos: string[];
-  description: string | null;
-  membersCount: number;
-  gender: string;
-  ageMin: number;
-  ageMax: number;
-  latitude: number | null;
-  longitude: number | null;
-  createdAt: string;
-  likedByCurrentUser: boolean;
-  isMutualLike: boolean;
-  /** Existing chat with this group's host (match-only: no chat, no button). */
-  chatId: string | null;
-}
+type LikedGroup = LikedMeGroupDTO;
 
 interface LikedMeCardProps {
   group: LikedGroup;
+  /** Called after a like/unlike succeeded, so the list can refetch right away. */
+  onLikeChange?: () => void;
 }
 
-export default function LikedMeCard({ group }: LikedMeCardProps) {
+export default function LikedMeCard({ group, onLikeChange }: LikedMeCardProps) {
   const router = useRouter();
   const locale = useLocale();
   const [liked, setLiked] = useState(Boolean(group.likedByCurrentUser));
@@ -60,6 +41,7 @@ export default function LikedMeCard({ group }: LikedMeCardProps) {
       if (result.ok) {
         setLiked(result.data.liked);
         setChatId(result.data.chatId);
+        onLikeChange?.();
       } else {
         setLiked(!nextLiked);
       }

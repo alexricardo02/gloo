@@ -6,30 +6,9 @@ import "leaflet/dist/leaflet.css";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { MessageCircle, Heart } from "lucide-react";
+import type { LikedMeGroupDTO } from "@/lib/apiTypes";
 
-interface LikedGroup {
-  id: string;
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    image: string | null;
-    username: string | null;
-  };
-  photos: string[];
-  description: string | null;
-  membersCount: number;
-  gender: string;
-  ageMin: number;
-  ageMax: number;
-  latitude: number | null;
-  longitude: number | null;
-  createdAt: string;
-  likedByCurrentUser: boolean;
-  isMutualLike: boolean;
-  /** Existing chat with this group's host (match-only: no chat, no button). */
-  chatId: string | null;
-}
+type LikedGroup = LikedMeGroupDTO;
 
 interface LikedGroupsMapProps {
   groups: LikedGroup[];
