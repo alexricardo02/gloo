@@ -42,6 +42,35 @@ test.describe('Guest Flow (TC1–TC3)', () => {
     await expect(page.locator('[data-testid="guest-paywall-modal"]')).toBeVisible({ timeout: 5_000 });
   });
 
+  test('TC3b: Guest sees blurred placeholder cards (no real groups) behind the paywall', async ({ page }) => {
+    const discoveryBodies: Promise<string>[] = [];
+    page.on('response', (r) => {
+      if (r.request().method() === 'POST' && r.url().includes('/search-groups')) {
+        discoveryBodies.push(r.text().catch(() => ''));
+      }
+    });
+
+    await loginAsGuest(page, 'en');
+
+    // GUEST_TEASER = static-placeholders: invented cards, blurred.
+    const teaser = page.locator('[data-testid="teaser-card"]');
+    await expect(teaser.first()).toBeVisible({ timeout: 10_000 });
+    await expect(teaser).toHaveCount(4);
+    await expect(page.locator('.blur-xl [data-testid="teaser-card"]')).toHaveCount(4);
+    await expect(page.locator('[data-testid="group-card"]')).toHaveCount(0);
+
+    // No real group data reaches the browser (global-setup created Alice and Bob).
+    const html = await page.content();
+    expect(html).not.toMatch(/e2ealice|e2ebob|Alice E2E|Bob E2E|E2E test group|bg-fallback/);
+    for (const body of await Promise.all(discoveryBodies)) {
+      expect(body).not.toMatch(/e2ealice|e2ebob|Alice E2E|Bob E2E|photos|latitude|longitude/);
+    }
+
+    // Any interaction opens the paywall.
+    await teaser.first().click({ force: true });
+    await expect(page.locator('[data-testid="guest-paywall-modal"]')).toBeVisible({ timeout: 5_000 });
+  });
+
   test('TC2: Language selection on first start', async ({ page }) => {
     await page.goto(url('en', '/'));
     await waitForAppStable(page);

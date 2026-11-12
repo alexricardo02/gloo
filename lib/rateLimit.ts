@@ -19,6 +19,7 @@ import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { LOCATION_CHANGE_LIMIT_PER_DAY } from "@/lib/geo";
 
 interface Window {
   limit: number;
@@ -41,6 +42,10 @@ export const RATE_LIMIT_RULES = {
   usernameCheck: { ip: { limit: 60, windowSec: 60 }, identifier: { limit: 30, windowSec: 60 } },
   // Unchanged from the original like limiter: 10 likes / 60 s per user.
   like: { identifier: { limit: 10, windowSec: 60 } },
+  // Per group (identifier = group id): LOCATION_CHANGE_LIMIT_PER_DAY stored
+  // location changes per 24 h, against trilateration by moving your own group.
+  // A limit of 0 disables the check in createGroupAction.
+  locationChange: { identifier: { limit: LOCATION_CHANGE_LIMIT_PER_DAY, windowSec: 24 * 60 * 60 } },
 } satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMIT_RULES;

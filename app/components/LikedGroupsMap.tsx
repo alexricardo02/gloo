@@ -1,7 +1,7 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
+import { useState } from "react";
+import { MapContainer, TileLayer, Circle, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -14,17 +14,11 @@ interface LikedGroupsMapProps {
   groups: LikedGroup[];
 }
 
-function createLikeMarkerIcon() {
-  return L.divIcon({
-    className: "custom-leaflet-marker",
-    html: `<div class="w-6 h-6 rounded-full bg-secondary border-2 border-white shadow-[0_0_15px_rgba(236,72,153,0.7)] flex items-center justify-center">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-      </svg>
-    </div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-  });
+/** Leaflet draws SVG with inline colors, so read the design token once. */
+function readSecondaryColor(): string {
+  if (typeof window === "undefined") return "#FF8F7E";
+  const value = getComputedStyle(document.documentElement).getPropertyValue("--color-secondary").trim();
+  return value || "#FF8F7E";
 }
 
 function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
@@ -89,19 +83,25 @@ function GroupPopup({ group, locale }: { group: LikedGroup; locale: string }) {
   );
 }
 
+/**
+ * LIKED_ME_MAP = approximate-circles (S4): each group is a ~1 km circle
+ * around its coarsened point, computed by the server (LikedMeGroupDTO.area).
+ * The API never sends exact coordinates and there is no pin at the center.
+ */
 export default function LikedGroupsMap({ groups }: LikedGroupsMapProps) {
   const locale = useLocale();
+  const [color] = useState(readSecondaryColor);
 
   const groupsWithLocation = groups.filter(
-    (g) => g.latitude != null && g.longitude != null
+    (g): g is LikedGroup & { area: NonNullable<LikedGroup["area"]> } => g.area !== null
   );
 
   const center: [number, number] =
     groupsWithLocation.length > 0
       ? [
-        groupsWithLocation.reduce((sum, g) => sum + (g.latitude ?? 0), 0) /
+        groupsWithLocation.reduce((sum, g) => sum + g.area.center[0], 0) /
         groupsWithLocation.length,
-        groupsWithLocation.reduce((sum, g) => sum + (g.longitude ?? 0), 0) /
+        groupsWithLocation.reduce((sum, g) => sum + g.area.center[1], 0) /
         groupsWithLocation.length,
       ]
       : [49.9929, 8.2473];
@@ -119,15 +119,22 @@ export default function LikedGroupsMap({ groups }: LikedGroupsMapProps) {
       />
 
       {groupsWithLocation.map((group) => (
-        <Marker
+        <Circle
           key={group.id}
-          position={[group.latitude!, group.longitude!]}
-          icon={createLikeMarkerIcon()}
+          center={group.area.center}
+          radius={group.area.radiusM}
+          pathOptions={{
+            className: "liked-group-area",
+            color,
+            weight: 2,
+            fillColor: color,
+            fillOpacity: 0.25,
+          }}
         >
           <Popup>
             <GroupPopup group={group} locale={locale} />
           </Popup>
-        </Marker>
+        </Circle>
       ))}
 
       {/* Show message if no groups have location */}

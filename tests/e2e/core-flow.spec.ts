@@ -126,6 +126,102 @@ test.describe('Core Flow (TC8–TC14, TC21)', () => {
     await ctxB.close();
   });
 
+  test('TC14b: Discovery shows rounded distances, never coordinates; the "Liked" badge toggles and persists (User B)', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: getAuthFile('B') });
+    const page = await ctx.newPage();
+
+    // Server action responses (discovery feed, likes) seen by the browser.
+    const actionBodies: Promise<string>[] = [];
+    page.on('response', (r) => {
+      if (r.request().method() === 'POST' && r.url().includes('/search-groups')) {
+        actionBodies.push(r.text().catch(() => ''));
+      }
+    });
+    const isAction = (r: { request(): { method(): string }; url(): string }) =>
+      r.request().method() === 'POST' && r.url().includes('/search-groups');
+
+    await page.goto(url('en', '/search-groups'));
+    await waitForAppStable(page);
+
+    const card = () => page.locator('[data-testid="group-card"]').first();
+    const like = () => card().getByTestId('like-button');
+    const badge = () => card().getByTestId('group-card-liked-badge');
+    const toggle = async () => {
+      await Promise.all([page.waitForResponse(isAction), like().click()]);
+    };
+
+    await expect(card()).toBeVisible({ timeout: 10_000 });
+    // DISTANCE_DISPLAY = rounded-km (both E2E groups share one point: "< 1 km").
+    await expect(card().getByTestId('group-card-distance')).toHaveText(/^(< 1|\d+) km away$/);
+
+    // Start from "not liked" (TC14 leaves B -> A liked).
+    if ((await like().getAttribute('aria-pressed')) === 'true') {
+      await expect(badge()).toBeVisible();
+      await toggle();
+    }
+    await expect(like()).toHaveAttribute('aria-pressed', 'false');
+    await expect(badge()).toHaveCount(0);
+
+    // Like: badge appears and survives a reload.
+    await toggle();
+    await expect(like()).toHaveAttribute('aria-pressed', 'true');
+    await expect(badge()).toHaveText('Liked');
+    await page.reload();
+    await waitForAppStable(page);
+    await expect(like()).toHaveAttribute('aria-pressed', 'true', { timeout: 10_000 });
+    await expect(badge()).toBeVisible();
+
+    // Unlike: badge disappears, also after a reload.
+    await toggle();
+    await expect(like()).toHaveAttribute('aria-pressed', 'false');
+    await expect(badge()).toHaveCount(0);
+    await page.reload();
+    await waitForAppStable(page);
+    await expect(like()).toHaveAttribute('aria-pressed', 'false', { timeout: 10_000 });
+    await expect(badge()).toHaveCount(0);
+
+    // Restore TC14's state (B likes A) for the liked-me test and the social flow.
+    await toggle();
+    await expect(badge()).toBeVisible();
+
+    // Discovery feed responses only (getGroupByUser returns the caller's OWN group).
+    const bodies = (await Promise.all(actionBodies)).filter((body) => body.includes('hasNoGroup'));
+    expect(bodies.length).toBeGreaterThan(0);
+    for (const body of bodies) {
+      expect(body).toContain('distanceKm');
+      expect(body).not.toMatch(/latitude|longitude|"userId"|"ownerId"/);
+      expect(body).not.toContain('49.99');
+    }
+
+    await ctx.close();
+  });
+
+  test('TC21b: The liked-me map shows approximate circles, no pins and no coordinates (User A)', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: getAuthFile('A') });
+    const page = await ctx.newPage();
+
+    const likesResponse = page.waitForResponse((r) => r.url().includes('/api/likes') && r.status() === 200);
+    await page.goto(url('en', '/messages'));
+    await waitForAppStable(page);
+    await page.locator('[data-testid="messages-tab-likes"]').click();
+
+    const raw = await (await likesResponse).text();
+    expect(raw).not.toMatch(/"(latitude|longitude|userId)"/);
+    const { groups } = JSON.parse(raw) as { groups: { area: { center: [number, number]; radiusM: number } | null; distanceKm: number | null }[] };
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups[0].area?.radiusM).toBe(1000);
+    expect(groups[0].distanceKm).toBe(0);
+
+    // List view shows the distance.
+    await expect(page.getByTestId('liked-me-distance').first()).toHaveText(/^(< 1|\d+) km away$/);
+
+    await page.getByTestId('likes-view-map').click();
+    await expect(page.locator('path.liked-group-area').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+
+    await ctx.close();
+  });
+
   test('TC12: Horizontal photo swiping in group card', async ({ browser }) => {
     const context = await browser.newContext({ storageState: getAuthFile('A') });
     const page = await context.newPage();

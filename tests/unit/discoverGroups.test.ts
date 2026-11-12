@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
-import { toggleLike } from '@/app/actions/discoverGroups';
+import { getDiscoveryGroups, toggleLike } from '@/app/actions/discoverGroups';
 import { prisma } from '@/lib/prisma';
-import { requireUserId, UnauthorizedError } from '@/lib/session';
+import { getOptionalUserId, requireUserId, UnauthorizedError } from '@/lib/session';
+import { InvalidDiscoveryCursorError, queryDiscoveryPage } from '@/lib/discovery';
+import { DISCOVERY_TEASER } from '@/lib/discoveryTeaser';
 import { isBlockedPair } from '@/lib/blocks';
 import { ensureChat, findChatBetween, lockPair } from '@/lib/chats';
 
@@ -40,6 +42,12 @@ vi.mock('@/lib/chats', () => ({
 
 vi.mock('next/headers', () => ({
   cookies: vi.fn(),
+}));
+
+// The SQL itself is covered by tests/integration/discoverGroups.test.ts.
+vi.mock('@/lib/discovery', () => ({
+  queryDiscoveryPage: vi.fn(),
+  InvalidDiscoveryCursorError: class InvalidDiscoveryCursorError extends Error {},
 }));
 
 // ---------------------------------------------------------------------------
@@ -228,5 +236,110 @@ describe('toggleLike', () => {
     }
 
     expect(await toggleLike('target-group', true)).toEqual({ ok: false, code: 'RATE_LIMITED' });
+  });
+});
+
+describe('getDiscoveryGroups', () => {
+  const MY_GROUP = {
+    id: 'my-group',
+    latitude: 50,
+    longitude: 8,
+    gender: 'MIXED',
+    searchGender: 'MIXED',
+    ageMin: 20,
+    ageMax: 25,
+    searchAgeMin: 18,
+    searchAgeMax: 30,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(getOptionalUserId).mockResolvedValue('user-1');
+    vi.mocked(prisma.group.findUnique).mockResolvedValue(MY_GROUP as never);
+    vi.mocked(queryDiscoveryPage).mockResolvedValue({ groups: [], nextCursor: null });
+  });
+
+  it('returns the static teaser to guests without querying groups (D5)', async () => {
+    vi.mocked(getOptionalUserId).mockResolvedValue(null);
+
+    expect(await getDiscoveryGroups({ distance: 10 })).toEqual({
+      ok: true,
+      data: { hasNoGroup: true, teaser: [...DISCOVERY_TEASER] },
+    });
+    expect(prisma.group.findUnique).not.toHaveBeenCalled();
+    expect(queryDiscoveryPage).not.toHaveBeenCalled();
+  });
+
+  it('returns the teaser to signed-in users without a group', async () => {
+    vi.mocked(prisma.group.findUnique).mockResolvedValue(null);
+
+    const result = await getDiscoveryGroups({ distance: 10 });
+    expect(result).toEqual({ ok: true, data: { hasNoGroup: true, teaser: [...DISCOVERY_TEASER] } });
+    expect(queryDiscoveryPage).not.toHaveBeenCalled();
+  });
+
+  it('teaser cards contain no photos, user data or coordinates', () => {
+    for (const card of DISCOVERY_TEASER) {
+      expect(Object.keys(card).sort()).toEqual(
+        ['ageMax', 'ageMin', 'distanceKm', 'gender', 'id', 'membersCount', 'nameKey', 'tone'],
+      );
+    }
+  });
+
+  it('clamps the radius on the server: 20000 -> 50, 0 -> 1', async () => {
+    await getDiscoveryGroups({ distance: 20000 });
+    expect(vi.mocked(queryDiscoveryPage).mock.calls[0][1]).toBe(50);
+
+    await getDiscoveryGroups({ distance: 0 });
+    expect(vi.mocked(queryDiscoveryPage).mock.calls[1][1]).toBe(1);
+  });
+
+  it('rejects a non-numeric radius or an oversized cursor with VALIDATION', async () => {
+    expect(await getDiscoveryGroups({ distance: Number.NaN })).toEqual({ ok: false, code: 'VALIDATION' });
+    expect(await getDiscoveryGroups({ distance: '10' as unknown as number })).toEqual({ ok: false, code: 'VALIDATION' });
+    expect(await getDiscoveryGroups({ distance: 10, cursor: 'x'.repeat(513) })).toEqual({ ok: false, code: 'VALIDATION' });
+    expect(queryDiscoveryPage).not.toHaveBeenCalled();
+  });
+
+  it('maps an invalid or stale cursor to VALIDATION/staleCursor (never page 1)', async () => {
+    vi.mocked(queryDiscoveryPage).mockRejectedValue(new InvalidDiscoveryCursorError());
+
+    expect(await getDiscoveryGroups({ distance: 10, cursor: 'abc' })).toEqual({
+      ok: false,
+      code: 'VALIDATION',
+      messageKey: 'staleCursor',
+    });
+  });
+
+  it('returns an empty feed when my group has no location', async () => {
+    vi.mocked(prisma.group.findUnique).mockResolvedValue({ ...MY_GROUP, latitude: null, longitude: null } as never);
+
+    expect(await getDiscoveryGroups({ distance: 10 })).toEqual({
+      ok: true,
+      data: { hasNoGroup: false, groups: [], nextCursor: null },
+    });
+    expect(queryDiscoveryPage).not.toHaveBeenCalled();
+  });
+
+  it('passes my preferences as the query origin', async () => {
+    await getDiscoveryGroups({ distance: 12, cursor: 'c1' });
+
+    expect(queryDiscoveryPage).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        groupId: 'my-group',
+        latitude: 50,
+        longitude: 8,
+        gender: 'MIXED',
+        searchGender: 'MIXED',
+        ageMin: 20,
+        ageMax: 25,
+        searchAgeMin: 18,
+        searchAgeMax: 30,
+      },
+      12,
+      'c1',
+    );
   });
 });

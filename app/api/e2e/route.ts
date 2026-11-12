@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { coarsenCoordinate } from '@/lib/geo';
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
@@ -91,8 +92,9 @@ export async function POST(request: NextRequest) {
           searchAgeMax: 35,
           maxDistance: 20,
           publicProfile: true,
-          latitude: 49.9929,
-          longitude: 8.2473,
+          // Stored coarsened, like createGroupAction (S4).
+          latitude: coarsenCoordinate(49.9929),
+          longitude: coarsenCoordinate(8.2473),
           photos: ['/images/bg-fallback.jpg'],
           instagram: [`@${groupLabel.toLowerCase()}_e2e`],
           description: `E2E test group for ${groupLabel}`,

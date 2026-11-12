@@ -226,7 +226,13 @@ export default function CreateGroupPage() {
 
             const result = await createGroupAction(formData, locale);
             if (result && !result.ok) {
-              alert(result.messageKey && tUpload.has(result.messageKey) ? tUpload(result.messageKey) : t("error"));
+              alert(
+                result.messageKey === "locationChangeLimit"
+                  ? t("locationChangeLimit")
+                  : result.messageKey && tUpload.has(result.messageKey)
+                    ? tUpload(result.messageKey)
+                    : t("error"),
+              );
               return;
             }
             router.push(`/${locale}/profile`);

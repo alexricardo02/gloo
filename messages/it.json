@@ -167,6 +167,7 @@
     "changePasswordGenericError": "Qualcosa è andato storto. Riprova."
   },
   "CreateGroup": {
+    "locationChangeLimit": "Hai cambiato posizione troppe volte oggi. Riprova domani.",
     "title": "Crea Gruppo",
     "createGroupButton": "Crea Profilo di Gruppo",
     "uploadPhotos": "Carica foto del gruppo",
@@ -216,7 +217,19 @@
       "MATCH_CREATED": "È un match! I vostri gruppi si sono piaciuti a vicenda. Salutatevi!"
     }
   },
+  "Preferences": {
+    "locationChangeLimit": "Hai cambiato posizione troppe volte oggi. Riprova domani."
+  },
   "SearchGroups": {
+    "distanceKm": "a {km} km",
+    "distanceUnder1": "a < 1 km",
+    "likedBadge": "Ti piace",
+    "teaserNames": {
+      "a": "Crew del Tramonto",
+      "b": "Banda della Terrazza",
+      "c": "Club dei Nottambuli",
+      "d": "Gang del Weekend"
+    },
     "modalButton": "Imposta Raggio",
     "endOfList": "Hai visto tutte le pre-serate vicino a Magonza.",
     "emptyDesc": "Prova ad aumentare la distanza di ricerca o torna più tardi per vedere nuovi gruppi.",

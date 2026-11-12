@@ -1,7 +1,8 @@
 import { describe, it, expect, afterAll, vi } from "vitest";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { toggleLike, getDiscoveryGroups } from "@/app/actions/discoverGroups";
+import { toggleLike } from "@/app/actions/discoverGroups";
+import { fullDiscoveryFeed } from "./helpers/discovery";
 import { openExistingChat, sendMessage } from "@/app/actions/chat";
 import { blockGroupAction, unblockGroupAction } from "@/app/actions/moderation";
 import { ChatCreationError, canonicalPair, ensureChat, lockPair } from "@/lib/chats";
@@ -262,14 +263,14 @@ describe("Matching & chat integrity (integration)", () => {
       const b = await makeHost();
 
       await signInAs(a.userId);
-      const before = await getDiscoveryGroups({ distance: 10 });
-      expect(before.groups?.find((g) => g.id === b.groupId)?.chatId).toBeNull();
+      const before = await fullDiscoveryFeed(10);
+      expect(before.find((g) => g.id === b.groupId)?.chatId).toBeNull();
 
       const chatId = await match(a, b);
 
       await signInAs(a.userId);
-      const after = await getDiscoveryGroups({ distance: 10 });
-      expect(after.groups?.find((g) => g.id === b.groupId)?.chatId).toBe(chatId);
+      const after = await fullDiscoveryFeed(10);
+      expect(after.find((g) => g.id === b.groupId)?.chatId).toBe(chatId);
 
       const likedMe = await fetchLikes();
       expect(likedMe.status).toBe(200);

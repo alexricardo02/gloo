@@ -238,8 +238,9 @@ describe('Group Server Actions (Unit Tests)', () => {
             searchAgeMin: 20,
             searchAgeMax: 30,
             maxDistance: 25,
-            latitude: 50.123,
-            longitude: 8.456,
+            // S4: coarsened to 2 decimals on the server.
+            latitude: 50.12,
+            longitude: 8.46,
             publicProfile: true,
             description: 'We are a cool crew!',
             instagram: ['cooluser', 'anotheruser'],
@@ -377,7 +378,7 @@ describe('Group Server Actions (Unit Tests)', () => {
       expect(remove).not.toHaveBeenCalled();
       expect(removePrefix).not.toHaveBeenCalled();
       // The lookup is always by the caller's own userId.
-      expect(prisma.group.findUnique).toHaveBeenCalledWith({ where: { userId: 'user-b' }, select: { id: true, photos: true } });
+      expect(prisma.group.findUnique).toHaveBeenCalledWith({ where: { userId: 'user-b' }, select: { id: true, photos: true, latitude: true, longitude: true } });
     });
 
     // B15

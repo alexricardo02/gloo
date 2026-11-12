@@ -11,6 +11,8 @@ import { toPublicUrl, upload, withPhotoUrls } from "@/lib/storage";
 import { groupPrefix, isOwnedGroupPhotoKey, newGroupPhotoKey } from "@/lib/storageKeys";
 import { cleanupStorage } from "@/lib/storageCleanup";
 import { type ActionResult, fail } from "@/lib/actionResult";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { LOCATION_CHANGE_LIMIT_PER_DAY, parseCoarseLocation } from "@/lib/geo";
 
 const MAX_GROUP_PHOTOS = 6;
 
@@ -52,6 +54,11 @@ const ExistingPhotosSchema = z.array(z.string().max(2048)).max(50);
  *    with the service-role client to `groups/{groupId}/{uuid}.webp`.
  *  - Photos removed by this edit are deleted from storage after the DB write.
  *
+ * Location (S4): latitude/longitude are rounded to STORED_PRECISION_DECIMALS
+ * on the server (lib/geo.ts). A change of the stored location is limited to
+ * LOCATION_CHANGE_LIMIT_PER_DAY per group (RATE_LIMITED, messageKey
+ * "locationChangeLimit").
+ *
  * @returns ActionResult on failure; `messageKey` is a key in the "ImageUpload"
  * namespace for photo errors.
  */
@@ -73,8 +80,11 @@ export async function createGroupAction(formData: FormData, locale: string): Pro
   const searchAgeMax = Number(formData.get("searchAgeMax")) || 35;
   const maxDistance = Number(formData.get("maxDistance")) || 10;
 
-  const latitude = parseFloat(formData.get("latitude") as string);
-  const longitude = parseFloat(formData.get("longitude") as string);
+  // S4: coordinates are validated and coarsened to STORED_PRECISION_DECIMALS
+  // here, on the server. Missing or invalid values store no location.
+  const location = parseCoarseLocation(formData.get("latitude"), formData.get("longitude"));
+  const latitude = location?.latitude ?? null;
+  const longitude = location?.longitude ?? null;
 
   const publicProfile = ["true", "on", "1"].includes(
     String(formData.get("publicProfile")),
@@ -97,9 +107,12 @@ export async function createGroupAction(formData: FormData, locale: string): Pro
     .getAll("photos")
     .filter((file): file is File => typeof file === "object" && file !== null && file.size > 0);
 
-  let existing: { id: string; photos: string[] } | null;
+  let existing: { id: string; photos: string[]; latitude: number | null; longitude: number | null } | null;
   try {
-    existing = await prisma.group.findUnique({ where: { userId }, select: { id: true, photos: true } });
+    existing = await prisma.group.findUnique({
+      where: { userId },
+      select: { id: true, photos: true, latitude: true, longitude: true },
+    });
   } catch (error) {
     console.error("Error loading group for edit:", error);
     return fail("INTERNAL");
@@ -123,6 +136,21 @@ export async function createGroupAction(formData: FormData, locale: string): Pro
     return fail("VALIDATION", "tooManyPhotos");
   }
 
+  // New groups get their id up front so photos land under groups/{groupId}/.
+  const groupId = existing?.id ?? crypto.randomUUID();
+
+  // Every change of the stored (coarsened) location counts against
+  // LOCATION_CHANGE_LIMIT_PER_DAY for this group. Checked before any upload.
+  const locationChanged =
+    location !== null && (existing?.latitude !== latitude || existing?.longitude !== longitude);
+  if (
+    locationChanged &&
+    LOCATION_CHANGE_LIMIT_PER_DAY > 0 &&
+    !(await checkRateLimit("locationChange", { identifier: groupId }))
+  ) {
+    return fail("RATE_LIMITED", "locationChangeLimit");
+  }
+
   // Validate and re-encode everything before any storage write.
   let processed;
   try {
@@ -135,8 +163,6 @@ export async function createGroupAction(formData: FormData, locale: string): Pro
     return fail("INTERNAL", "uploadFailed");
   }
 
-  // New groups get their id up front so photos land under groups/{groupId}/.
-  const groupId = existing?.id ?? crypto.randomUUID();
   const newKeys = processed.map((image) => newGroupPhotoKey(groupId, image.extension));
 
   const uploads = await Promise.allSettled(
@@ -175,11 +201,10 @@ export async function createGroupAction(formData: FormData, locale: string): Pro
         description,
         instagram,
         photos: finalPhotos,
-        // Geolocation is optional at profile creation time. Storing null instead
-        // of NaN ensures the DB accepts the value and the discovery distance
-        // filter can safely skip groups without coordinates.
-        latitude: isNaN(latitude) ? null : latitude,
-        longitude: isNaN(longitude) ? null : longitude,
+        // Geolocation is optional at profile creation time. Groups without
+        // coordinates are skipped by the discovery distance filter.
+        latitude,
+        longitude,
       },
       create: {
         id: groupId,
@@ -196,8 +221,8 @@ export async function createGroupAction(formData: FormData, locale: string): Pro
         description,
         instagram,
         photos: finalPhotos,
-        latitude: isNaN(latitude) ? null : latitude,
-        longitude: isNaN(longitude) ? null : longitude,
+        latitude,
+        longitude,
       },
     });
   } catch (error) {

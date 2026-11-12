@@ -239,6 +239,7 @@
     "restart": "Siguiente Jugador"
   },
   "Preferences": {
+    "locationChangeLimit": "Has cambiado tu ubicación demasiadas veces hoy. Inténtalo de nuevo mañana.",
     "title": "Preferencias de Búsqueda",
     "howItWorksTitle": "Cómo funciona",
     "howItWorksDesc": "Estos filtros controlan qué grupos ves en el feed de descubrimiento. Los cambios se aplican inmediatamente al guardar.",
@@ -403,6 +404,7 @@
     "changePasswordGenericError": "Algo salió mal. Inténtalo de nuevo."
   },
   "CreateGroup": {
+    "locationChangeLimit": "Has cambiado tu ubicación demasiadas veces hoy. Inténtalo de nuevo mañana.",
     "title": "Crear Grupo",
     "createGroupButton": "Crear Perfil de Grupo",
     "uploadPhotos": "Sube fotos del grupo",
@@ -485,6 +487,15 @@
     }
   },
   "SearchGroups": {
+    "distanceKm": "a {km} km",
+    "distanceUnder1": "a < 1 km",
+    "likedBadge": "Te gusta",
+    "teaserNames": {
+      "a": "Crew del Atardecer",
+      "b": "Pandilla de la Azotea",
+      "c": "Club Nocturno",
+      "d": "Banda del Finde"
+    },
     "modalButton": "Establecer Radio",
     "endOfList": "Has visto todas las pre-fiestas cerca de Mainz.",
     "emptyDesc": "Intenta ampliar tu distancia de búsqueda o vuelve más tarde para ver grupos nuevos.",

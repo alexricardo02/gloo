@@ -4,18 +4,24 @@ import { prisma } from "@/lib/prisma";
 import { getBlockSet } from "@/lib/blocks";
 import { getChatIdsWith } from "@/lib/chats";
 import { toPublicUrl, toPublicUrls } from "@/lib/storage";
+import { approximateArea, haversineKm, roundDistanceKm } from "@/lib/geo";
 import type { LikedMeGroupDTO } from "@/lib/apiTypes";
 
 /**
  * The "liked me" tab (ST0-87), served by GET /api/likes.
  *
- * Explicit selects only: the group id (needed to like back) but no user ids.
- * Groups blocked in either direction are hidden. Location masking is a
- * separate pack; coordinates are returned as before.
+ * Explicit selects only: the group id (needed to like back) but no user ids
+ * and no coordinates (S4). Each group gets a distance rounded to whole km and
+ * an approximate ~1 km circle around its coarsened point for the map
+ * (LIKED_ME_MAP = approximate-circles). Groups blocked in either direction
+ * are hidden.
  */
 
 export async function getGroupsThatLikedMe(userId: string): Promise<LikedMeGroupDTO[]> {
-  const myGroup = await prisma.group.findUnique({ where: { userId }, select: { id: true } });
+  const myGroup = await prisma.group.findUnique({
+    where: { userId },
+    select: { id: true, latitude: true, longitude: true },
+  });
   if (!myGroup) return [];
 
   const [{ groupIds: blockedGroupIds }, incomingLikes] = await Promise.all([
@@ -56,6 +62,12 @@ export async function getGroupsThatLikedMe(userId: string): Promise<LikedMeGroup
   ]);
   const likedBack = new Set(outgoingLikes.map((l) => l.toGroupId));
 
+  const distanceTo = (lat: number | null, lon: number | null): number | null => {
+    if (myGroup.latitude === null || myGroup.longitude === null || lat === null || lon === null) return null;
+    const km = haversineKm(myGroup.latitude, myGroup.longitude, lat, lon);
+    return Number.isFinite(km) ? roundDistanceKm(km) : null;
+  };
+
   return visible.map((group) => ({
     id: group.id,
     user: { ...group.user, image: toPublicUrl(group.user.image) },
@@ -65,8 +77,8 @@ export async function getGroupsThatLikedMe(userId: string): Promise<LikedMeGroup
     gender: group.gender,
     ageMin: group.ageMin,
     ageMax: group.ageMax,
-    latitude: group.latitude,
-    longitude: group.longitude,
+    distanceKm: distanceTo(group.latitude, group.longitude),
+    area: approximateArea(group.latitude, group.longitude),
     createdAt: group.createdAt.toISOString(),
     likedByCurrentUser: likedBack.has(group.id),
     isMutualLike: likedBack.has(group.id),

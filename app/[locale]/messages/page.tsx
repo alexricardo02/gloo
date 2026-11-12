@@ -259,6 +259,7 @@ export default function MessagesPage() {
                 {t("listView") || "List"}
               </button>
               <button
+                data-testid="likes-view-map"
                 onClick={() => setViewMode("map")}
                 className={`px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${viewMode === "map"
                     ? "bg-primary text-on-primary font-black"
