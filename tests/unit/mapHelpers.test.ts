@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { haversineKm } from "@/lib/geo";
-import { MASK_RADIUS_METERS, maskedCenter, offsetPoint, secureRandom } from "@/lib/eventMask";
+import { destinationPoint, MASK_RADIUS_METERS, maskedCenter } from "@/lib/eventMask";
+import { secureRandomUnit } from "@/lib/secureRandom";
 import { nightOf } from "@/lib/venueNight";
 import {
   CONTACT_PLACEHOLDER,
@@ -21,7 +22,77 @@ import {
   resetEventCleanupForTests,
 } from "@/lib/eventRetention";
 
-describe("eventMask (S3, random-offset-circle)", () => {
+// Real CSPRNG by default; individual tests can queue fixed draws.
+vi.mock("@/lib/secureRandom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/secureRandom")>();
+  return { secureRandomUnit: vi.fn(actual.secureRandomUnit) };
+});
+
+describe("secureRandomUnit (lib/secureRandom.ts)", () => {
+  it("returns floats in [0, 1), roughly uniform over 10 buckets", async () => {
+    const { secureRandomUnit: real } = await vi.importActual<typeof import("@/lib/secureRandom")>("@/lib/secureRandom");
+    const N = 100_000;
+    const buckets = new Array(10).fill(0);
+    let sum = 0;
+    let min = Infinity;
+    let max = -Infinity;
+    for (let i = 0; i < N; i += 1) {
+      const u = real();
+      if (u < min) min = u;
+      if (u > max) max = u;
+      buckets[Math.floor(u * 10)] += 1;
+      sum += u;
+    }
+    expect(min).toBeGreaterThanOrEqual(0);
+    expect(max).toBeLessThan(1);
+    // Expected 10,000 per bucket; sd ~95, so ±600 is > 6 sd.
+    for (const count of buckets) {
+      expect(count).toBeGreaterThan(N / 10 - 600);
+      expect(count).toBeLessThan(N / 10 + 600);
+    }
+    expect(sum / N).toBeGreaterThan(0.495);
+    expect(sum / N).toBeLessThan(0.505);
+    // 53-bit resolution: values are multiples of 2^-53.
+    expect(Number.isInteger(real() * 2 ** 53)).toBe(true);
+  });
+});
+
+describe("destinationPoint (pure geometry)", () => {
+  const meters = (a: [number, number], b: [number, number]) => haversineKm(a[0], a[1], b[0], b[1]) * 1000;
+
+  it("goes due north: latitude grows by d / R, longitude unchanged", () => {
+    const [lat, lon] = destinationPoint(50, 8, 1000, 0);
+    expect(lat).toBeCloseTo(50 + (1 / 6371) * (180 / Math.PI), 10);
+    expect(lon).toBeCloseTo(8, 12);
+    expect(meters([50, 8], [lat, lon])).toBeCloseTo(1000, 6);
+  });
+
+  it("goes due east along the equator by d / R degrees", () => {
+    const [lat, lon] = destinationPoint(0, 0, 10_000, Math.PI / 2);
+    expect(lat).toBeCloseTo(0, 12);
+    expect(lon).toBeCloseTo((10 / 6371) * (180 / Math.PI), 10);
+  });
+
+  it("goes due south and west", () => {
+    expect(destinationPoint(50, 8, 1000, Math.PI)[0]).toBeCloseTo(50 - (1 / 6371) * (180 / Math.PI), 10);
+    expect(destinationPoint(0, 0, 10_000, (3 * Math.PI) / 2)[1]).toBeCloseTo(-(10 / 6371) * (180 / Math.PI), 10);
+  });
+
+  it("wraps longitude across the antimeridian into [-180, 180)", () => {
+    const [, east] = destinationPoint(10, 179.9999, 400, Math.PI / 2);
+    expect(east).toBeLessThan(-179.99);
+    expect(east).toBeGreaterThanOrEqual(-180);
+    const [, west] = destinationPoint(10, -179.9999, 400, (3 * Math.PI) / 2);
+    expect(west).toBeGreaterThan(179.99);
+    expect(west).toBeLessThan(180);
+    expect(destinationPoint(0, 180, 0, 0)[1]).toBe(-180);
+    expect(destinationPoint(50, 8, 0, 1.234)).toEqual([50, 8]);
+  });
+});
+
+describe("maskedCenter (S3, random-offset-circle)", () => {
+  afterEach(() => vi.mocked(secureRandomUnit).mockClear());
+
   it("always keeps the exact point within MASK_RADIUS_METERS of the masked center", () => {
     for (let i = 0; i < 2000; i += 1) {
       const lat = -80 + Math.random() * 160;
@@ -31,12 +102,16 @@ describe("eventMask (S3, random-offset-circle)", () => {
     }
   });
 
-  it("uses the full radius and every direction", () => {
-    const [north] = offsetPoint(50, 8, 0, MASK_RADIUS_METERS);
-    expect(haversineKm(50, 8, north, 8) * 1000).toBeCloseTo(MASK_RADIUS_METERS, 6);
-    const [, east] = maskedCenter(50, 8, (() => { let n = 0; return () => [0.25, 0.999999][n++ % 2]; })());
-    expect(east).toBeGreaterThan(8);
-    expect(maskedCenter(50, 8, () => 0)).toEqual([50, 8]);
+  it("draws only from secureRandomUnit: bearing = 2π·u1, distance = R·sqrt(u2)", () => {
+    vi.mocked(secureRandomUnit).mockReturnValueOnce(0.25).mockReturnValueOnce(0.25); // east, R/2
+    const [lat, lon] = maskedCenter(0, 0);
+    expect(secureRandomUnit).toHaveBeenCalledTimes(2);
+    expect(lat).toBeCloseTo(0, 12);
+    expect(haversineKm(0, 0, lat, lon) * 1000).toBeCloseTo(MASK_RADIUS_METERS / 2, 6);
+    expect(lon).toBeGreaterThan(0);
+
+    vi.mocked(secureRandomUnit).mockReturnValueOnce(0).mockReturnValueOnce(0);
+    expect(maskedCenter(50, 8)).toEqual([50, 8]);
   });
 
   it("is uniform over the circle's AREA: ~25% of masked centers within R/2 (not ~50%)", () => {
@@ -45,35 +120,14 @@ describe("eventMask (S3, random-offset-circle)", () => {
     let max = 0;
     for (let i = 0; i < N; i += 1) {
       const [mLat, mLon] = maskedCenter(50, 8);
-      const meters = haversineKm(50, 8, mLat, mLon) * 1000;
-      if (meters <= MASK_RADIUS_METERS / 2) inner += 1;
-      max = Math.max(max, meters);
+      const m = haversineKm(50, 8, mLat, mLon) * 1000;
+      if (m <= MASK_RADIUS_METERS / 2) inner += 1;
+      max = Math.max(max, m);
     }
     expect(inner / N).toBeGreaterThan(0.23);
     expect(inner / N).toBeLessThan(0.27);
     expect(max).toBeGreaterThan(MASK_RADIUS_METERS * 0.99);
     expect(max).toBeLessThanOrEqual(MASK_RADIUS_METERS + 1e-6);
-  });
-
-  it("maps u to distance R * sqrt(u)", () => {
-    // random() is called for the angle first, then for the distance.
-    const draws = (angle: number, u: number) => { let n = 0; return () => [angle, u][n++ % 2]; };
-    const [north] = maskedCenter(50, 8, draws(0, 0.25));
-    expect(haversineKm(50, 8, north, 8) * 1000).toBeCloseTo(MASK_RADIUS_METERS / 2, 6);
-  });
-
-  it("wraps across the antimeridian", () => {
-    const [, lon] = offsetPoint(10, 179.9999, Math.PI / 2, 400);
-    expect(lon).toBeLessThan(-179.99);
-  });
-
-  it("secureRandom is uniform-ish in [0, 1)", () => {
-    const samples = Array.from({ length: 5000 }, secureRandom);
-    expect(Math.min(...samples)).toBeGreaterThanOrEqual(0);
-    expect(Math.max(...samples)).toBeLessThan(1);
-    const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
-    expect(mean).toBeGreaterThan(0.45);
-    expect(mean).toBeLessThan(0.55);
   });
 });
 

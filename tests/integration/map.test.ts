@@ -15,7 +15,7 @@ import {
 import { haversineKm } from "@/lib/geo";
 import { MASK_RADIUS_METERS } from "@/lib/mapConfig";
 import { cleanupExpiredEvents, cleanupOldVenueAttendance } from "@/lib/eventRetention";
-import { offsetPoint } from "@/lib/eventMask";
+import { destinationPoint } from "@/lib/eventMask";
 import { PREPARTY_RADIUS_KM } from "@/lib/mapData";
 import { canonicalPair } from "@/lib/chats";
 import { fakeCookieStore, sessionCookiesFor } from "./helpers/session";
@@ -234,7 +234,7 @@ describe("GET /api/map pre-party masking (S3)", () => {
     await signInAs(viewer.userId);
 
     const centerAt = async (km: number) => {
-      const [lat, lng] = offsetPoint(maskedLatitude, maskedLongitude, Math.PI / 2, km * 1000); // due east
+      const [lat, lng] = destinationPoint(maskedLatitude, maskedLongitude, km * 1000, Math.PI / 2); // due east
       return (await fetchMap(`?lat=${lat}&lng=${lng}`)).body.events.map((e) => e.id);
     };
     expect(await centerAt(0)).toContain(eventId);
