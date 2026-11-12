@@ -47,7 +47,7 @@ The app supports a **guest mode** that lets anyone browse content without an acc
 - **Leaflet Integration:** Custom interactive map to explore the city's nightlife.
 - **Venues:** See public bars and clubs, and check how many groups are attending tonight.
 - **Live Pre-Parties:** Host a private pre-party. Other users can "Request Access".
-- **Supabase WebSockets:** Real-time updates for event requests and map markers without reloading the page.
+- **Live updates (smart polling):** Chats, the unread badge, likes and the map refresh through authenticated API routes while the tab is visible. The browser has no database or Realtime access ([docs/realtime-security.md](docs/realtime-security.md)).
 
 ###  Party Games
 - Built-in interactive games to break the ice: *Never Have I Ever*, *Most Likely To*, *Truth or Dare*, and *Busdriver*.
@@ -109,9 +109,8 @@ Open the newly created .env file in your preferred text editor and ensure the da
 DATABASE_URL="postgresql://party_admin:party_password123@localhost:5433/gloo_db?schema=public"
 DIRECT_URL="postgresql://party_admin:party_password123@localhost:5433/gloo_db?schema=public"
 
-# Supabase Client Credentials (used as fallback mock placeholders for local runtime)
+# Supabase project URL (server-side storage + public image URLs; dummy is fine locally)
 NEXT_PUBLIC_SUPABASE_URL="https://dummy-project.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="dummy-anon-key-for-local-compilation-and-testing-purposes"
 
 # Image uploads (see "Image Storage"). Use a SEPARATE dev bucket locally.
 SUPABASE_SERVICE_ROLE_KEY=""
@@ -154,7 +153,8 @@ cp .env.test.example .env.test
 #    (equivalent: docker exec gloo-db createdb -U party_admin gloo_test)
 npm run test:db:create
 
-# 3. Sync the Prisma schema into the test database (re-run after schema changes)
+# 3. Sync the Prisma schema into the test database and apply the deny-all RLS
+#    migration (re-run after schema changes)
 npm run test:db:prepare
 ```
 
@@ -236,11 +236,21 @@ The flag is server-side only. Client components receive it as a prop from their 
 
 ---
 
+## Live Updates & Database Access
+
+The browser never talks to the database or to Supabase Realtime. Reads go through authenticated `GET` route handlers (`app/api/chats`, `app/api/chats/[chatId]`, `app/api/chats/[chatId]/messages`, `app/api/unread`, `app/api/likes`, `app/api/map`) that check the session and chat participation on every request and return only the fields the UI shows. The client polls them with `lib/usePolling.ts`: paused while the tab is hidden, refetched on focus and after the user's own actions, no overlapping requests, back-off on errors. Writes stay server actions.
+
+- **Unread counts:** `Chat.hostALastReadAt` / `hostBLastReadAt`. Messages not sent by me after my marker are unread; opening a chat moves the marker. The nav badge shows the number of chats with unread messages. The other participant's read state is never exposed.
+- **Pagination:** messages are keyset-paginated on `(createdAt, id)` (50 per page, "load older" on scroll); the chat list is cursor-paginated.
+- **Deny-all RLS:** migration `*_rls_deny_all` enables RLS on every `public` table with no policies and revokes all privileges from `anon` / `authenticated`, so the anon key grants no data access. Prisma connects as the table owner and is unaffected. The test DB scripts apply it after `db push`.
+
+Design, env vars and post-deploy verification commands: [docs/realtime-security.md](docs/realtime-security.md).
+
 ## Image Storage
 
 Group photos and profile images live in a **public-read** Supabase Storage bucket. Only the server writes to it.
 
-- **One module.** `lib/storage.ts` (`server-only`) is the only app code that talks to Supabase Storage. It uses `SUPABASE_SERVICE_ROLE_KEY`, a full-access secret that exists only on the server. The anon client in `lib/supabase.ts` is for Realtime only. The bucket has no insert/update/delete policies for `anon` or `authenticated` (see `docs/supabase-storage-policies.sql`).
+- **One module.** `lib/storage.ts` (`server-only`) is the only app code that talks to Supabase Storage. It uses `SUPABASE_SERVICE_ROLE_KEY`, a full-access secret that exists only on the server. The browser has no Supabase client at all (see [Live Updates & Database Access](#live-updates--database-access)). The bucket has no insert/update/delete policies for `anon` or `authenticated` (see `docs/supabase-storage-policies.sql`).
 - **Server-generated keys.** Uploads go to `groups/{groupId}/{uuid}.webp` and `users/{userId}/{uuid}.webp`. Nothing is derived from client input.
 - **Validation and re-encoding.** Every upload passes the magic-byte check in `lib/validateImage.ts` (JPEG, PNG or WebP, max 5 MB; anything else, e.g. HEIC or GIF, gets a localized "unsupported type" error). `lib/imageProcessing.ts` then auto-rotates it, resizes it to at most 1600 px on the longest side, converts it to WebP (quality 80) and strips all metadata (EXIF incl. GPS, XMP, ICC). A group can have at most 6 photos.
 - **The database stores object keys, not URLs.** `Group.photos` and `User.image` hold keys such as `groups/<id>/<uuid>.webp`. Actions turn them into public URLs on read (`toPublicUrl` / `withPhotoUrls` / `withImageUrl`), so the UI still receives full URLs. Values that are not keys (external URLs, `/images/...` assets) are passed through unchanged. Migration `20261111120000_storage_object_keys` converts existing public URLs of the `gloo-images` bucket to keys; preview it read-only with `docs/storage-object-keys-preview.sql`.
@@ -276,7 +286,7 @@ node scripts/storage-orphans.mjs --delete   # deletes the listed orphans
 Gloo is built as a highly available, decoupled Full-Stack Web Application optimized for mobile-first clients. The architecture follows modern cloud-native patterns split into three core layers:
 - **Client/Server Layer:** Next.js 15 (App Router) serving as both the frontend user interface and the backend serverless execution environment (Server Actions).
 - **Data Persistence Layer:** PostgreSQL database hosted on a managed Supabase instance for development/production, and containerized via Docker for local isolation and testing.
-- **Real-Time Communication Layer:** Supabase Realtime Engine managing asynchronous WebSocket connections for instant group matching, messaging notifications, and live map updates.
+- **Live-Update Layer:** Authenticated `GET` route handlers under `app/api/` polled by the client (3 s for an open chat, 20 s for the chat list and unread badge, 60 s for the map and likes; paused while the tab is hidden). Supabase Realtime is not used; every `public` table has deny-all RLS. See [docs/realtime-security.md](docs/realtime-security.md).
 
 ### Environment Configuration & Twelve-Factor Compliance
 
@@ -290,8 +300,7 @@ To spin up the application infrastructure, the following variables must be defin
 | :--- | :--- | :--- |
 | `DATABASE_URL` | Connection pool URL used by Prisma Client for transactional runtime queries. | `postgresql://user:pass@host:6543/postgres` |
 | `DIRECT_URL` | Direct connection URL bypassing connection poolers, strictly required for database schema migrations. | `postgresql://user:pass@host:5432/postgres` |
-| `NEXT_PUBLIC_SUPABASE_URL` | Public API gateway endpoint for the Supabase project instance. | `https://your-project.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anonymous client-side cryptographic key for initializing real-time WebSocket listeners. | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL. Used server-side by `lib/storage.ts` and to build public image URLs. | `https://your-project.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Secret, server only.** Full-access key used by `lib/storage.ts` to upload and delete images. Never commit it or add a `NEXT_PUBLIC_` copy. See [Image Storage](#image-storage). | from Supabase → Project Settings → API Keys |
 | `SUPABASE_STORAGE_BUCKET` | Storage bucket name. Defaults to `gloo-images` (production). Local dev must use a separate bucket. | `gloo-images-dev` |
 | `EMAIL_FLOWS_ENABLED` | Optional. Enables email verification and password recovery; off when unset. See [Email Flows](#email-flows). | `false` |

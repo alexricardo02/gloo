@@ -97,12 +97,84 @@ test.describe('Social Flow (TC15–TC16)', () => {
     await userBPage.waitForURL('**/messages/**', { timeout: 10_000 });
     await waitForAppStable(userBPage);
 
-    // Should see the message from User A (via polling every 3s or real-time)
+    // Should see the message from User A (the open chat polls every 3s)
     const chatInput = userBPage.locator('[data-testid="chat-message-input"]');
     await expect(chatInput).toBeVisible({ timeout: 5_000 });
 
     // Verify the actual message arrived
     await expect(userBPage.getByText(messageText)).toBeVisible({ timeout: 15_000 });
+
+    await userAContext.close();
+    await userBContext.close();
+  });
+
+  test('TC15: Live chat (smart polling): both users see each other\'s messages within seconds; the unread badge updates and clears on open', async ({ browser }) => {
+    await ensureMatch(browser);
+    const stamp = Date.now();
+
+    // ── A opens the chat from the discovery card ──
+    const userAContext = await browser.newContext({ storageState: getAuthFile('A') });
+    const userAPage = await userAContext.newPage();
+    await userAPage.goto(url('en', '/search-groups'));
+    await waitForAppStable(userAPage);
+    await userAPage.locator('[data-testid="message-button"]').first().click();
+    await userAPage.waitForURL('**/en/messages/**', { timeout: 10_000 });
+    await waitForAppStable(userAPage);
+    const chatPath = new URL(userAPage.url()).pathname;
+
+    // ── B opens the same chat (this also marks it as read for B) ──
+    const userBContext = await browser.newContext({ storageState: getAuthFile('B') });
+    const userBPage = await userBContext.newPage();
+    await userBPage.goto(chatPath);
+    await waitForAppStable(userBPage);
+    await expect(userBPage.locator('[data-testid="chat-message-input"]')).toBeVisible();
+
+    // A → B: shown to A immediately (optimistic), to B within a few seconds.
+    const ping = `ping ${stamp}`;
+    await userAPage.locator('[data-testid="chat-message-input"]').fill(ping);
+    await userAPage.locator('[data-testid="chat-send-btn"]').click();
+    await expect(userAPage.getByText(ping)).toHaveCount(1, { timeout: 2_000 });
+    await expect(userBPage.getByText(ping)).toBeVisible({ timeout: 8_000 });
+
+    // B → A
+    const pong = `pong ${stamp}`;
+    await userBPage.locator('[data-testid="chat-message-input"]').fill(pong);
+    await userBPage.locator('[data-testid="chat-send-btn"]').click();
+    await expect(userAPage.getByText(pong)).toBeVisible({ timeout: 8_000 });
+    // Optimistic copy reconciled: exactly one copy of each message.
+    await expect(userBPage.getByText(pong)).toHaveCount(1);
+    await expect(userAPage.getByText(ping)).toHaveCount(1);
+
+    // ── Badge: B leaves the chat (B has read everything so far) ──
+    await userBPage.goto(url('en', '/messages'));
+    await waitForAppStable(userBPage);
+    const badge = userBPage.locator('[data-testid="unread-badge"]');
+    await expect(badge).toHaveCount(0, { timeout: 10_000 });
+
+    // A writes while B is elsewhere: B's badge counts 1 chat with unread messages.
+    const unread = `unread ${stamp}`;
+    await userAPage.locator('[data-testid="chat-message-input"]').fill(unread);
+    await userAPage.locator('[data-testid="chat-send-btn"]').click();
+    await expect(userAPage.getByText(unread)).toBeVisible();
+    await userAPage.waitForTimeout(500);
+
+    await userBPage.reload();
+    await waitForAppStable(userBPage);
+    await expect(badge).toHaveText('1', { timeout: 10_000 });
+
+    // Opening the chat clears it (wait for the mark-as-read server action).
+    const markedRead = userBPage.waitForResponse(
+      (r) => r.request().method() === 'POST' && r.url().includes(chatPath),
+      { timeout: 15_000 },
+    );
+    await userBPage.locator('[data-testid="chat-list-item"]').first().click();
+    await userBPage.waitForURL('**/en/messages/**', { timeout: 10_000 });
+    await expect(userBPage.getByText(unread)).toBeVisible({ timeout: 8_000 });
+    await markedRead;
+
+    await userBPage.goto(url('en', '/messages'));
+    await waitForAppStable(userBPage);
+    await expect(badge).toHaveCount(0, { timeout: 10_000 });
 
     await userAContext.close();
     await userBContext.close();

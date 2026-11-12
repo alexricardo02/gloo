@@ -1,11 +1,12 @@
 import { describe, it, expect, afterAll, vi } from "vitest";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { toggleLike, getDiscoveryGroups, getGroupsThatLikedMe } from "@/app/actions/discoverGroups";
-import { getActiveChats, getChatMessages, openExistingChat, sendMessage } from "@/app/actions/chat";
+import { toggleLike, getDiscoveryGroups } from "@/app/actions/discoverGroups";
+import { openExistingChat, sendMessage } from "@/app/actions/chat";
 import { blockGroupAction, unblockGroupAction } from "@/app/actions/moderation";
 import { ChatCreationError, canonicalPair, ensureChat, lockPair } from "@/lib/chats";
 import { sessionCookiesFor } from "./helpers/session";
+import { fetchChatHeader, fetchChatList, fetchLikes, fetchMessages } from "./helpers/api";
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
@@ -270,8 +271,9 @@ describe("Matching & chat integrity (integration)", () => {
       const after = await getDiscoveryGroups({ distance: 10 });
       expect(after.groups?.find((g) => g.id === b.groupId)?.chatId).toBe(chatId);
 
-      const likedMe = await getGroupsThatLikedMe();
-      expect(likedMe.groups?.find((g) => g.id === b.groupId)?.chatId).toBe(chatId);
+      const likedMe = await fetchLikes();
+      expect(likedMe.status).toBe(200);
+      expect(likedMe.body.groups.find((g) => g.id === b.groupId)?.chatId).toBe(chatId);
     });
   });
 
@@ -282,20 +284,24 @@ describe("Matching & chat integrity (integration)", () => {
       const chatId = await match(a, b);
 
       await signInAs(a.userId);
-      const result = await getChatMessages(chatId);
-      if (!result.ok) throw new Error(result.code);
-      expect(result.data.origin).toBe("MATCH");
-      expect(result.data.messages).toHaveLength(1);
-      expect(result.data.messages[0]).toMatchObject({
+      const header = await fetchChatHeader(chatId);
+      expect(header.status).toBe(200);
+      expect(header.body.isMatch).toBe(true);
+
+      const result = await fetchMessages(chatId);
+      expect(result.status).toBe(200);
+      expect(result.body.messages).toHaveLength(1);
+      expect(result.body.messages[0]).toMatchObject({
         type: "SYSTEM",
         systemKey: "MATCH_CREATED",
-        senderId: null,
-        sender: null,
+        text: null,
+        isOwn: false,
       });
+      expect(result.body.messages[0]).not.toHaveProperty("senderId");
 
-      const list = await getActiveChats();
-      if (!list.ok) throw new Error(list.code);
-      expect(list.data.chats.find((c) => c.id === chatId)).toMatchObject({
+      const list = await fetchChatList();
+      expect(list.status).toBe(200);
+      expect(list.body.items.find((c) => c.id === chatId)).toMatchObject({
         isMatch: true,
         lastMessage: null,
         lastMessageSystemKey: "MATCH_CREATED",
@@ -319,12 +325,12 @@ describe("Matching & chat integrity (integration)", () => {
         [b, a],
       ] as const) {
         await signInAs(me.userId);
-        const list = await getActiveChats();
-        if (!list.ok) throw new Error(list.code);
-        expect(list.data.chats.map((c) => c.id)).not.toContain(chatId);
+        const list = await fetchChatList();
+        expect(list.body.items.map((c) => c.id)).not.toContain(chatId);
 
         const unavailable = { ok: false, code: "NOT_FOUND", messageKey: "blockedChatError" };
-        expect(await getChatMessages(chatId)).toEqual(unavailable);
+        expect((await fetchMessages(chatId)).status).toBe(404);
+        expect((await fetchChatHeader(chatId)).status).toBe(404);
         expect(await sendMessage(chatId, "after the block")).toEqual(unavailable);
         expect(await openExistingChat(other.userId)).toEqual(unavailable);
         expect(await toggleLike(other.groupId, true)).toEqual({ ok: false, code: "NOT_FOUND" });
@@ -336,9 +342,8 @@ describe("Matching & chat integrity (integration)", () => {
       await signInAs(b.userId);
       expect((await unblockGroupAction(a.groupId)).success).toBe(true);
       await signInAs(a.userId);
-      const list = await getActiveChats();
-      if (!list.ok) throw new Error(list.code);
-      expect(list.data.chats.map((c) => c.id)).toContain(chatId);
+      const list = await fetchChatList();
+      expect(list.body.items.map((c) => c.id)).toContain(chatId);
     });
   });
 });

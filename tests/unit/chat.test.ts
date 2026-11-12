@@ -1,21 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getActiveChats } from '@/app/actions/chat';
+import { markChatRead, sendMessage } from '@/app/actions/chat';
+import { toMessageDTO, type MessageRow } from '@/lib/chatData';
 import { prisma } from '@/lib/prisma';
 import { requireUserId, UnauthorizedError } from '@/lib/session';
-import { getBlockSet } from '@/lib/blocks';
+import { getAccessibleChat } from '@/lib/chats';
 
 // --- MOCKS ---
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    chat: {
-      findMany: vi.fn(),
-    },
+    message: { create: vi.fn(), findFirst: vi.fn() },
+    chat: { updateMany: vi.fn() },
   },
 }));
 
 vi.mock('@/lib/session', () => ({
   requireUserId: vi.fn(),
   UnauthorizedError: class UnauthorizedError extends Error {},
+}));
+
+vi.mock('@/lib/chats', () => ({
+  getAccessibleChat: vi.fn(),
+  findChatBetween: vi.fn(),
 }));
 
 vi.mock('@/lib/blocks', () => ({
@@ -27,109 +32,131 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
 
-const host = (name: string, image: string | null = null, photos: string[] | null = null) => ({
-  name,
-  image,
-  group: photos ? { photos } : null,
+const row = (overrides: Partial<MessageRow> = {}): MessageRow => ({
+  id: 'm-1',
+  text: 'hello',
+  senderId: 'user-1',
+  type: 'USER',
+  systemKey: null,
+  createdAt: new Date('2026-05-20T10:00:00Z'),
+  ...overrides,
 });
 
-describe('Chat Server Actions (Unit Tests)', () => {
+const accessible = { id: 'chat-1', origin: 'MATCH' as const, partnerId: 'user-2', isHostA: true };
+
+describe('Chat messages: wire format (B13)', () => {
+  it('own message: isOwn, no sender id', () => {
+    const dto = toMessageDTO(row(), 'user-1');
+    expect(dto).toEqual({
+      id: 'm-1',
+      type: 'USER',
+      text: 'hello',
+      systemKey: null,
+      createdAt: '2026-05-20T10:00:00.000Z',
+      isOwn: true,
+    });
+    expect(dto).not.toHaveProperty('senderId');
+  });
+
+  it("the partner's message and a deleted account's message (senderId null) are not own", () => {
+    expect(toMessageDTO(row({ senderId: 'user-2' }), 'user-1').isOwn).toBe(false);
+    expect(toMessageDTO(row({ senderId: null }), 'user-1').isOwn).toBe(false);
+  });
+
+  it('system notice: no text, no sender, the key for the UI', () => {
+    expect(toMessageDTO(row({ type: 'SYSTEM', senderId: null, systemKey: 'MATCH_CREATED', text: '' }), 'user-1')).toEqual({
+      id: 'm-1',
+      type: 'SYSTEM',
+      text: null,
+      systemKey: 'MATCH_CREATED',
+      createdAt: '2026-05-20T10:00:00.000Z',
+      isOwn: false,
+    });
+  });
+});
+
+describe('Chat server actions (unit)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.mocked(requireUserId).mockResolvedValue('user-1');
-    vi.mocked(getBlockSet).mockResolvedValue({ groupIds: new Set(), userIds: new Set() });
+    vi.mocked(getAccessibleChat).mockResolvedValue(accessible);
   });
 
-  describe('getActiveChats', () => {
+  describe('sendMessage', () => {
     it('returns UNAUTHORIZED without a session', async () => {
       vi.mocked(requireUserId).mockRejectedValue(new UnauthorizedError());
-
-      expect(await getActiveChats()).toEqual({ ok: false, code: 'UNAUTHORIZED' });
+      expect(await sendMessage('chat-1', 'hi')).toEqual({ ok: false, code: 'UNAUTHORIZED' });
     });
 
-    it('formats chats: matches (by origin) first, then newest first; system notices are previewed by key', async () => {
-      const mockChats = [
-        {
-          id: 'chat-1',
-          origin: 'LEGACY',
-          createdAt: new Date('2026-05-20T10:00:00Z'),
-          hostAId: 'user-1', // Current user is Host A
-          hostA: host('Me'),
-          hostB: host('Alice', null, ['alice-group.jpg']),
-          messages: [{ text: 'Hello Alice! Great match', type: 'USER', systemKey: null, createdAt: new Date('2026-05-20T11:00:00Z') }],
-        },
-        {
-          id: 'chat-2',
-          origin: 'LEGACY',
-          createdAt: new Date('2026-05-21T10:00:00Z'),
-          hostAId: 'user-0', // Current user is Host B
-          hostA: host('Bob', 'bob.jpg'),
-          hostB: host('Me'),
-          messages: [{ text: 'Hey there!', type: 'USER', systemKey: null, createdAt: new Date('2026-05-22T09:00:00Z') }],
-        },
-        {
-          id: 'chat-3',
-          origin: 'MATCH',
-          createdAt: new Date('2026-05-19T08:00:00Z'),
-          hostAId: 'user-1',
-          hostA: host('Me'),
-          hostB: host('Charlie'),
-          messages: [{ text: '', type: 'SYSTEM', systemKey: 'MATCH_CREATED', createdAt: new Date('2026-05-19T08:00:00Z') }],
-        },
-        {
-          id: 'chat-4',
-          origin: 'LEGACY',
-          createdAt: new Date('2026-05-18T08:00:00Z'),
-          hostAId: 'user-1',
-          hostA: host('Me'),
-          hostB: host('Dana'),
-          messages: [], // No messages, fallback to chat creation time
-        },
-      ];
-      vi.mocked(prisma.chat.findMany).mockResolvedValueOnce(mockChats as never);
-
-      const result = await getActiveChats();
-      if (!result.ok) throw new Error('expected ok');
-      const chats = result.data.chats;
-
-      // chat-3 is the only MATCH (origin, not message text: chat-1 mentions "match").
-      expect(chats.map((c) => [c.id, c.isMatch])).toEqual([
-        ['chat-3', true],
-        ['chat-2', false],
-        ['chat-1', false],
-        ['chat-4', false],
-      ]);
-
-      expect(chats[0]).toMatchObject({ name: 'Charlie', lastMessage: null, lastMessageSystemKey: 'MATCH_CREATED' });
-      expect(chats[1]).toMatchObject({ name: 'Bob', lastMessage: 'Hey there!', lastMessageSystemKey: null, image: 'bob.jpg' });
-      expect(chats[2]).toMatchObject({ name: 'Alice', image: 'alice-group.jpg' });
-      expect(chats[3]).toMatchObject({
-        name: 'Dana',
-        lastMessage: null,
-        lastMessageSystemKey: null,
-        image: '/images/bg-fallback.jpg',
-        time: new Date('2026-05-18T08:00:00Z'),
+    it('returns the stored message in the wire format (for optimistic reconciliation)', async () => {
+      vi.mocked(prisma.message.create).mockResolvedValue(row({ text: 'hi' }) as never);
+      expect(await sendMessage('chat-1', '  hi  ')).toEqual({
+        ok: true,
+        data: { message: expect.objectContaining({ id: 'm-1', text: 'hi', isOwn: true, type: 'USER' }) },
+      });
+      expect(vi.mocked(prisma.message.create).mock.calls[0][0].data).toEqual({
+        chatId: 'chat-1',
+        senderId: 'user-1',
+        text: 'hi',
+        type: 'USER',
       });
     });
 
-    it('excludes chats with blocked counterparts in the query (hidden for both)', async () => {
-      vi.mocked(getBlockSet).mockResolvedValue({ groupIds: new Set(['g-9']), userIds: new Set(['user-9']) });
-      vi.mocked(prisma.chat.findMany).mockResolvedValueOnce([]);
-
-      await getActiveChats();
-
-      expect(getBlockSet).toHaveBeenCalledWith('user-1');
-      expect(vi.mocked(prisma.chat.findMany).mock.calls[0][0]?.where).toEqual({
-        OR: [{ hostAId: 'user-1' }, { hostBId: 'user-1' }],
-        NOT: [{ hostAId: { in: ['user-9'] } }, { hostBId: { in: ['user-9'] } }],
-      });
+    it('refuses chats that are missing, foreign or blocked (one access check)', async () => {
+      vi.mocked(getAccessibleChat).mockResolvedValue(null);
+      expect(await sendMessage('chat-1', 'hi')).toEqual({ ok: false, code: 'NOT_FOUND', messageKey: 'blockedChatError' });
+      expect(prisma.message.create).not.toHaveBeenCalled();
     });
 
-    it('returns INTERNAL when the database fails', async () => {
-      vi.mocked(prisma.chat.findMany).mockRejectedValueOnce(new Error('Database Timeout'));
+    it('validates the text', async () => {
+      expect(await sendMessage('chat-1', '   ')).toEqual({ ok: false, code: 'VALIDATION', messageKey: 'messageEmpty' });
+      expect(await sendMessage('chat-1', 'x'.repeat(2001))).toEqual({
+        ok: false,
+        code: 'VALIDATION',
+        messageKey: 'messageTooLong',
+      });
+    });
+  });
 
-      expect(await getActiveChats()).toEqual({ ok: false, code: 'INTERNAL' });
+  describe('markChatRead', () => {
+    it('returns UNAUTHORIZED without a session', async () => {
+      vi.mocked(requireUserId).mockRejectedValue(new UnauthorizedError());
+      expect(await markChatRead('chat-1', 'm-1')).toEqual({ ok: false, code: 'UNAUTHORIZED' });
+    });
+
+    it('rejects malformed ids', async () => {
+      expect(await markChatRead('', 'm-1')).toEqual({ ok: false, code: 'VALIDATION' });
+      expect(await markChatRead('chat-1', 'x'.repeat(65))).toEqual({ ok: false, code: 'VALIDATION' });
+    });
+
+    it('moves only my own marker forward, up to the given message', async () => {
+      const createdAt = new Date('2026-05-20T10:00:00Z');
+      vi.mocked(prisma.message.findFirst).mockResolvedValue({ createdAt } as never);
+
+      expect(await markChatRead('chat-1', 'm-1')).toEqual({ ok: true, data: undefined });
+      expect(vi.mocked(prisma.message.findFirst).mock.calls[0][0]?.where).toEqual({ id: 'm-1', chatId: 'chat-1' });
+      expect(vi.mocked(prisma.chat.updateMany).mock.calls[0][0]).toEqual({
+        where: { id: 'chat-1', OR: [{ hostALastReadAt: null }, { hostALastReadAt: { lt: createdAt } }] },
+        data: { hostALastReadAt: createdAt },
+      });
+
+      vi.mocked(getAccessibleChat).mockResolvedValue({ ...accessible, isHostA: false });
+      await markChatRead('chat-1', 'm-1');
+      expect(vi.mocked(prisma.chat.updateMany).mock.calls[1][0]?.data).toEqual({ hostBLastReadAt: createdAt });
+    });
+
+    it('answers NOT_FOUND for inaccessible chats and messages from other chats', async () => {
+      vi.mocked(prisma.message.findFirst).mockResolvedValue(null);
+      expect(await markChatRead('chat-1', 'other-chat-message')).toEqual({
+        ok: false,
+        code: 'NOT_FOUND',
+        messageKey: 'blockedChatError',
+      });
+
+      vi.mocked(getAccessibleChat).mockResolvedValue(null);
+      expect(await markChatRead('chat-1', 'm-1')).toEqual({ ok: false, code: 'NOT_FOUND', messageKey: 'blockedChatError' });
+      expect(prisma.chat.updateMany).not.toHaveBeenCalled();
     });
   });
 });

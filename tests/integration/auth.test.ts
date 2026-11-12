@@ -35,18 +35,6 @@ vi.mock("next/headers", () => ({
 }));
 
 // Supabase is only used for image uploads, not relevant to these flows
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    storage: {
-      from: vi.fn().mockReturnValue({
-        upload: vi.fn().mockResolvedValue({ data: null, error: null }),
-        getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: "" } }),
-        remove: vi.fn().mockResolvedValue({ data: null, error: null }),
-      }),
-    },
-  },
-}));
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Creates a FormData object from a plain key/value record */

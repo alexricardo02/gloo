@@ -1,36 +1,32 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeft, Send, CheckCheck, Loader2, AlertCircle, MoreVertical, Shield, Flag, X } from "lucide-react";
-import { getChatMessages, sendMessage } from "@/app/actions/chat";
+import { markChatRead, sendMessage } from "@/app/actions/chat";
 import { blockGroupAction, reportGroupAction } from "@/app/actions/moderation";
-import { supabase } from "@/lib/supabase";
-
-type MessageWithSender = {
-  id: string;
-  text: string;
-  /** null for system notices and for messages of deleted accounts. */
-  senderId: string | null;
-  /** Missing on rows that arrive over realtime from before the migration. */
-  type?: "USER" | "SYSTEM";
-  systemKey?: string | null;
-  createdAt: string | Date;
-  sender?: { id: string; name: string; image: string | null } | null;
-};
+import { usePolling } from "@/lib/usePolling";
+import { ApiError, getJson, isNotFound, isUnauthorized } from "@/lib/apiClient";
+import { CHAT_POLL_MS } from "@/lib/liveUpdates";
+import type { ChatHeaderDTO, MessagePage } from "@/lib/apiTypes";
+import {
+  type ClientMessage,
+  appendNewer,
+  createPendingMessage,
+  dropPending,
+  isPending,
+  newestConfirmed,
+  newestIncoming,
+  oldestConfirmed,
+  prependOlder,
+  reconcileSent,
+} from "@/lib/chatMessages";
 
 type ChatError = { ok: false; code: string; messageKey?: string };
 
-// BLOCKED_CHAT = hidden-for-both: a missing, foreign or blocked chat answers
-// NOT_FOUND and the page goes back to the chat list.
-const isChatGone = (result: ChatError) => result.code === "NOT_FOUND" || result.code === "UNAUTHORIZED";
-
-type Partner = {
-  id: string;
-  name: string;
-  image: string;
-};
+/** What the next render should do with the scroll position. */
+type ScrollIntent = { kind: "bottom"; smooth: boolean } | { kind: "keep"; height: number; top: number } | null;
 
 export default function ChatDetailPage() {
   const router = useRouter();
@@ -38,9 +34,11 @@ export default function ChatDetailPage() {
   const t = useTranslations("Chat");
   const { chatId } = useParams<{ chatId: string }>();
 
-  const [messages, setMessages] = useState<MessageWithSender[]>([]);
-  const [userId, setUserId] = useState<string>("");
-  const [partner, setPartner] = useState<Partner | null>(null);
+  const [messages, setMessages] = useState<ClientMessage[]>([]);
+  const [header, setHeader] = useState<ChatHeaderDTO | null>(null);
+  const partner = header?.partner ?? null;
+  const [hasOlder, setHasOlder] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -54,13 +52,13 @@ export default function ChatDetailPage() {
   const [isReporting, setIsReporting] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const olderSentinelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Scroll to bottom helper
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+  const scrollIntentRef = useRef<ScrollIntent>(null);
+  const lastMarkedRef = useRef<string | null>(null);
+  const pendingCounterRef = useRef(0);
+  const goneRef = useRef(false);
 
   // Typed server errors -> localized text (keys live in the "Chat" namespace).
   const errorText = useCallback(
@@ -69,106 +67,137 @@ export default function ChatDetailPage() {
     [t],
   );
 
-  // ── Load initial data ──
-  useEffect(() => {
-    async function init() {
-      const result = await getChatMessages(chatId);
-      if (!result.ok) {
-        if (isChatGone(result)) {
-          router.replace(`/${locale}/messages`);
-          return;
-        }
-        setError(errorText(result, "loadFailed"));
+  // BLOCKED_CHAT = hidden-for-both: a missing, foreign or blocked chat answers
+  // 404 and the page goes back to the chat list (after a short notice if the
+  // chat disappeared while open, e.g. because of a block).
+  const leaveChat = useCallback(
+    (withNotice: boolean) => {
+      if (goneRef.current) return;
+      goneRef.current = true;
+      if (!withNotice) {
+        router.replace(`/${locale}/messages`);
+        return;
+      }
+      setError(t("blockedChatError"));
+      setToastType("error");
+      window.setTimeout(() => router.push(`/${locale}/messages`), 2000);
+    },
+    [locale, router, t],
+  );
+
+  // ── Live updates (LIVE_UPDATES = smart-polling, CHAT_POLL_MS while open and
+  //    visible). First run loads the header + newest page; later runs only
+  //    fetch messages newer than the newest one shown (?after=). ──
+  usePolling(async (signal) => {
+    if (goneRef.current) return "stop";
+    try {
+      const newest = newestConfirmed(messages);
+      if (!header) {
+        const [chatHeader, page] = await Promise.all([
+          getJson<ChatHeaderDTO>(`/api/chats/${encodeURIComponent(chatId)}`, signal),
+          getJson<MessagePage>(`/api/chats/${encodeURIComponent(chatId)}/messages`, signal),
+        ]);
+        scrollIntentRef.current = { kind: "bottom", smooth: false };
+        setHeader(chatHeader);
+        setMessages((prev) => appendNewer(prev, page.messages));
+        setHasOlder(page.hasMore);
+        setError(null);
         setIsLoading(false);
         return;
       }
-      setMessages(result.data.messages);
-      setUserId(result.data.userId);
-      setPartner(result.data.partner);
-      setTimeout(scrollToBottom, 100);
-      setIsLoading(false);
-    }
-    init();
-  }, [chatId, scrollToBottom, errorText, locale, router]);
 
-  // ── Supabase real-time subscription (ST0-72) ──
-  useEffect(() => {
-    const channel = supabase
-      .channel(`chat_${chatId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "Message",
-          filter: `chatId=eq.${chatId}`,
-        },
-        (payload) => {
-          const msg = payload.new as MessageWithSender;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
-          setTimeout(scrollToBottom, 100);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [chatId, scrollToBottom]);
-
-  // ST0-101: Real-time listener for blocks – redirect if the chat gets blocked
-  useEffect(() => {
-    const blockChannel = supabase
-      .channel(`block_${chatId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "GroupBlock",
-        },
-        async () => {
-          // Re-check if this conversation is now blocked
-          const result = await getChatMessages(chatId);
-          if (!result.ok) {
-            setError(errorText(result, "blockedChatError"));
-            setTimeout(() => {
-              router.push(`/${locale}/messages`);
-            }, 2000);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(blockChannel);
-    };
-  }, [chatId, locale, router, errorText]);
-
-  // ── Polling fallback: refetch messages every 3s so recipient sees them
-  //     even if Supabase Realtime isn't delivering postgres_changes events
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const result = await getChatMessages(chatId);
-      if (result.ok) {
-        setMessages((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id));
-          const newMsgs = result.data.messages.filter((m) => !existingIds.has(m.id));
-          if (newMsgs.length === 0) return prev;
-          return [...prev, ...newMsgs];
-        });
-      } else if (isChatGone(result)) {
-        router.replace(`/${locale}/messages`);
-      } else {
-        setError(errorText(result, "loadFailed"));
+      const query = newest ? `?after=${encodeURIComponent(newest.id)}` : "";
+      const page = await getJson<MessagePage>(`/api/chats/${encodeURIComponent(chatId)}/messages${query}`, signal);
+      if (page.messages.length > 0) {
+        scrollIntentRef.current = { kind: "bottom", smooth: true };
+        setMessages((prev) => appendNewer(prev, page.messages));
       }
-    }, 3000);
+      if (!newest) setHasOlder(page.hasMore);
+      // More newer messages than one batch: fetch the rest right away.
+      else if (page.hasMore) return "again";
+    } catch (err) {
+      if (signal.aborted) throw err;
+      if (isNotFound(err) || isUnauthorized(err)) {
+        leaveChat(Boolean(header));
+        return "stop";
+      }
+      if (err instanceof ApiError && err.status === 400) {
+        // The cursor message is gone: start over from the newest page.
+        setHeader(null);
+        setMessages((prev) => prev.filter(isPending));
+        throw err;
+      }
+      if (!header) {
+        setError(t("loadFailed"));
+        setIsLoading(false);
+      }
+      throw err;
+    }
+  }, CHAT_POLL_MS);
 
-    return () => clearInterval(interval);
-  }, [chatId, errorText, locale, router]);
+  // ── "Load older" when the top of the list scrolls into view, keeping the
+  //    scroll position (keyset pages of MESSAGE_PAGE_SIZE via ?before=). ──
+  const loadOlder = useCallback(async () => {
+    const oldest = oldestConfirmed(messages);
+    if (!oldest || !hasOlder || isLoadingOlder) return;
+    setIsLoadingOlder(true);
+    try {
+      const page = await getJson<MessagePage>(
+        `/api/chats/${encodeURIComponent(chatId)}/messages?before=${encodeURIComponent(oldest.id)}`,
+      );
+      const scroller = document.scrollingElement ?? document.documentElement;
+      scrollIntentRef.current = { kind: "keep", height: scroller.scrollHeight, top: scroller.scrollTop };
+      setMessages((prev) => prependOlder(prev, page.messages));
+      setHasOlder(page.hasMore);
+    } catch (err) {
+      if (isNotFound(err)) leaveChat(true);
+      else console.error("Failed to load older messages:", err);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [chatId, messages, hasOlder, isLoadingOlder, leaveChat]);
+
+  useEffect(() => {
+    const sentinel = olderSentinelRef.current;
+    if (!sentinel || isLoading || !hasOlder) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadOlder();
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [isLoading, hasOlder, loadOlder]);
+
+  // ── Scroll: to the bottom for new messages, unchanged for older pages ──
+  useLayoutEffect(() => {
+    const intent = scrollIntentRef.current;
+    if (!intent) return;
+    scrollIntentRef.current = null;
+    if (intent.kind === "keep") {
+      const scroller = document.scrollingElement ?? document.documentElement;
+      scroller.scrollTop = intent.top + (scroller.scrollHeight - intent.height);
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: intent.smooth ? "smooth" : "auto" });
+    }
+  }, [messages, isLoading]);
+
+  // ── Read tracking: mark as read up to the newest message from the other
+  //    side when the chat is opened and whenever new ones arrive while it is
+  //    open and visible. Never shown to the other side (READ_RECEIPTS = no). ──
+  const markReadIfVisible = useCallback(() => {
+    if (document.visibilityState === "hidden" || goneRef.current) return;
+    const newest = newestIncoming(messages);
+    if (!newest || newest.id === lastMarkedRef.current) return;
+    lastMarkedRef.current = newest.id;
+    void markChatRead(chatId, newest.id).then((result) => {
+      if (!result.ok && lastMarkedRef.current === newest.id) lastMarkedRef.current = null;
+    });
+  }, [chatId, messages]);
+
+  useEffect(() => {
+    markReadIfVisible();
+    document.addEventListener("visibilitychange", markReadIfVisible);
+    return () => document.removeEventListener("visibilitychange", markReadIfVisible);
+  }, [markReadIfVisible]);
 
   // ── Auto-focus input on load ──
   useEffect(() => {
@@ -176,11 +205,6 @@ export default function ChatDetailPage() {
       inputRef.current?.focus();
     }
   }, [isLoading]);
-
-  // ── Auto scroll on new messages ──
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
 
   // ── Close dropdown on outside click ──
   useEffect(() => {
@@ -195,25 +219,31 @@ export default function ChatDetailPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
-  // ── Send message handler (ST0-71) ──
+  // ── Send message handler (ST0-71): shown immediately (optimistic), then
+  //    replaced by the stored message (deduplicated by id). ──
   const handleSend = async () => {
     if (!newMessage.trim() || isSending) return;
     const textToSend = newMessage;
+    pendingCounterRef.current += 1;
+    const pendingId = `pending-${pendingCounterRef.current}`;
     setIsSending(true);
     setError(null);
     setNewMessage("");
+    scrollIntentRef.current = { kind: "bottom", smooth: true };
+    setMessages((prev) => [...prev, createPendingMessage(pendingId, textToSend.trim())]);
 
     const result = await sendMessage(chatId, textToSend);
     if (!result.ok) {
-      setError(errorText(result, "sendFailed"));
-      setToastType("error");
-      setNewMessage(textToSend);
+      setMessages((prev) => dropPending(prev, pendingId));
+      if (result.code === "NOT_FOUND") {
+        leaveChat(true);
+      } else {
+        setError(errorText(result, "sendFailed"));
+        setToastType("error");
+        setNewMessage(textToSend);
+      }
     } else {
-      const sent = result.data.message;
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === sent.id)) return prev;
-        return [...prev, sent];
-      });
+      setMessages((prev) => reconcileSent(prev, pendingId, result.data.message));
       inputRef.current?.focus();
     }
     setIsSending(false);
@@ -234,6 +264,7 @@ export default function ChatDetailPage() {
     if (result.error) {
       setError(result.error);
     } else {
+      goneRef.current = true;
       router.push(`/${locale}/messages`);
     }
     setIsBlocking(false);
@@ -409,6 +440,11 @@ export default function ChatDetailPage() {
           </div>
         )}
         <div className="flex flex-col gap-2.5 max-w-lg mx-auto">
+          {hasOlder && (
+            <div ref={olderSentinelRef} className="flex justify-center py-2">
+              {isLoadingOlder && <Loader2 className="animate-spin text-primary" size={20} />}
+            </div>
+          )}
           {messages.map((msg) => {
             // MATCH_NOTICE = system-message: no sender, localized from its key.
             if (msg.type === "SYSTEM") {
@@ -421,14 +457,16 @@ export default function ChatDetailPage() {
                 </div>
               );
             }
-            const isOwn = msg.senderId !== null && msg.senderId === userId;
+            const isOwn = msg.isOwn;
+            const pending = isPending(msg);
             return (
               <div
                 key={msg.id}
                 className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[78%] px-4 py-3 rounded-2xl ${
+                  data-pending={pending ? "true" : undefined}
+                  className={`max-w-[78%] px-4 py-3 rounded-2xl transition-opacity ${pending ? "opacity-60" : ""} ${
                     isOwn
                       ? "bg-primary text-on-primary font-medium rounded-br-sm shadow-sm"
                       : "bg-card text-foreground border border-border rounded-bl-sm shadow-sm"

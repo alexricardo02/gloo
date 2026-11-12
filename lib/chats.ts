@@ -120,7 +120,7 @@ export async function ensureChat(
 export async function getAccessibleChat(
   chatId: string,
   userId: string,
-): Promise<{ id: string; origin: ChatOrigin; partnerId: string } | null> {
+): Promise<{ id: string; origin: ChatOrigin; partnerId: string; isHostA: boolean } | null> {
   const chat = await prisma.chat.findUnique({
     where: { id: chatId },
     select: { id: true, origin: true, hostAId: true, hostBId: true },
@@ -130,5 +130,24 @@ export async function getAccessibleChat(
   const partnerId = chat.hostAId === userId ? chat.hostBId : chat.hostAId;
   if (await isBlockedPair(userId, partnerId)) return null;
 
-  return { id: chat.id, origin: chat.origin, partnerId };
+  return { id: chat.id, origin: chat.origin, partnerId, isHostA: chat.hostAId === userId };
+}
+
+/**
+ * Maps each of `otherUserIds` to the id of the chat `userId` has with them
+ * (only chats that exist; blocked counterparts are filtered out by callers).
+ * Lets cards show "go to chat" without exposing anything new.
+ */
+export async function getChatIdsWith(userId: string, otherUserIds: string[]): Promise<Map<string, string>> {
+  if (otherUserIds.length === 0) return new Map();
+  const chats = await prisma.chat.findMany({
+    where: {
+      OR: [
+        { hostAId: userId, hostBId: { in: otherUserIds } },
+        { hostBId: userId, hostAId: { in: otherUserIds } },
+      ],
+    },
+    select: { id: true, hostAId: true, hostBId: true },
+  });
+  return new Map(chats.map((c) => [c.hostAId === userId ? c.hostBId : c.hostAId, c.id]));
 }

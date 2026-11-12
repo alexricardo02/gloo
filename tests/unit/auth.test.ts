@@ -17,22 +17,7 @@ import { verifyAccountAction } from "@/app/actions/verify";
 import { createSession, destroyCurrentSession, getOptionalUserId } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rateLimit';
 
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
-    auth: {
-      getUser: vi.fn(),
-    },
-    storage: {
-      from: vi.fn().mockReturnValue({
-        upload: vi.fn(),
-        getPublicUrl: vi.fn()
-      })
-    }
-  }
-}));
-
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://dummy.supabase.co";
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "dummy-key";
 
 // MOCKS
 vi.mock('@/lib/prisma', () => ({

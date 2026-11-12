@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Search, Map, MessageSquare, User, LogIn, Gamepad2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Search, Map, MessageSquare, User, LogIn, Gamepad2, type LucideIcon } from "lucide-react";
+import { usePolling } from "@/lib/usePolling";
+import { getJson, isUnauthorized } from "@/lib/apiClient";
+import { LIST_POLL_MS } from "@/lib/liveUpdates";
+import type { UnreadSummary } from "@/lib/apiTypes";
 
 interface NavigationProps {
   isGuest?: boolean;
   onSecureClick?: (e: React.MouseEvent) => void;
 }
+
+type NavItem = { id: string; label: string; href: string; icon: LucideIcon };
 
 export default function Navigation({ isGuest, onSecureClick }: NavigationProps) {
   const router = useRouter();
@@ -17,32 +22,28 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
   const pathname = usePathname();
   const t = useTranslations("Dashboard");
 
+  // BADGE_COUNTS = chats-with-unread: number of my chats with messages from
+  // the other side that I have not read yet (server-side, GET /api/unread).
+  // Polled every LIST_POLL_MS while visible, and right away on mount/focus.
   const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (pathname.includes(`/${locale}/messages`)) {
-      setUnreadCount(0);
-    }
-
-    const channel = supabase
-      .channel("global_navigation_notifications")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "Message" },
-        () => {
-          if (!pathname.includes(`/${locale}/messages`)) {
-            setUnreadCount((prev) => prev + 1);
-          }
+  usePolling(
+    async (signal) => {
+      try {
+        const summary = await getJson<UnreadSummary>("/api/unread", signal);
+        setUnreadCount(summary.chatsWithUnread);
+      } catch (error) {
+        if (isUnauthorized(error)) {
+          setUnreadCount(0);
+          return "stop";
         }
-      )
-      .subscribe();
+        throw error;
+      }
+    },
+    LIST_POLL_MS,
+    { enabled: !isGuest },
+  );
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [pathname, locale]);
-
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       id: "discover",
       label: t("navGroups"),
@@ -75,7 +76,7 @@ export default function Navigation({ isGuest, onSecureClick }: NavigationProps) 
     },
   ];
 
-  const handleNavigation = (e: React.MouseEvent, item: any) => {
+  const handleNavigation = (e: React.MouseEvent, item: NavItem) => {
     e.preventDefault();
     if (isGuest && (item.id === "messages" || item.id === "profile")) {
       if (onSecureClick) {

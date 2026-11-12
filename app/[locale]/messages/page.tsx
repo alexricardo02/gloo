@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import Navigation from "@/app/components/Navigation";
@@ -8,46 +8,11 @@ import LikedMeCard from "@/app/components/LikedMeCard";
 import PageHeader from "@/app/components/PageHeader";
 import { Search, MoreVertical, CheckCheck, Loader2, Heart, Map, List, Shield, Flag, X } from "lucide-react";
 import Image from "next/image";
-import { getActiveChats } from "@/app/actions/chat";
-import { getGroupsThatLikedMe } from "@/app/actions/discoverGroups";
 import { getBlockedGroupsAction, unblockGroupAction } from "@/app/actions/moderation";
-import { supabase } from "@/lib/supabase";
-
-type ChatPreview = {
-  id: string;
-  name: string;
-  /** null: no messages yet, or the last message is a system notice. */
-  lastMessage: string | null;
-  /** Set when the last message is a system notice (Chat.systemMessages.<key>). */
-  lastMessageSystemKey: string | null;
-  time: Date | string;
-  unread: number;
-  image: string;
-  isMatch?: boolean;
-};
-
-type LikedGroup = {
-  id: string;
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    image: string | null;
-    username: string | null;
-  };
-  photos: string[];
-  description: string | null;
-  membersCount: number;
-  gender: string;
-  ageMin: number;
-  ageMax: number;
-  latitude: number | null;
-  longitude: number | null;
-  createdAt: string;
-  likedByCurrentUser: boolean;
-  isMutualLike: boolean;
-  chatId: string | null;
-};
+import { usePolling } from "@/lib/usePolling";
+import { getJson, isUnauthorized } from "@/lib/apiClient";
+import { CHAT_LIST_MAX_LIMIT, CHAT_LIST_PAGE_SIZE, LIST_POLL_MS, SLOW_POLL_MS } from "@/lib/liveUpdates";
+import type { ChatListItemDTO, ChatListPage, LikedMeGroupDTO } from "@/lib/apiTypes";
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -57,11 +22,14 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"chats" | "likes">("chats");
 
-  const [chats, setChats] = useState<ChatPreview[]>([]);
+  const [chats, setChats] = useState<ChatListItemDTO[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const [likedGroups, setLikedGroups] = useState<LikedGroup[]>([]);
-  const [isLoadingLikes, setIsLoadingLikes] = useState(false);
+  const [likedGroups, setLikedGroups] = useState<LikedMeGroupDTO[]>([]);
+  const [isLoadingLikes, setIsLoadingLikes] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   const [MapComponent, setMapComponent] = useState<any>(null);
@@ -84,22 +52,74 @@ export default function MessagesPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
-  const loadChats = useCallback(async () => {
-    const response = await getActiveChats();
-    if (response.ok) {
-      setChats(response.data.chats);
-    }
-    setIsLoadingChats(false);
-  }, []);
+  // LIVE_UPDATES = smart-polling (no client-side Supabase): the list is
+  // refreshed every LIST_POLL_MS while the chats tab is open and the page is
+  // visible. A refresh reloads as many chats as are currently shown, so chats
+  // already paged in stay up to date.
+  const loadedChatsRef = useRef(0);
+  useEffect(() => {
+    loadedChatsRef.current = chats.length;
+  }, [chats.length]);
 
-  const loadLikedGroups = useCallback(async () => {
-    setIsLoadingLikes(true);
-    const result = await getGroupsThatLikedMe();
-    if (result.groups) {
-      setLikedGroups(result.groups as LikedGroup[]);
+  const refreshChats = usePolling(
+    async (signal) => {
+      const limit = Math.min(Math.max(loadedChatsRef.current, CHAT_LIST_PAGE_SIZE), CHAT_LIST_MAX_LIMIT);
+      try {
+        const page = await getJson<ChatListPage>(`/api/chats?limit=${limit}`, signal);
+        setChats(page.items);
+        setNextCursor(page.nextCursor);
+        setIsLoadingChats(false);
+      } catch (error) {
+        setIsLoadingChats(false);
+        if (isUnauthorized(error)) return "stop";
+        throw error;
+      }
+    },
+    LIST_POLL_MS,
+    { enabled: activeTab === "chats" },
+  );
+
+  const loadMoreChats = useCallback(async () => {
+    if (!nextCursor || isLoadingMoreChats) return;
+    setIsLoadingMoreChats(true);
+    try {
+      const page = await getJson<ChatListPage>(`/api/chats?cursor=${encodeURIComponent(nextCursor)}`);
+      setChats((current) => {
+        const known = new Set(current.map((c) => c.id));
+        return [...current, ...page.items.filter((c) => !known.has(c.id))];
+      });
+      setNextCursor(page.nextCursor);
+    } catch (error) {
+      console.error("Failed to load more chats:", error);
+    } finally {
+      setIsLoadingMoreChats(false);
     }
-    setIsLoadingLikes(false);
-  }, []);
+  }, [nextCursor, isLoadingMoreChats]);
+
+  // Load the next page when the end of the list scrolls into view.
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !nextCursor || activeTab !== "chats") return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMoreChats();
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [nextCursor, activeTab, loadMoreChats]);
+
+  // "Liked me": SLOW_POLL_MS while visible (also feeds the tab's counter);
+  // refreshed right away after the user likes/unlikes on a card.
+  const refreshLikedGroups = usePolling(async (signal) => {
+    try {
+      const result = await getJson<{ groups: LikedMeGroupDTO[] }>("/api/likes", signal);
+      setLikedGroups(result.groups);
+      setIsLoadingLikes(false);
+    } catch (error) {
+      setIsLoadingLikes(false);
+      if (isUnauthorized(error)) return "stop";
+      throw error;
+    }
+  }, SLOW_POLL_MS);
 
   useEffect(() => {
     if (viewMode === "map" && !MapComponent) {
@@ -112,78 +132,6 @@ export default function MessagesPage() {
         });
     }
   }, [viewMode, MapComponent]);
-
-  useEffect(() => {
-    loadChats();
-    const pollInterval = setInterval(() => {
-      loadChats();
-    }, 5000);
-
-    const channel = supabase
-      .channel("realtime_messages")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "Message" },
-        (payload) => {
-          const newMessage = payload.new;
-          setChats((currentChats) => {
-            const chatIndex = currentChats.findIndex((c) => c.id === newMessage.chatId);
-            if (chatIndex > -1) {
-              const isSystem = newMessage.type === "SYSTEM";
-              const updatedChat = {
-                ...currentChats[chatIndex],
-                lastMessage: isSystem ? null : newMessage.text,
-                lastMessageSystemKey: isSystem ? newMessage.systemKey : null,
-                time: newMessage.createdAt,
-                unread: currentChats[chatIndex].unread + 1,
-              };
-              const newChatsList = [...currentChats];
-              newChatsList.splice(chatIndex, 1);
-              newChatsList.unshift(updatedChat);
-              return newChatsList;
-            } else {
-              loadChats();
-              return currentChats;
-            }
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearInterval(pollInterval);
-      supabase.removeChannel(channel);
-    };
-  }, [loadChats]);
-
-  useEffect(() => {
-    const likesPollInterval = setInterval(() => {
-      loadLikedGroups();
-    }, 5000);
-
-    const likesChannel = supabase
-      .channel("realtime_group_likes")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "GroupLike" },
-        () => {
-          loadLikedGroups();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "GroupLike" },
-        () => {
-          loadLikedGroups();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearInterval(likesPollInterval);
-      supabase.removeChannel(likesChannel);
-    };
-  }, [loadLikedGroups]);
 
   const loadBlockedGroups = useCallback(async () => {
     setIsLoadingBlocked(true);
@@ -199,16 +147,11 @@ export default function MessagesPage() {
     const result = await unblockGroupAction(blockedGroupId);
     if (result.success) {
       setBlockedGroups((prev) => prev.filter((g) => g.blockedGroupId !== blockedGroupId));
-      loadChats();
+      refreshChats();
+      refreshLikedGroups();
     }
     setUnblockingId(null);
   };
-
-  useEffect(() => {
-    if (activeTab === "likes") {
-      loadLikedGroups();
-    }
-  }, [activeTab, loadLikedGroups]);
 
   const formatMessageTime = (dateString: string | Date) => {
     const date = new Date(dateString);
@@ -232,7 +175,7 @@ export default function MessagesPage() {
   const likesCount = likedGroups.length;
 
   // System notices have no sender and are rendered from their key, never from `text`.
-  const previewText = (chat: ChatPreview) => {
+  const previewText = (chat: ChatListItemDTO) => {
     if (chat.lastMessageSystemKey) {
       const key = `systemMessages.${chat.lastMessageSystemKey}`;
       return tChat.has(key) ? tChat(key) : "";
@@ -417,6 +360,12 @@ export default function MessagesPage() {
                 ))}
             </div>
 
+            {!isLoadingChats && nextCursor && (
+              <div ref={loadMoreRef} className="flex justify-center py-4">
+                {isLoadingMoreChats && <Loader2 className="animate-spin text-primary" size={24} />}
+              </div>
+            )}
+
             {!isLoadingChats && chats.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-20 px-10 text-center animate-in fade-in">
                 <div className="w-20 h-20 bg-card rounded-full flex items-center justify-center mb-4 border border-border">
@@ -448,7 +397,7 @@ export default function MessagesPage() {
             {!isLoadingLikes && viewMode === "list" && (
               <div className="flex flex-col gap-3">
                 {filteredLikedGroups.map((group) => (
-                  <LikedMeCard key={group.id} group={group} />
+                  <LikedMeCard key={group.id} group={group} onLikeChange={refreshLikedGroups} />
                 ))}
               </div>
             )}

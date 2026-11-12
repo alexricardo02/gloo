@@ -106,6 +106,11 @@ model Chat {
   /// Why the chat exists. No default on purpose: every creator must state it.
   origin    ChatOrigin
   createdAt DateTime   @default(now())
+  /// Read tracking per participant (lib/chatData.ts). Messages not sent by
+  /// that host and created after this timestamp are unread for them. Never
+  /// exposed to the other participant (READ_RECEIPTS = no).
+  hostALastReadAt DateTime?
+  hostBLastReadAt DateTime?
   hostA     User       @relation("HostA", fields: [hostAId], references: [id], onDelete: Cascade)
   hostB     User       @relation("HostB", fields: [hostBId], references: [id], onDelete: Cascade)
   messages  Message[]
