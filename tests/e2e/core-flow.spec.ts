@@ -153,6 +153,8 @@ test.describe('Core Flow (TC8–TC14, TC21)', () => {
     await expect(card()).toBeVisible({ timeout: 10_000 });
     // DISTANCE_DISPLAY = rounded-km (both E2E groups share one point: "< 1 km").
     await expect(card().getByTestId('group-card-distance')).toHaveText(/^(< 1|\d+) km away$/);
+    // Read the first feed responses now: bodies still streaming at a reload are lost.
+    const firstBodies = await Promise.all(actionBodies);
 
     // Start from "not liked" (TC14 leaves B -> A liked).
     if ((await like().getAttribute('aria-pressed')) === 'true') {
@@ -185,7 +187,7 @@ test.describe('Core Flow (TC8–TC14, TC21)', () => {
     await expect(badge()).toBeVisible();
 
     // Discovery feed responses only (getGroupByUser returns the caller's OWN group).
-    const bodies = (await Promise.all(actionBodies)).filter((body) => body.includes('hasNoGroup'));
+    const bodies = [...firstBodies, ...(await Promise.all(actionBodies))].filter((body) => body.includes('hasNoGroup'));
     expect(bodies.length).toBeGreaterThan(0);
     for (const body of bodies) {
       expect(body).toContain('distanceKm');

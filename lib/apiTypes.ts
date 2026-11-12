@@ -146,41 +146,62 @@ export type DiscoveryFeedPage =
 
 // ── GET /api/map ────────────────────────────────────────────────────────
 
-export type MapAttendeeGroupDTO = {
+/** A group shown in a venue or pre-party list: name and first photo only (no ids, no coordinates). */
+export type MapGroupSummaryDTO = {
+  name: string;
+  photo: string | null;
   membersCount: number;
-  gender: string;
-  photos: string[];
-  user: { name: string };
 };
 
+/**
+ * A venue within VENUE_RADIUS_KM of the requested map center. Counts are for
+ * the current night only (06:00 Europe/Berlin boundary).
+ * VENUE_ATTENDEES_VISIBILITY = count-public-names-logged-in: `attendees` is
+ * null for guests.
+ */
 export type VenueDTO = {
   id: string;
   name: string;
   type: string;
   latitude: number;
   longitude: number;
-  attendees: { id: string; group: MapAttendeeGroupDTO }[];
+  attendeeCount: number;
+  attendees: MapGroupSummaryDTO[] | null;
+  /** My group marked this venue for tonight. */
+  isMine: boolean;
 };
+
+/**
+ * Where a pre-party is, depending on who asks (S3):
+ *  - `exact`: host and groups with an ACCEPTED request;
+ *  - `masked`: everyone else. The center was moved by a random 0..radiusM
+ *    offset once, at creation; the exact point lies inside the circle.
+ */
+export type MapEventLocationDTO =
+  | { kind: "exact"; latitude: number; longitude: number; label: string | null }
+  | { kind: "masked"; center: [number, number]; radiusM: number };
+
+export type AttendanceStatusDTO = "PENDING" | "ACCEPTED" | "REJECTED";
 
 export type MapEventDTO = {
   id: string;
   description: string | null;
-  locationName: string;
-  latitude: number;
-  longitude: number;
-  /** Only events with an end time in the future are listed, so set in practice. */
   endTime: string | null;
   isHost: boolean;
-  /** The caller's own request for this event, if any. */
-  myStatus: "PENDING" | "ACCEPTED" | null;
-  /** Only for an accepted guest. */
-  ownerId: string | null;
-  owner: { name: string; group: { membersCount: number } | null };
-  attendees: { id: string; status: string; group: MapAttendeeGroupDTO }[];
+  /** My group's request. CANCELLED is reported as null (can request again). */
+  myStatus: AttendanceStatusDTO | null;
+  location: MapEventLocationDTO;
+  /** Chat with the host, for an accepted group (ON_ACCEPT = open-chat). */
+  chatId: string | null;
+  owner: { name: string; membersCount: number | null };
+  /** Host: every PENDING/ACCEPTED request; accepted group: accepted groups; others: none. */
+  attendees: { id: string; status: "PENDING" | "ACCEPTED"; group: MapGroupSummaryDTO }[];
 };
 
 export type MapDataDTO = {
   signedIn: boolean;
+  /** Guests and signed-out visitors (GUEST_MAP = venues-only). */
+  isGuest: boolean;
   venues: VenueDTO[];
   events: MapEventDTO[];
   myEvent: { id: string; endTime: string | null } | null;

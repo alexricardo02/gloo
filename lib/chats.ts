@@ -8,8 +8,8 @@ import { isBlockedPair } from "@/lib/blocks";
  * The ONLY place that creates Chat rows.
  *
  * With CHAT_CREATION = match-only, ensureChat() is called from toggleLike()
- * on a mutual like ("MATCH"). "EVENT_ACCESS" is reserved for accepted
- * pre-party attendance (not implemented yet). Server actions must never
+ * on a mutual like ("MATCH") and from respondToEventRequest() when a host
+ * accepts a pre-party access request ("EVENT_ACCESS"). Server actions must never
  * create chats on request of a user (no "get or create chat with X").
  */
 

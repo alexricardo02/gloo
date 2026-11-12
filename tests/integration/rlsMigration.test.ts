@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Client } from "pg";
 import { prisma } from "@/lib/prisma";
-import { applyRlsLockdown, readRlsMigration } from "../applyRlsLockdown";
+import { applyRlsLockdown, beginWithAllTablesLocked, readRlsMigration } from "../applyRlsLockdown";
 
 /**
  * Pack 5 (S2): the deny-all RLS migration, run against the local test DB
@@ -41,7 +41,8 @@ async function expectSqlError(client: Client, sql: string, code: string) {
 describe("rls_deny_all migration (integration, local test DB)", () => {
   it("enables RLS everywhere, drops policies, revokes anon/authenticated (now and for future tables), unpublishes", async () => {
     await withClient(async (client) => {
-      await client.query("BEGIN");
+      // All tables locked up front: no deadlock with other test files' transactions.
+      await beginWithAllTablesLocked(client);
       try {
         // Simulate Supabase's roles and default grants.
         for (const role of ["anon", "authenticated"]) {

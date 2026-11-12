@@ -59,7 +59,44 @@ export async function navigateToTab(page: Page, tabId: string) {
   await waitForAppStable(page);
 }
 
+// ── No external services in E2E ──
+/**
+ * The map's "your location" label comes from GET /api/geocode, which calls
+ * Nominatim from the dev server. Every E2E browser context answers that
+ * route locally instead, and any direct request to Nominatim is aborted, so
+ * no test depends on (or sends test traffic to) an external service.
+ */
+export const GEOCODE_STUB = { name: 'E2E Town' };
+
+export async function stubExternalServices(context: BrowserContext): Promise<void> {
+  await context.route('**/api/geocode**', (route) => route.fulfill({ json: GEOCODE_STUB }));
+  await context.route(/nominatim\.openstreetmap\.org/i, (route) => route.abort('blockedbyclient'));
+}
+
 // ── Extended test fixture ──
-export const test = base.extend({});
+/**
+ * `context` (used by tests that take `page`) and every context a test creates
+ * with `browser.newContext()` get stubExternalServices().
+ */
+export const test = base.extend<object, { stubbedBrowser: void }>({
+  // `provide` is Playwright's `use` (renamed: the React hooks lint rule flags a function named `use`).
+  context: async ({ context }, provide) => {
+    await stubExternalServices(context);
+    await provide(context);
+  },
+  stubbedBrowser: [
+    async ({ browser }, provide) => {
+      const newContext = browser.newContext.bind(browser);
+      browser.newContext = async (...args: Parameters<typeof newContext>) => {
+        const context = await newContext(...args);
+        await stubExternalServices(context);
+        return context;
+      };
+      await provide();
+      browser.newContext = newContext;
+    },
+    { scope: 'worker', auto: true },
+  ],
+});
 
 export { expect } from '@playwright/test';
